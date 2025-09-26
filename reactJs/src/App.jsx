@@ -1,37 +1,78 @@
 import LoginPage from "./pages/Account/LoginPage";
 import RegisterPage from "./pages/Account/RegisterPage";
-import HomePage from "./pages/HomePage"
-import Navbar from "./components/Navbar";
+import HomePage from "./pages/HomePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFoundPage from "./pages/Others/NotFoundPage";
 import { AuthProvider } from "./contexts/AuthContext";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import AdminAccounts from "./pages/Account/AdminAccounts";
+import AdminLayout from "./components/AdminLayout";
+import Layout from "./components/Layout"
+import AdminProducts from "./pages/products/AdminProducts";
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Layout />
         <Routes>
-          <Route path="/login" element={<LoginPage />}></Route>
-          <Route path="/register" element={<RegisterPage />}></Route>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={
+            <RegisterPage />
+          } />
           <Route path="/" element={
-            <ProtectedRoute>
+            <Layout>
               <HomePage></HomePage>
-            </ProtectedRoute>
+            </Layout>
           }></Route>
-          <Route path="*" element={<NotFoundPage />}></Route>
+          {/* <Route path="/admin/register" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <RegisterPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          } /> */}
+
+          <Route path="/admin/login" element={<LoginPage />} />
+
+          <Route path="/admin/register" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <RegisterPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin/accounts" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <AdminAccounts />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <AdminProducts />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <HomePage />
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="*" element={
+            <Layout>
+              <NotFoundPage />
+            </Layout>
+          } />
         </Routes>
       </Router>
     </AuthProvider>
   );
 }
-function Layout() {
-  const location = useLocation();
-  const noNavbarPages = ["/login", "/register"]
-  const showNavbar = !noNavbarPages.includes(location.pathname);
-  return <>
-    {showNavbar && <Navbar></Navbar>}
-  </>
-}
 
-export default App
+export default App;

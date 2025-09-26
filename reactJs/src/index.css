@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap');
 @import "tailwindcss";
-.box{
-  border:3px solid;
-  padding:25px;
+
+body {
+  font-family: 'Noto Sans', sans-serif;
 }
+
