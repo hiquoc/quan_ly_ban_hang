@@ -1,10 +1,15 @@
-import  jwtDecode from "jwt-decode"; 
+import jwtDecode from "jwt-decode"; 
 
 export function getDecodedToken(){
     const token=localStorage.getItem("token");
     if(!token) return null;
     try{
-        return jwtDecode(token);
+        const decoded= jwtDecode(token);
+        if(decoded.exp *1000<Date.now()){
+            localStorage.removeItem("token");
+            return null;
+        }
+        return decoded;
     }catch(error){
         console.log("Invaid token: ",error);
         return null;
