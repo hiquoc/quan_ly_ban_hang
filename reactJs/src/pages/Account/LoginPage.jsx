@@ -1,41 +1,80 @@
-import React,{useState} from "react"
-import { useNavigate,Link } from "react-router-dom"
-import { login } from "../../api/authApi"
+import React, { useState, useContext } from "react"
+import { useNavigate, Link } from "react-router-dom"
+import { login } from "../../apis/authApi"
+import { AuthContext } from "../../contexts/AuthContext"
+import { getDecodedToken } from "../../utils/jwt"
+import Popup from "../../components/Popup"
 function LoginPage() {
-    const [username,setUsername]=useState("")
-    const [password,setPassword]=useState("")
-    const navigate=useNavigate()
-    function handleUsername(e){
-        setUsername(e.target.value)
+    const [usernameInput, setUsernameInput] = useState("")
+    const [password, setPassword] = useState("")
+    const [popup, setPopup] = useState({ message: "", type: "error" })
+    const { setUsername, setAccountId, setRole,setOwnerId } = useContext(AuthContext);
+    const navigate = useNavigate()
+
+    function handleUsername(e) {
+        setUsernameInput(e.target.value)
     }
-    function handlePassword(e){
+    function handlePassword(e) {
         setPassword(e.target.value)
     }
-    async function handleLogin(e){
+
+    async function handleLogin(e) {
         e.preventDefault();
-        //check input
-        try{
-            const response=await login(username,password);
-            console.log("Login success: ",response.data);
-            localStorage.setItem("token",response.data.token)
+
+        if (!usernameInput || !password) {
+            setPopup({ message: "Vui lòng điền đầy đủ thông tin" });
+            return;
+        }
+        const response = await login(usernameInput, password);
+        if (response?.error) {
+            console.log("Error status:", response.status);
+            console.log("Error message:", response.error);
+
+            setPopup({ message: response.error || "Sai tên tài khoản hoặc mật khẩu" });
+            return;
+        }
+        // console.log(response)
+        localStorage.setItem("token", response.data.token)
+        const decoded = getDecodedToken()
+
+        setUsername(decoded.sub);
+        setAccountId(decoded.id);
+        setRole(decoded.role);
+        setOwnerId(decoded.ownerId)
+        // console.log(decoded.role)
+        if (decoded.role == "CUSTOMER") {
             navigate("/")
-        }
-        catch(error){
-            console.log("Error "+error.response?.data?.error);
-        }
-        
+        } else
+            navigate("/admin")
+
     }
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <form className="bg-white p-8 rounded shadow-md w-80">
-                <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
-                <input onChange={(e)=>handleUsername(e)} type="text" placeholder="Username" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input onChange={(e)=>handlePassword(e)} type="password" placeholder="Password" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <button onClick={(e)=>handleLogin(e)} className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Login</button>
+                <h2 className="text-2xl font-bold mb-6 text-center">Đăng nhập</h2>
+                <input onChange={(e) => handleUsername(e)} type="text" placeholder="Tài khoản hoặc Email" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <input onChange={(e) => handlePassword(e)} type="password" placeholder="Mật khẩu" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+
+                <button onClick={(e) => handleLogin(e)} className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+                    Đăng nhập</button>
                 <p className="mt-4 text-center">
-                    Don't have an account? <Link to="/register" className="text-blue-500">Register</Link>
+                    Chưa có tài khoản? <a href="/register" className="text-blue-500 underline">Đăng ký</a>
                 </p>
+                <div className="text-center">
+                    <a className="text-blue-500"
+                     href="http://localhost:8080/oauth2/authorization/google">
+                        Đăng nhập với Google
+                    </a>
+                </div>
+
             </form>
+            <Popup
+                message={popup.message}
+                type={popup.type}
+                onClose={() => setPopup({ message: "" })}
+                duration={4000}
+            />
         </div>
     )
 }
