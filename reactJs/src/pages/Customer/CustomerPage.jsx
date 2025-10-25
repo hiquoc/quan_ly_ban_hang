@@ -412,7 +412,6 @@ export default function CustomerPage() {
         </div>
 
 
-
         {/* Right Panel: Customer Info + Password */}
         <div className="flex flex-3 flex-col gap-4">
           <div className="bg-white rounded-xl shadow p-6 flex flex-col gap-4">

@@ -41,30 +41,50 @@ api.interceptors.response.use(
     }
 );
 
+
+// export const safeApiCall = async (apiCall) => {
+//     try {
+//         const response = await apiCall();
+//         if (response?.data?.message) {
+//             return { success: response.data.success, message: response.data.message, data: response.data.data };
+//         }
+//         return response;
+//     } catch (err) {
+//         console.error("API call failed:", err);
+//         const message =
+//             err.response?.data?.message || // server-sent message
+//             err.response?.statusText ||     // fallback to status text
+//             err.message ||                  // network error
+//             "Unknown error";
+
+//         const status = err.response?.status || null;
+
+//         return { error: message, status };
+//     }
+// };
 export const safeApiCall = async (apiCall) => {
     try {
         const response = await apiCall();
-        // Prioritize server-sent message if it exists
-        return {
-            success: response?.data?.success ?? true,
-            message: response?.data?.message ?? "Success",
-            data: response?.data?.data ?? null,
-        };
+        if (response?.data?.message) {
+            return { 
+                success: response.data.success, 
+                message: response.data.message, 
+                data: response.data.data 
+            };
+        }
+        return response;
     } catch (err) {
         console.error("API call failed:", err);
-
-        // Prefer server message, then fallback to statusText, then generic message
         const message =
-            err?.response?.data?.message ||   // server-sent message
-            err?.response?.statusText ||      // HTTP status text
-            err?.message ||                   // Axios error message
+            err.response?.data?.message || // backend message
+            err.response?.statusText ||    // fallback
+            err.message ||                 // network/axios error
             "Unknown error";
-
-        const status = err?.response?.status || null;
-
+        const status = err.response?.status || null;
         return { error: message, status };
     }
 };
+
 
 
 export default api;
