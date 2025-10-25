@@ -1,0 +1,63 @@
+# =======================
+# Environment / Secrets
+# =======================
+.env
+*.keystore
+*.jks
+
+# =======================
+# Build / Dependency Folders
+# =======================
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# Gradle
+.gradle/
+build/
+
+# Node / frontend
+node_modules/
+dist/
+out/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# =======================
+# IDE / Editor files
+# =======================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+# VS Code
+.vscode/
+
+# =======================
+# OS generated files
+# =======================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =======================
+# Logs
+# =======================
+*.log
+logs/
+*.tmp
+
+# =======================
+# Temporary / Misc
+# =======================
+*.swp
+*.bak
+*.orig
