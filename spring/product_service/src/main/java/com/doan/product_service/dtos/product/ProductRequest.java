@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -17,10 +18,10 @@ public class ProductRequest {
     private String productCode;
     private String description;
     private String shortDescription;
-    @NotBlank(message="Vui lòng điền doanh mục!")
+    @NotNull(message="Vui lòng điền doanh mục!")
     private Long categoryId;
-    @NotBlank(message="Vui lòng điền thương hiệu!")
+    @NotNull(message="Vui lòng điền thương hiệu!")
     private Long brandId;
     private Map<String, String> technicalSpecs;
-    private String imageUrl;
+    private Long mainVariantId;
 }

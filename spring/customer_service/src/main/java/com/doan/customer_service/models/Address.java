@@ -20,6 +20,12 @@ public class Address {
     @JsonIgnore
     private Customer customer;
 
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private String phone;
+
     @Column(nullable = false, length = 255)
     private String street;
 
@@ -41,8 +47,10 @@ public class Address {
     @Column(name = "updated_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
-    public Address(Customer customer ,String street,String ward,String district,String city){
+    public Address(Customer customer ,String name,String phone,String street,String ward,String district,String city){
         this.customer=customer;
+        this.name=name;
+        this.phone=phone;
         this.street=street;
         this.ward=ward;
         this.district=district;

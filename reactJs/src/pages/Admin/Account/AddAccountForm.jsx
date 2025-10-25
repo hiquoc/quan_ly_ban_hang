@@ -28,7 +28,6 @@ function AddAccountForm({ onClose, onSuccess }) {
                 return;
             }
         }
-        //chỉ cho phép số từ 9-12 chữ số
         if (phone) {
             const phoneRegex = /^[0-9]{9,12}$/;
             if (!phoneRegex.test(phone)) {
@@ -47,33 +46,40 @@ function AddAccountForm({ onClose, onSuccess }) {
         onSuccess && onSuccess(response.data);
     }
 
-
+    const inputClass = "border rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-700";
+    
     return (
-        <div className="p-6 bg-white rounded shadow-md w-96">
-            <h3 className="text-xl font-semibold mb-4">Thêm tài khoản mới</h3>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                <input value={username} onChange={e => setUsername(e.target.value)} type="text" placeholder="Tài khoản" className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Mật khẩu" className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input value={rePassword} onChange={e => setRePassword(e.target.value)} type="password" placeholder="Nhập lại mật khẩu" className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input value={fullName} onChange={e => setFullName(e.target.value)} type="text" placeholder="Họ và tên" className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input value={email} onChange={e => setEmail(e.target.value)} type="text" placeholder="Email" className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input value={phone} onChange={e => setPhone(e.target.value)} type="text" placeholder="Số điện thoại" className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
 
-                <div className="flex justify-end gap-2 mt-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Hủy</button>
-                    <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Tạo</button>
-                </div>
-            </form>
+            {/* Modal */}
+            <div className="relative bg-white rounded shadow-xl w-full max-w-md p-6 z-10" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-2xl font-bold mb-6 text-black">Thêm tài khoản mới</h3>
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <input value={username} onChange={e => setUsername(e.target.value)} type="text" placeholder="Tài khoản" className={inputClass} />
+                    <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Mật khẩu" className={inputClass} />
+                    <input value={rePassword} onChange={e => setRePassword(e.target.value)} type="password" placeholder="Nhập lại mật khẩu" className={inputClass} />
+                    <input value={fullName} onChange={e => setFullName(e.target.value)} type="text" placeholder="Họ và tên" className={inputClass} />
+                    <input value={email} onChange={e => setEmail(e.target.value)} type="text" placeholder="Email" className={inputClass} />
+                    <input value={phone} onChange={e => setPhone(e.target.value)} type="text" placeholder="Số điện thoại" className={inputClass} />
 
-            <Popup
-                message={popup.message}
-                type={popup.type}
-                onClose={() => {
-                    setPopup({ message: "" });
-                    if (popup.type === "success") onClose();
-                }}
-                duration={3000}
-            />
+                    <div className="flex justify-end gap-3 mt-4">
+                        <button type="button" onClick={onClose} className="px-5 py-2 bg-gray-300 text-black rounded hover:bg-gray-400 transition">Hủy</button>
+                        <button type="submit" className="px-5 py-2 bg-black text-white rounded hover:bg-gray-800 transition">Tạo</button>
+                    </div>
+                </form>
+
+                <Popup
+                    message={popup.message}
+                    type={popup.type}
+                    onClose={() => {
+                        setPopup({ message: "" });
+                        if (popup.type === "success") onClose();
+                    }}
+                    duration={3000}
+                />
+            </div>
         </div>
     );
 }

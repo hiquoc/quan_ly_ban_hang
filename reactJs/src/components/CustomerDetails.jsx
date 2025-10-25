@@ -13,7 +13,6 @@ function CustomerDetails({ customerId, onClose }) {
     const fetchCustomer = async () => {
       setLoading(true);
       setError(null);
-
       try {
         const response = await getCustomerDetails(customerId);
         if (response?.error) {
@@ -21,9 +20,7 @@ function CustomerDetails({ customerId, onClose }) {
           setCustomer(null);
         } else {
           setCustomer(response.data);
-          if (response.data.addresses?.length > 0) {
-            setSelectedAddress(response.data.addresses[0]);
-          }
+          if (response.data.addresses?.length > 0) setSelectedAddress(response.data.addresses[0]);
         }
       } catch (err) {
         console.error("Failed to fetch customer:", err);
@@ -44,22 +41,19 @@ function CustomerDetails({ customerId, onClose }) {
   if (error) return <div className="p-4 text-red-500">{error}</div>;
   if (!customer) return null;
 
-  const inputClass = "border  rounded px-2 py-1 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400";
-  const labelClass = "font-semibold  text-sm";
+  const inputClass = "border rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-black";
+  const labelClass = "font-semibold text-sm text-gray-700";
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      ></div>
-      <div className="relative p-6 bg-white rounded-xl shadow-lg w-full max-w-4xl mx-auto"
-        onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-2xl font-semibold mb-4 text-blue-800">Thông tin khách hàng</h3>
+      <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
 
-        <div className="grid grid-cols-2 gap-4">
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl mx-auto p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-2xl font-bold mb-6 text-black">Thông tin khách hàng</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left Column */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <label className={labelClass}>ID:</label>
             <input className={inputClass} value={customer.id || "-"} readOnly />
 
@@ -86,7 +80,7 @@ function CustomerDetails({ customerId, onClose }) {
           </div>
 
           {/* Right Column */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <label className={labelClass}>Tổng đơn hàng:</label>
             <input className={inputClass} value={customer.totalOrders ?? 0} readOnly />
 
@@ -114,7 +108,7 @@ function CustomerDetails({ customerId, onClose }) {
               >
                 {customer.addresses.map((addr, idx) => (
                   <option key={idx} value={JSON.stringify(addr)}>
-                    {addr.street}, {addr.ward}, {addr.district}, {addr.city}, {addr.isMain}
+                    {addr.street}, {addr.ward}, {addr.district}, {addr.city} {addr.isMain ? "(Mặc định)" : ""}
                   </option>
                 ))}
               </select>
@@ -124,19 +118,19 @@ function CustomerDetails({ customerId, onClose }) {
 
             {selectedAddress && (
               <textarea
-                className={inputClass + " mt-1 resize-none"}
+                className={`${inputClass} mt-1 resize-none`}
                 rows={2}
                 readOnly
-                value={`${selectedAddress.street}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}, ${selectedAddress.isMain}`}
+                value={`${selectedAddress.street}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}${selectedAddress.isMain ? " (Mặc định)" : ""}`}
               />
             )}
           </div>
         </div>
 
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
           >
             Đóng
           </button>

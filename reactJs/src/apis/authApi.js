@@ -9,15 +9,25 @@ export const customerRegister = (username, password, fullName, phone, email) =>
 export const staffRegister = (username, password, fullName, phone, email) =>
   safeApiCall(() => api.post("auth/secure/register", { username, password, fullName, phone, email }));
 
-export const changePassword=(newPassword,oldPassword) =>
-  safeApiCall(()=>api.patch("auth/secure/accounts",{newPassword,oldPassword}));
+export const changePassword = (newPassword, oldPassword) =>
+  safeApiCall(() => api.patch("auth/secure/accounts", { newPassword, oldPassword }));
 
-  
 
-export const getAllAccounts = () =>
-  safeApiCall(() => api.get("auth/secure/accounts"));
 
-export const changeAccountRole = async (accountId,roleId) => {
+export const getAllAccounts = (page, size, keyword, type, active, roleId) => {
+  const params = {};
+  if (page != null) params.page = page;
+  if (size != null) params.size = size;
+  if (keyword) params.keyword = keyword;
+  if (type) params.type = type;
+  if (active != null) params.active = active;
+  if (roleId != null) params.roleId = roleId;
+
+  return safeApiCall(() => api.get("auth/secure/accounts", { params }));
+};
+
+
+export const changeAccountRole = async (accountId, roleId) => {
   const result = await safeApiCall(() => api.patch(`auth/secure/accounts/${accountId}/role/${roleId}`));
   if (result?.error) return { error: result.error };
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { changeCategoryActive, createCategory, getAllCategories, updateCategory, deleteCategory } from "../../../apis/productApi";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import { FiRefreshCw } from "react-icons/fi";
+import { FiRefreshCw, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 export default function CategoryManager() {
   const [categories, setCategories] = useState([]);
@@ -13,18 +13,19 @@ export default function CategoryManager() {
     imageUrl: "",
     isActive: false,
   });
+  const [imageFile, setImageFile] = useState(null);
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
   const [popup, setPopup] = useState({ message: "" });
   const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
   const [editingCategoryId, setEditingCategoryId] = useState(null);
 
+  const [status, setStatus] = useState(null);
+  const [page, setPage] = useState(0);
+  const [totalPage, setTotalPage] = useState(0)
   const [searchText, setSearchText] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-
-
 
   useEffect(() => {
-    handleLoadCategories();
+    handleLoadCategories(0);
   }, []);
 
   useEffect(() => {
@@ -36,19 +37,20 @@ export default function CategoryManager() {
     }
   }, [form.name]);
 
-  const handleLoadCategories = async () => {
-    const res = await getAllCategories();
+  const handleLoadCategories = async (currentPage = page, newStatus = status) => {
+    const res = await getAllCategories(currentPage, 20, searchText, newStatus);
     if (res.error) {
       console.error(res.error);
       setCategories([]);
       setPopup({ message: "Có lỗi khi lấy dữ liệu danh mục!", type: "error" });
       return;
     }
-    setCategories(res.data);
+    setCategories(res.data.content);
+    setTotalPage(res.data.totalPages)
   }
 
   const handleCreateCategory = async () => {
-    const response = await createCategory(form.name, form.slug, form.imageUrl);
+    const response = await createCategory(form.name, form.slug, imageFile || undefined);
 
     if (response?.error) {
       setPopup({ message: response.error, type: "error" });
@@ -59,10 +61,11 @@ export default function CategoryManager() {
     setPopup({ message: response.message || "Tạo danh mục thành công!", type: "success" });
     setShowForm(false);
     setForm({ name: "", slug: "", imageUrl: "", isActive: false });
+    setImageFile(null);
     handleLoadCategories();
   };
   const handleUpdateCategory = async () => {
-    const response = await updateCategory(editingCategoryId, form.name, form.slug, form.imageUrl);
+    const response = await updateCategory(editingCategoryId, form.name, form.slug, imageFile || undefined);
 
     if (response?.error) {
       setPopup({ message: response.error, type: "error" });
@@ -74,6 +77,7 @@ export default function CategoryManager() {
     setShowForm(false);
     setForm({ name: "", slug: "", imageUrl: "", isActive: false });
     setEditingCategoryId(null);
+    setImageFile(null);
     handleLoadCategories();
   };
 
@@ -111,6 +115,7 @@ export default function CategoryManager() {
       isActive: false,
     })
     setShowForm(false)
+    setImageFile(null);
     setIsSlugManuallyEdited(false);
   }
   const toggleCategoryActive = (id, isActive, name) => {
@@ -131,36 +136,16 @@ export default function CategoryManager() {
   const closeConfirmPanel = () => {
     setConfirmPanel({ visible: false, message: "", onConfirm: null });
   };
+  function hanldeSortByStatus() {
+    let newStatus;
+    if (status === null) newStatus = true;
+    else if (status) newStatus = false;
+    else if (!status) newStatus = null;
+    else newStatus = null;
 
-  const filteredCategories = categories
-    .filter((c) =>
-      c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.slug.toLowerCase().includes(searchText.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (!sortConfig.key) return a.id - b.id;
-
-      let aVal = a[sortConfig.key];
-      let bVal = b[sortConfig.key];
-
-      if (typeof aVal === "string") aVal = aVal.toLowerCase();
-      if (typeof bVal === "string") bVal = bVal.toLowerCase();
-
-      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-
-
-  const handleSort = (key) => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-      } else {
-        return { key, direction: "asc" }; // reset previous sort
-      }
-    });
-  };
+    setStatus(newStatus);
+    handleLoadCategories(page, newStatus);
+  }
 
   const generateSlug = (text) => {
     return text
@@ -176,13 +161,13 @@ export default function CategoryManager() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 rounded shadow">
       {/* Header */}
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h2 className="text-2xl font-semibold text-gray-800">Danh mục</h2>
         <div className="flex gap-2">
           <button
-            onClick={handleLoadCategories}
+            onClick={() => handleLoadCategories(0)}
             className="flex items-center px-4 py-2 border border-gray-300 text-gray-800 rounded hover:bg-gray-300 transition"
             title="Reload Categories"
           >
@@ -198,53 +183,57 @@ export default function CategoryManager() {
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-6 flex flex-col sm:flex-row items-center gap-2">
         <input
           type="text"
-          placeholder="Tìm kiếm theo tên hoặc slug..."
+          placeholder="Tìm kiếm theo tên..."
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          className="border p-2 rounded w-80"
+          onChange={e => setSearchText(e.target.value)}
+          className="border p-2 rounded w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <button
+          onClick={() => { handleLoadCategories(0) }}
+          className="w-full sm:w-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+        >
+          Tìm
+        </button>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse shadow rounded-lg overflow-hidden">
-          <thead className="bg-gray-100 text-gray-700 text-left">
+      <div className="overflow-x-auto shadow-md rounded-lg">
+        <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
+          <thead className="bg-gray-200 text-gray-700 text-left">
             <tr>
-              <th className="p-3 border-b text-center">ID</th>
-              <th className="p-3 border-b text-center">Hình ảnh</th>
+              <th className="p-3 text-center border-b border-gray-300">ID</th>
+              <th className="p-3 text-center border-b border-gray-300">Hình ảnh</th>
               <th
-                className="p-3 border-b text-center cursor-pointer select-none"
-                onClick={() => handleSort("name")}
-              >
-                Tên {sortConfig.key === "name" ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
+                className="p-3 text-center border-b border-gray-300 cursor-pointer select-none"
+                onClick={() => handleSort("name")}> Tên
               </th>
 
-              <th className="p-3 border-b text-center">Slug</th>
+              <th className="p-3 text-center border-b border-gray-300">Slug</th>
               <th
-                className="p-3 border-b text-center cursor-pointer select-none"
-                onClick={() => handleSort("isActive")}
+                className={`p-4 text-center border-b border-gray-300 hover:cursor-pointer ${status !== null && status !== undefined ? "underline font-semibold text-blue-600" : "text-gray-700"
+                  }`} onClick={hanldeSortByStatus}
               >
-                Trạng thái {sortConfig.key === "isActive" ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
+                Trạng thái
               </th>
-              <th className="p-3 border-b text-center">Ngày tạo</th>
-              <th className="p-3 border-b text-center">Hành động</th>
+              <th className="p-3 text-center border-b border-gray-300">Ngày tạo</th>
+              <th className="p-3 text-center border-b border-gray-300">Hành động</th>
             </tr>
           </thead>
           <tbody className="bg-white">
-            {filteredCategories.map((c) => (
+            {categories.map((c) => (
               <tr key={c.id} className="hover:bg-gray-50 transition">
-                <td className="p-3 border-b text-center">{c.id}</td>
-                <td className="p-3 border-b text-center">
+                <td className="p-3 border-b border-gray-200 text-center">{c.id}</td>
+                <td className="p-3 border-b border-gray-200 text-center">
                   {c.imageUrl ? (
                     <img src={c.imageUrl} alt={c.name} className="w-16 h-16 object-cover mx-auto rounded" />
                   ) : "-"}
                 </td>
-                <td className="p-3 border-b text-center">{c.name}</td>
-                <td className="p-3 border-b text-center">{c.slug}</td>
-                <td className="p-3 border-b text-center">
+                <td className="p-3 border-b border-gray-200 text-center">{c.name}</td>
+                <td className="p-3 border-b border-gray-200 text-center">{c.slug}</td>
+                <td className="p-3 border-b border-gray-200 text-center">
                   <button
                     className={`px-3 py-1 rounded transition ${c.isActive ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-400 text-white hover:bg-gray-500"}`}
                     onClick={() => toggleCategoryActive(c.id, c.isActive, c.name)}
@@ -252,8 +241,8 @@ export default function CategoryManager() {
                     {c.isActive ? "Hoạt động" : "Đã khóa"}
                   </button>
                 </td>
-                <td className="p-3 border-b text-center">{new Date(c.createdAt).toLocaleDateString("vi-VN")}</td>
-                <td className="p-3 border-b text-center">
+                <td className="p-3 border-b border-gray-200 text-center">{new Date(c.createdAt).toLocaleDateString("vi-VN")}</td>
+                <td className="p-3 border-b border-gray-200 text-center">
                   <div className="inline-flex gap-2">
                     <button
                       className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
@@ -275,7 +264,7 @@ export default function CategoryManager() {
                 </td>
               </tr>
             ))}
-            {filteredCategories.length === 0 && (
+            {categories.length === 0 && (
               <tr>
                 <td colSpan={7} className="text-center p-4 text-gray-500">Không có danh mục phù hợp</td>
               </tr>
@@ -283,7 +272,25 @@ export default function CategoryManager() {
           </tbody>
         </table>
       </div>
-
+      <div className="flex justify-center items-center gap-4 mt-4">
+        <button
+          disabled={page === 0}
+          onClick={() => handleLoadCategories(page - 1)}
+          className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
+        >
+          <FiChevronLeft className="w-5 h-5" />
+          <span className="ml-1">Trước</span>
+        </button>
+        <span className="text-gray-700 font-medium text-center">Trang {page + 1} / {totalPage}</span>
+        <button
+          disabled={page >= totalPage - 1}
+          onClick={() => handleLoadCategories(page + 1)}
+          className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
+        >
+          <span className="mr-1">Sau</span>
+          <FiChevronRight className="w-5 h-5" />
+        </button>
+      </div>
       {/* Add Category Form Popup */}
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
@@ -307,21 +314,23 @@ export default function CategoryManager() {
                 }}
                 className="border p-2 rounded"
               />
-              <input
-                type="text"
-                placeholder="Image URL"
-                value={form.imageUrl}
-                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                className="border p-2 rounded"
-              />
-              {/* Preview Image */}
-              {form.imageUrl && (
-                <img
-                  src={form.imageUrl}
-                  alt="Preview"
-                  className="w-32 h-32 object-cover rounded mt-2 mx-auto"
+              <label className="block">
+                <span className="block text-sm font-medium mb-1">Hình ảnh sản phẩm</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files[0])}
+                  className="block w-full text-sm text-gray-700 border border-gray-300 rounded cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
                 />
-              )}
+                {(imageFile || form.imageUrl) && (
+                  <img
+                    src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
+                    alt="Preview"
+                    className="w-32 h-32 object-cover rounded mt-2 mx-auto border"
+                  />
+                )}
+              </label>
+
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button

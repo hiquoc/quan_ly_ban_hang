@@ -1,6 +1,5 @@
 package com.doan.product_service.dtos.product_variant;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -14,10 +13,12 @@ public class VariantResponse {
     private Long id;
     private Long productId;
     private String productName;
+    private String productSlug;
     private String name;
     private String sku;
 
     private BigDecimal importPrice;
+    private BigDecimal basePrice;
     private BigDecimal sellingPrice;
     private Integer discountPercent;
 
@@ -25,9 +26,8 @@ public class VariantResponse {
     private Map<String, String> imageUrls;
 
     private Long soldCount;
-
-    @JsonProperty("isActive")
     private boolean isActive;
+    private String status;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

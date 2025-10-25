@@ -1,0 +1,51 @@
+server:
+  port: 8087
+spring:
+  application:
+    name: order-service
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/sales_db
+    username: postgres
+    password: 123456
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+order:
+  shipping:
+    fixed-cost: 30000
+    free-threshold: 500000
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+# Feign configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+
+vnpay:
+  tmn-code: 6REDFSH2
+  hash-secret: LOG7LAEJEE11L6SKETHT8HBT0R6XODDA
+  pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  return-url: http://localhost:8080/payments/vnpay-callback
+
+logging:
+  level:
+    com.datn.order_service: DEBUG
+    org.hibernate.SQL: DEBUG

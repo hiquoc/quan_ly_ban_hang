@@ -58,37 +58,37 @@ function RegisterPage() {
         }
         try {
             const response = await customerRegister(username, password, fullName, phone, email);
-            // console.log(response);
+            
             if (response.error != null) {
+                console.log(response);
                 setPopup({ message: response.error, type: "error" })
                 return;
             } 
             setPopup({ message: "Tạo tài khoản thành công!\nVui lòng đăng nhập.",type:"success" });
             setTimeout(() => {
-                setPopup(null);
                 navigate("/login");
             }, 3000);
         }
         catch (error) {
             const status = error.response?.status;
             const message = error.response?.data?.message || "Unknown error";
-            setPopup({ message: message })
-            // console.log("Error status:", status);
-            // console.log("Error message:", message);
+            setPopup({ message: "Có lỗi xảy ra!" })
+            console.log("Error status:", status);
+            console.log("Error message:", message);
         }
     }
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <form className="bg-white p-8 rounded shadow-md w-100">
                 <h2 className="text-3xl font-bold mb-6 text-center">Đăng kí</h2>
-                <input onChange={(e) => handleUsername(e)} type="text" placeholder="Tài khoản" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input onChange={(e) => handlePassword(e)} type="password" placeholder="Mật khẩu" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input onChange={(e) => handleRePassword(e)} type="password" placeholder="Nhập lại mật khẩu" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input onChange={(e) => handleFullName(e)} type="text" placeholder="Họ và tên (không bắt buộc)" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input onChange={(e) => handleEmail(e)} type="text" placeholder="Email (không bắt buộc)" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                <input onChange={(e) => handlePhone(e)} type="text" placeholder="Số điện thoại (không bắt buộc)" className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <input onChange={(e) => handleUsername(e)} type="text" placeholder="Tài khoản" className="w-full px-2 py-2.5 mb-2 border border-gray-400 rounded focus:outline-none focus:ring-1 focus:ring-gray-800" />
+                <input onChange={(e) => handlePassword(e)} type="password" placeholder="Mật khẩu" className="w-full px-2 py-2.5 mb-2 border border-gray-400 rounded focus:outline-none focus:ring-1 focus:ring-gray-800" />
+                <input onChange={(e) => handleRePassword(e)} type="password" placeholder="Nhập lại mật khẩu" className="w-full px-2 py-2.5 mb-2 border border-gray-400 rounded focus:outline-none focus:ring-1 focus:ring-gray-800" />
+                <input onChange={(e) => handleFullName(e)} type="text" placeholder="Họ và tên (không bắt buộc)" className="w-full px-2 py-2.5 mb-2 border border-gray-400 rounded focus:outline-none focus:ring-1 focus:ring-gray-800" />
+                <input onChange={(e) => handleEmail(e)} type="text" placeholder="Email (không bắt buộc)" className="w-full px-2 py-2.5 mb-2 border border-gray-400 rounded focus:outline-none focus:ring-1 focus:ring-gray-800" />
+                <input onChange={(e) => handlePhone(e)} type="text" placeholder="Số điện thoại (không bắt buộc)" className="w-full px-2 py-2.5 mb-4 border border-gray-400 rounded focus:outline-none focus:ring-1 focus:ring-gray-800" />
 
-                <button onClick={(e) => handleSubmit(e)} className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Đăng kí</button>
+                <button onClick={(e) => handleSubmit(e)} className="w-full bg-black text-white py-2.5 rounded hover:bg-gray-800 hover:cursor-pointer">Đăng kí</button>
                 <p className="mt-4 text-center">
                     Đã có tài khoản? <Link to="/login" className="text-blue-600 underline">Đăng nhập</Link>
                 </p>

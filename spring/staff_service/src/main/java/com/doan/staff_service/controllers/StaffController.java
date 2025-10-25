@@ -79,9 +79,31 @@ public class StaffController {
             return errorResponse(ex);
         }
     }
-
+    @GetMapping("/internal/staffs/ids")
+    public ResponseEntity<?> getStaffByIds(@RequestParam List<Long> ids) {
+        try {
+            List <StaffResponse> list = staffService.getStaffByIds(ids).stream().map(staff ->
+                    new StaffResponse(staff.getId(),staff.getFullName(),staff.getEmail(),staff.getPhone(),staff.getCreatedAt())).toList();
+            return ResponseEntity.ok(list);
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @GetMapping("/internal/staffs/keyword")
+    public ResponseEntity<?> getCustomerByKeyword(@RequestParam String keyword,
+                                                  @RequestParam String type,
+                                                  @RequestParam Integer page,
+                                                  @RequestParam Integer size) {
+        try {
+            List <StaffResponse> list = staffService.getStaffByKeyword(keyword,type,page,size).stream().map(staff ->
+                    new StaffResponse(staff.getId(),staff.getFullName(),staff.getEmail(),staff.getPhone(),staff.getCreatedAt())).toList();
+            return ResponseEntity.ok(list);
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
     @GetMapping("/internal/staffs")
-    public ResponseEntity<?> getUserIdByEmail(@RequestParam String email){
+    public ResponseEntity<?> getStaffIdByEmail(@RequestParam String email){
         try{
             Staff staff = staffService.getUserByEmail(email);
             OwnerIdResponse response=new OwnerIdResponse();

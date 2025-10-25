@@ -7,10 +7,15 @@ import com.doan.customer_service.models.Customer;
 import com.doan.customer_service.repositories.AddressRepository;
 import com.doan.customer_service.repositories.CustomerRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -31,6 +36,34 @@ public class CustomerService {
     public List<Customer> getAllCustomers(){
         return customerRepository.findAll();
     }
+    public List<Customer> getCustomerByIds(List<Long> ids){
+        return customerRepository.findAllByIdIn(ids);
+    }
+    // CustomerService.java
+    public Page<Customer> getCustomerByKeyword(String keyword, String type, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (keyword == null || keyword.isEmpty()) {
+            return customerRepository.findAll(pageable);
+        }
+
+        switch (type) {
+            case "name":
+                return customerRepository.findByFullNameContainingIgnoreCase(keyword, pageable);
+            case "email":
+                return customerRepository.findByEmailContainingIgnoreCase(keyword, pageable);
+            case "phone":
+                return customerRepository.findByPhoneContaining(keyword, pageable);
+            default:
+                // Search all fields combined
+                List<Customer> result = new ArrayList<>();
+                result.addAll(customerRepository.findByFullNameContainingIgnoreCase(keyword, pageable).getContent());
+                result.addAll(customerRepository.findByEmailContainingIgnoreCase(keyword, pageable).getContent());
+                result.addAll(customerRepository.findByPhoneContaining(keyword, pageable).getContent());
+                return new PageImpl<>(result, pageable, result.size());
+        }
+    }
+
     public Customer getCustomerByEmail(String email){
         return customerRepository.getCustomerByEmail(email)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy tài khoản với Email!"));

@@ -17,20 +17,23 @@ api.interceptors.request.use((config) => {
 
 let isHandling401 = false;
 
-const ignore401Urls = ["/login"];
+const handle401Urls = ["/admin", "/customer"];
 
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        const url = error.config?.url;
-        const shouldIgnore = ignore401Urls.some(u => url.includes(u));
+        const url = error.config?.url || "";
+        const shouldHandle = handle401Urls.some(u => url.includes(u));
 
-        if (error.response?.status === 401 && !shouldIgnore) {
+        if (error.response?.status === 401 && shouldHandle) {
             if (!isHandling401) {
                 isHandling401 = true;
-                alert("Hết phiên đăng nhập! Vui lòng đăng nhập lại");
-                localStorage.removeItem("token");
-                window.location.href = "/login";
+
+                setTimeout(() => {
+                    alert("Hết phiên đăng nhập! Vui lòng đăng nhập lại");
+                    localStorage.removeItem("token");
+                    window.location.href = "/login";
+                }, 1000);
             }
         }
 
@@ -41,23 +44,28 @@ api.interceptors.response.use(
 export const safeApiCall = async (apiCall) => {
     try {
         const response = await apiCall();
-        if (response?.data?.message) {
-            return { success: response.data.success, message: response.data.message, data: response.data.data };
-        }
-        return response;
+        // Prioritize server-sent message if it exists
+        return {
+            success: response?.data?.success ?? true,
+            message: response?.data?.message ?? "Success",
+            data: response?.data?.data ?? null,
+        };
     } catch (err) {
         console.error("API call failed:", err);
+
+        // Prefer server message, then fallback to statusText, then generic message
         const message =
-            err.response?.data?.message || // server-sent message
-            err.response?.statusText ||     // fallback to status text
-            err.message ||                  // network error
+            err?.response?.data?.message ||   // server-sent message
+            err?.response?.statusText ||      // HTTP status text
+            err?.message ||                   // Axios error message
             "Unknown error";
 
-        const status = err.response?.status || null;
+        const status = err?.response?.status || null;
 
         return { error: message, status };
     }
 };
+
 
 export default api;
 

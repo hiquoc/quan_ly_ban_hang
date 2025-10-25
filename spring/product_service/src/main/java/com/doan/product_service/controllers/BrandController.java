@@ -11,9 +11,11 @@ import com.doan.product_service.services.ProductService;
 import com.doan.product_service.services.ProductVariantService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
@@ -29,11 +31,25 @@ public class BrandController {
     private final BrandService brandService;
     private final CategoryService categoryService;
 
+    @GetMapping("/public/brands")
+    public ResponseEntity<?> getAllActiveBrands(@RequestParam(required = false) Integer page,
+                                                           @RequestParam(required = false) Integer size,
+                                                           @RequestParam(required = false) String keyword){
+        try{
+            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,true);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thương hiệu thành công!",true,brandList));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/brands")
-    public ResponseEntity<?> getAllBrands(){
+    public ResponseEntity<?> getAllBrandsIncludingInActive(@RequestParam(required = false) Integer page,
+                                                           @RequestParam(required = false) Integer size,
+                                                           @RequestParam(required = false) String keyword,
+                                                           @RequestParam(required = false) Boolean active){
         try{
-            List<Brand> brandList=brandService.getAllBrands();
+            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,active);
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thương hiệu thành công!",true,brandList));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -41,9 +57,10 @@ public class BrandController {
     }
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PostMapping("/secure/brands")
-    public ResponseEntity<?> createBrand(@Valid @RequestBody BrandRequest brandRequest){
+    public ResponseEntity<?> createBrand(@RequestPart("brand") @Valid BrandRequest brandRequest,
+                                         @RequestPart(value = "image", required = false) MultipartFile image){
         try {
-            brandService.createBrand(brandRequest);
+            brandService.createBrand(brandRequest,image);
             return ResponseEntity.ok(new ApiResponse<>("Tạo thương hiệu thành công!",true,  null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -51,9 +68,10 @@ public class BrandController {
     }
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PutMapping("/secure/brands/{id}")
-    public ResponseEntity<?> updateBrand(@PathVariable Long id, @Valid @RequestBody BrandRequest brandRequest){
+    public ResponseEntity<?> updateBrand(@PathVariable Long id, @RequestPart("brand") @Valid BrandRequest brandRequest,
+                                         @RequestPart(value = "image", required = false) MultipartFile image){
         try {
-            brandService.updateBrand(id,brandRequest);
+            brandService.updateBrand(id,brandRequest,image);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật thương hiệu thành công!",true,  null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);

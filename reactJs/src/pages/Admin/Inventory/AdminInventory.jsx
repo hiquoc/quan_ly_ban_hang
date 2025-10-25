@@ -1,12 +1,17 @@
 import { useState } from "react";
 import SupplierManager from "./SupplierManager";
+import WarehouseManager from "./WarehouseManager";
+import PurchaseOrderManager from "./PurchaseOrderManager";
+import InventoryManager from "./InventoryManager";
+import InventoryTransactionManager from "./InventoryTransactionManager";
 
 export default function InventoryManagement() {
   const [activeTab, setActiveTab] = useState("INVENTORY");
 
   const tabs = [
     { key: "INVENTORY", label: "Kho hàng" },
-    { key: "TRANSACTION", label: "Giao dịch" },
+    { key: "TRANSACTION", label: "Phiếu kho" },
+    { key: "ORDER", label: "Đơn mua" },
     { key: "WAREHOUSE", label: "Kho" },
     { key: "SUPPLIER", label: "Nhà cung cấp" }
   ];
@@ -37,9 +42,10 @@ export default function InventoryManagement() {
 
       {/* Render content */}
       <div>
-        {/* {activeTab === "INVENTORY" && <InventoryManager />}
-        {activeTab === "TRANSACTION" && <InventoryTransactionManager />}
-        {activeTab === "WAREHOUSE" && <WarehouseManager />} */} 
+        {activeTab === "INVENTORY" && <InventoryManager />} 
+        {activeTab === "TRANSACTION" && <InventoryTransactionManager />} 
+        {activeTab === "ORDER" && <PurchaseOrderManager />}
+        {activeTab === "WAREHOUSE" && <WarehouseManager />} 
         {activeTab === "SUPPLIER" && <SupplierManager />}
       </div>
     </div>

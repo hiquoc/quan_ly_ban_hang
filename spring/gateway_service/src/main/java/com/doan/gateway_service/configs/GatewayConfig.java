@@ -72,6 +72,16 @@ public class GatewayConfig {
                 .route("inventory-secure", r -> r.path("/inventory/secure/**")
                         .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
                         .uri("http://localhost:8085"))
+                // inventory-service
+                .route("cart", r -> r.path("/cart/**")
+                        .filters(f -> f.filter(jwtAuthFilter))
+                        .uri("http://localhost:8086"))
+                .route("order", r -> r.path("/orders/**")
+                        .filters(f -> f.filter(jwtAuthFilter))
+                        .uri("http://localhost:8087"))
+                .route("promotion", r -> r.path("/promotions/**")
+                        .filters(f -> f.filter(jwtAuthFilter))
+                        .uri("http://localhost:8088"))
                 .build();
 
     }

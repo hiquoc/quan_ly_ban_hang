@@ -19,10 +19,9 @@ public class VariantRequest {
     @NotBlank(message="Vui lòng điền sku biến thể!")
     private String sku;
 
-    private BigDecimal sellingPrice;
+    private BigDecimal basePrice;
     private Integer discountPercent;
 
     private Map<String, String> attributes;
 
-    private Map<String, String> imageUrls;
 }

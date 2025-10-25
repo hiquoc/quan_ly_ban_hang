@@ -16,6 +16,10 @@
         <module>customer-service</module>
         <module>product-service</module>
         <module>inventory-service</module>
+        <module>promotion_service</module>
+        <module>cart_service</module>
+        <module>order_service</module>
+        <module>eureka_server</module>
     </modules>
 
     <properties>

@@ -5,10 +5,16 @@ import com.doan.staff_service.models.Staff;
 import com.doan.staff_service.repositories.StaffRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -26,6 +32,33 @@ public class StaffService {
         return staffRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy staff với id:"+id));
     }
+    public List<Staff> getStaffByIds(List<Long> ids){
+        return staffRepository.findAllByIdIn(ids);
+    }
+
+    public Page<Staff> getStaffByKeyword(String keyword, String type, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (keyword == null || keyword.isEmpty()) {
+            return staffRepository.findAll(pageable);
+        }
+
+        switch (type) {
+            case "name":
+                return staffRepository.findByFullNameContainingIgnoreCase(keyword, pageable);
+            case "email":
+                return staffRepository.findByEmailContainingIgnoreCase(keyword, pageable);
+            case "phone":
+                return staffRepository.findByPhoneContaining(keyword, pageable);
+            default:
+                List<Staff> result = new ArrayList<>();
+                result.addAll(staffRepository.findByFullNameContainingIgnoreCase(keyword, pageable).getContent());
+                result.addAll(staffRepository.findByEmailContainingIgnoreCase(keyword, pageable).getContent());
+                result.addAll(staffRepository.findByPhoneContaining(keyword, pageable).getContent());
+                return new PageImpl<>(result, pageable, result.size());
+        }
+    }
+
     @Transactional
     public void updateStaff(Long id,StaffRequest request){
          Staff staff= staffRepository.findById(id)
@@ -68,4 +101,5 @@ public class StaffService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Số điện thoại đã được sử dụng!");
         }
     }
+
 }

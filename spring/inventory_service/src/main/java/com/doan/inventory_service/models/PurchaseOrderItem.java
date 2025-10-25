@@ -26,4 +26,12 @@ public class PurchaseOrderItem {
     private int quantity;
     private BigDecimal importPrice;
     private BigDecimal subtotal;
+
+    public PurchaseOrderItem (PurchaseOrder purchaseOrder,Long variantId,int quantity,BigDecimal importPrice,BigDecimal subtotal){
+        this.purchaseOrder=purchaseOrder;
+        this.variantId=variantId;
+        this.quantity=quantity;
+        this.importPrice=importPrice;
+        this.subtotal=subtotal;
+    }
 }

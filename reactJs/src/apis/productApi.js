@@ -1,10 +1,67 @@
-import api,{safeApiCall} from "./api";
+import api, { safeApiCall } from "./api";
 
-export const createProduct = (name,productCode,slug,description,shortDescription,categoryId,brandId,technicalSpecs,imageUrl) =>
-  safeApiCall(() => api.post("product/secure/products", {name,productCode,slug,description,shortDescription,categoryId,brandId,technicalSpecs,imageUrl}));
+export const createProduct = (name, productCode, slug, description, shortDescription, categoryId, brandId, technicalSpecs, imageFile) => {
+  const formData = new FormData();
+  const productData = {
+    name,
+    productCode,
+    slug,
+    description: description || "",
+    shortDescription: shortDescription || "",
+    categoryId,
+    brandId,
+    technicalSpecs
+  };
 
-export const updateProduct = (id,name,slug,description,shortDescription,categoryId,brandId,technicalSpecs,imageUrl) =>
-  safeApiCall(() => api.put(`product/secure/products/${id}`, { name,slug,description,shortDescription,categoryId,brandId,technicalSpecs,imageUrl}));
+  formData.append(
+    "product",
+    new Blob([JSON.stringify(productData)], { type: "application/json" })
+  );
+
+  if (imageFile !== undefined && imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  return safeApiCall(() =>
+    api.post("product/secure/products", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+};
+
+export const updateProduct = (id, name, productCode, slug, description, shortDescription, categoryId, brandId, technicalSpecs, imageFile, mainVariantId) => {
+  const formData = new FormData();
+  const productData = {
+    name,
+    productCode,
+    slug,
+    description: description || "",
+    shortDescription: shortDescription || "",
+    categoryId,
+    brandId,
+    technicalSpecs,
+    mainVariantId
+  };
+
+  formData.append(
+    "product",
+    new Blob([JSON.stringify(productData)], { type: "application/json" })
+  );
+
+  if (imageFile !== undefined && imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  return safeApiCall(() =>
+    api.put(`product/secure/products/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+}
 
 export const changeProductActive = (id) =>
   safeApiCall(() => api.patch(`product/secure/products/active/${id}`));
@@ -15,17 +72,158 @@ export const changeProductFeatured = (id) =>
 export const deleteProduct = (id) =>
   safeApiCall(() => api.delete(`product/secure/products/${id}`));
 
-export const getAllProducts = () =>
-  safeApiCall(() => api.get("product/secure/products"));
+export const getHomeProduct = (newProduct, hotProduct, featuredProduct, discountProduct) =>
+  safeApiCall(() => {
+    const params = {};
+    if (newProduct != null) params.newProduct = newProduct;
+    if (hotProduct != null) params.hotProduct = hotProduct;
+    if (featuredProduct) params.featuredProduct = featuredProduct;
+    if (discountProduct) params.discountProduct = discountProduct;
+    return api.get("product/public/home", { params });
+  });
 
+export const getProductVariantByProductId = (id) =>
+  safeApiCall(() => api.get(`product/secure/products/${id}/variants`));
+
+export const getActiveProductDetails = (slug) =>
+  safeApiCall(() => api.get(`product/public/products/${slug}`));
+
+export const getActiveProducts = (
+  page,
+  size,
+  keyword,
+  categoryName,
+  brandName,
+  featured,
+  desc,
+  sortBy,
+  discount,
+  startPrice,
+  endPrice,
+) =>
+  safeApiCall(() => {
+    const params = {};
+    if (page != null) params.page = page;
+    if (size != null) params.size = size;
+    if (keyword) params.keyword = keyword;
+
+    if (categoryName && categoryName.length > 0) params.categoryName = categoryName;
+    if (brandName && brandName.length > 0) params.brandName = brandName;
+
+    if (featured != null) params.featured = featured;
+    if (desc != null) params.desc = desc;
+    if (sortBy != null) params.sortBy = sortBy;
+    if (discount != null) params.discount = discount;
+    if (startPrice != null) params.startPrice = startPrice;
+    if (endPrice != null) params.endPrice = endPrice;
+
+    return api.get("product/public/products", { params });
+  });
+
+export const getAllProducts = (page, size, keyword, categoryName, brandName, active, featured, desc, sortBy, discount) =>
+  safeApiCall(() => {
+    const params = {};
+    if (page != null) params.page = page;
+    if (size != null) params.size = size;
+    if (keyword) params.keyword = keyword;
+
+    if (categoryName && categoryName.length > 0) params.categoryName = categoryName;
+    if (brandName && brandName.length > 0) params.brandName = brandName;
+
+    if (active != null) params.active = active;
+    if (featured != null) params.featured = featured;
+    if (desc != null) params.desc = desc;
+    if (sortBy != null) params.sortBy = sortBy;
+    if (discount != null) params.discount = discount;
+
+    return api.get("product/secure/products", { params });
+  });
 
 //////////////
-export const createVariant = (productId,name,sku,attributes,imageUrls) =>
-  safeApiCall(() => api.post("product/secure/variants", {productId,name,sku,attributes,imageUrls}));
+export const getVariantByIdIncludingInactive = (id) =>
+  safeApiCall(() => api.get(`product/secure/variants/${id}`));
 
-  
-export const updateVariant = (id,productId,name,sku,sellingPrice,discountPercent,attributes,imageUrls) =>
-  safeApiCall(() => api.put(`product/secure/variants/${id}`, { productId,name,sku,sellingPrice,discountPercent,attributes,imageUrls}));
+export const createVariant = (productId, name, sku, attributes, images) => {
+  const formData = new FormData();
+  const variantData = { productId, name, sku, attributes };
+
+  formData.append(
+    "variant",
+    new Blob([JSON.stringify(variantData)], { type: "application/json" })
+  );
+
+  const mainImage = images.find(image => image.isMain);
+  if (mainImage) {
+    formData.append("images", mainImage.file);
+  }
+  images.forEach(img => {
+    if (!img.isMain) formData.append("images", img.file);
+  });
+
+  return safeApiCall(() =>
+    api.post(`product/secure/variants`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+}
+
+export const updateVariantInfo = (id, { productId, name, sku, basePrice, discountPercent, attributes }) => {
+  return safeApiCall(() =>
+    api.put(`product/secure/variants/${id}`, {
+      productId, name, sku, basePrice, discountPercent, attributes
+    })
+  );
+};
+
+export const updateVariantImages = (id, images) => {
+  const formData = new FormData();
+
+  images.filter(img => img.file).forEach(img => formData.append("newImages", img.file));
+
+  images.filter(img => img.deleted).forEach(img => formData.append("deletedKeys", img.key));
+
+  const mainImage = images.find(img => img.isMain);
+  if (mainImage && mainImage.key) formData.append("newMainKey", mainImage.key);
+
+  return safeApiCall(() =>
+    api.post(`product/secure/variants/${id}/images`, formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      })
+  );
+};
+
+export const updateVariant = async (
+  id, productId, name, sku, basePrice, discountPercent, attributes, images = []
+) => {
+  const resInfo = await updateVariantInfo(id, {
+    productId,
+    name,
+    sku,
+    basePrice,
+    discountPercent,
+    attributes,
+  });
+
+  if (resInfo?.error) return { error: resInfo.error };
+
+  const hasNewImages = images.some(img => img.file);
+  const hasDeletedImages = images.some(img => img.deleted);
+  const hasMainChange = images.some(img => img.isMain && img.key);
+
+  if (hasNewImages || hasDeletedImages || hasMainChange) {
+    const resImages = await updateVariantImages(id, images);
+    if (resImages?.error) return { error: resImages.error };
+  }
+
+  return { success: true };
+};
+
+
 
 export const changeVariantActive = (id) =>
   safeApiCall(() => api.patch(`product/secure/variants/active/${id}`));
@@ -36,18 +234,101 @@ export const changeVariantFeatured = (id) =>
 export const deleteVariant = (id) =>
   safeApiCall(() => api.delete(`product/secure/variants/${id}`));
 
-export const getAllVariants = () =>
-  safeApiCall(() => api.get("product/secure/variants"));
+export const getAllVariants = ({ page, size, keyword, active, status, discount, minPrice, maxPrice }
+  = {}) =>
+  safeApiCall(() => {
+    const params = {};
+    if (page != null) params.page = page;
+    if (size != null) params.size = size;
+    if (keyword) params.keyword = keyword;
+    if (active != null) params.active = active;
+    if (status) params.status = status;
+    if (discount != null) params.discount = discount;
+    if (minPrice != null) params.minPrice = minPrice;
+    if (maxPrice != null) params.maxPrice = maxPrice;
+    return api.get("product/secure/variants", { params });
+  });
 
 //////////////
-export const createCategory = (name,slug,imageUrl) =>
-  safeApiCall(() => api.post("product/secure/categories", { name,slug,imageUrl}));
+export const createCategory = (name, slug, imageFile) => {
+  const formData = new FormData();
+  const categoryData = {
+    name,
+    slug,
+  };
 
-export const updateCategory = (id,name,slug,imageUrl) =>
-  safeApiCall(() => api.put(`product/secure/categories/${id}`, { name,slug,imageUrl}));
+  formData.append(
+    "category",
+    new Blob([JSON.stringify(categoryData)], { type: "application/json" })
+  );
 
-export const getAllCategories = () =>
-  safeApiCall(() => api.get("product/secure/categories"));
+  if (imageFile !== undefined && imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  return safeApiCall(() =>
+    api.post(`product/secure/categories`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+}
+
+export const updateCategory = (id, name, slug, imageFile) => {
+  const formData = new FormData();
+  const categoryData = {
+    name,
+    slug,
+  };
+
+  formData.append(
+    "category",
+    new Blob([JSON.stringify(categoryData)], { type: "application/json" })
+  );
+
+  if (imageFile !== undefined && imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  return safeApiCall(() =>
+    api.put(`product/secure/categories/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+}
+export const getActiveCategories = (page, size, keyword) => {
+  const params = new URLSearchParams();
+
+  if (page !== undefined) params.append("page", page);
+  if (size !== undefined) params.append("size", size);
+  if (keyword !== undefined && keyword !== "") params.append("keyword", keyword);
+
+  const queryString = params.toString();
+  const url = queryString
+    ? `product/public/categories?${queryString}`
+    : `product/public/categories`;
+
+  return safeApiCall(() => api.get(url));
+};
+
+export const getAllCategories = (page, size, keyword, active) => {
+  const params = new URLSearchParams();
+
+  if (page !== undefined) params.append("page", page);
+  if (size !== undefined) params.append("size", size);
+  if (keyword !== undefined && keyword !== "") params.append("keyword", keyword);
+  if (active !== null && active !== undefined) params.append("active", active);
+
+  const queryString = params.toString();
+  const url = queryString
+    ? `product/secure/categories?${queryString}`
+    : `product/secure/categories`;
+
+  return safeApiCall(() => api.get(url));
+};
 
 export const changeCategoryActive = (id) =>
   safeApiCall(() => api.patch(`product/secure/categories/active/${id}`));
@@ -57,14 +338,87 @@ export const deleteCategory = (id) =>
 
 
 ///////////////
-export const createBrand = (name,slug,imageUrl) =>
-  safeApiCall(() => api.post("product/secure/brands", { name,slug,imageUrl}));
+export const createBrand = (name, slug, imageFile) => {
+  const formData = new FormData();
+  const brandData = {
+    name,
+    slug,
+  };
 
-export const updateBrand = (id,name,slug,imageUrl) =>
-  safeApiCall(() => api.put(`product/secure/brands/${id}`, { name,slug,imageUrl}));
+  formData.append(
+    "brand",
+    new Blob([JSON.stringify(brandData)], { type: "application/json" })
+  );
 
-export const getAllBrands = () =>
-  safeApiCall(() => api.get("product/secure/brands"));
+  if (imageFile !== undefined && imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  return safeApiCall(() =>
+    api.post("product/secure/brands", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+}
+
+export const updateBrand = (id, name, slug, imageFile) => {
+  const formData = new FormData();
+  const brandData = {
+    name,
+    slug,
+  };
+
+  formData.append(
+    "brand",
+    new Blob([JSON.stringify(brandData)], { type: "application/json" })
+  );
+
+  if (imageFile !== undefined && imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  return safeApiCall(() =>
+    api.put(`product/secure/brands/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+}
+
+export const getActiveBrands = (page, size, keyword) => {
+  const params = new URLSearchParams();
+
+  if (page !== undefined) params.append("page", page);
+  if (size !== undefined) params.append("size", size);
+  if (keyword !== undefined && keyword !== "") params.append("keyword", keyword);
+
+  const queryString = params.toString();
+  const url = queryString
+    ? `product/public/brands?${queryString}`
+    : `product/public/brands`;
+
+  return safeApiCall(() => api.get(url));
+}
+
+export const getAllBrands = (page, size, keyword, active) => {
+  const params = new URLSearchParams();
+
+  if (page !== undefined) params.append("page", page);
+  if (size !== undefined) params.append("size", size);
+  if (keyword !== undefined && keyword !== "") params.append("keyword", keyword);
+  if (active !== null && active !== undefined) params.append("active", active);
+
+  const queryString = params.toString();
+  const url = queryString
+    ? `product/secure/brands?${queryString}`
+    : `product/secure/brands`;
+
+  return safeApiCall(() => api.get(url));
+}
+
 
 export const changeBrandActive = (id) =>
   safeApiCall(() => api.patch(`product/secure/brands/active/${id}`));

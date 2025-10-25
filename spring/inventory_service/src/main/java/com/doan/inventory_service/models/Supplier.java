@@ -13,15 +13,26 @@ public class Supplier {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true)
     private String name;
-    private String contactName;
+    @Column(unique = true)
+    private String code;
+    @Column(unique = true)
     private String phone;
+    @Column(unique = true)
     private String email;
     private String address;
+    @Column(name = "tax_code",unique = true)
     private String taxCode;
 
+    private String description;
+
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
+    @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+
 
     @PrePersist
     public void prePersist() {
@@ -34,11 +45,18 @@ public class Supplier {
         updatedAt = OffsetDateTime.now();
     }
 
-    public Supplier (String name,String contactName,String phone,String email,String taxCode){
+    public Supplier (String name,String code,String phone,String email,String address,String taxCode,String description){
         this.name=name;
-        this.contactName=contactName;
+        this.code=code;
         this.phone=phone;
         this.email=email;
+        this.address=address;
         this.taxCode=taxCode;
+        this.description=description;
+    }
+    public Supplier(Long id, String code, String name) {
+        this.id=id;
+        this.code=code;
+        this.name=name;
     }
 }

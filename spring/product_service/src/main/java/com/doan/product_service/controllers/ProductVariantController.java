@@ -9,13 +9,20 @@ import com.doan.product_service.services.BrandService;
 import com.doan.product_service.services.CategoryService;
 import com.doan.product_service.services.ProductService;
 import com.doan.product_service.services.ProductVariantService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,10 +38,11 @@ public class ProductVariantController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PostMapping("/secure/variants")
-    public ResponseEntity<?> createProductVariant(@Valid @RequestBody VariantRequest request){
+    public ResponseEntity<?> createProductVariant(@Valid @RequestPart("variant") VariantRequest request,
+                                                  @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         try {
-            productVariantService.createProductVariant(request);
-            return ResponseEntity.ok(new ApiResponse<>("Tạo biến thể thành công!",true,  null));
+            productVariantService.createProductVariant(request,images);
+            return ResponseEntity.ok(new ApiResponse<>("Tạo biến thể thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -42,28 +50,48 @@ public class ProductVariantController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/variants")
-    public ResponseEntity<?> getAllProductVariants(){
-        try{
-            List<ProductVariant> list=productVariantService.getAllProductsIncludingInactive();
+    public ResponseEntity<?> getAllProductVariantsIncludingInactive( @RequestParam(required = false) Integer page,
+                                                                     @RequestParam(required = false) Integer size,
+                                                                     @RequestParam(required = false) String keyword,
+                                                                     @RequestParam(required = false) Boolean active,
+                                                                     @RequestParam(required = false) String status,
+                                                                     @RequestParam(required = false) Boolean discount,
+                                                                     @RequestParam(required = false) BigDecimal minPrice,
+                                                                     @RequestParam(required = false) BigDecimal maxPrice) {
+        try {
+            Page<VariantResponse> list = productVariantService.getAllProductsIncludingInactive(page,size,keyword,active,status,discount,minPrice,maxPrice);
             return ResponseEntity.ok(new ApiResponse<>("Lấy biến thể thành công!",
-                    true,list.stream().map(
-                            productVariant -> new VariantResponse(
-                                    productVariant.getId(),
-                                    productVariant.getProduct().getId(),
-                                    productVariant.getProduct().getName(),
-                                    productVariant.getName(),
-                                    productVariant.getSku(),
-                                    productVariant.getImportPrice(),
-                                    productVariant.getSellingPrice(),
-                                    productVariant.getDiscountPercent(),
-                                    productVariant.getAttributes(),
-                                    productVariant.getImageUrls(),
-                                    productVariant.getSoldCount(),
-                                    productVariant.getIsActive(),
-                                    productVariant.getCreatedAt(),
-                                    productVariant.getUpdatedAt()
-                            )).toList()
-            ));
+                    true, list));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @GetMapping("/secure/variants/{id}")
+    public ResponseEntity<?> getProductVariantIncludingInactive(@PathVariable Long id) {
+        try {
+            VariantResponse response = productVariantService.getProductIncludingInactive(id);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy biến thể thành công!", true, response));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/internal/variants/{id}")
+    public ResponseEntity<?> getProductVariantFromInternal(@PathVariable Long id) {
+        try {
+            VariantResponse response = productVariantService.getProductIncludingInactive(id);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy biến thể thành công!", true, response));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @GetMapping("/internal/variants/{id}/active")
+    public ResponseEntity<?> getProductVariantFromInternalExcludingInactive(@PathVariable Long id) {
+        try {
+            VariantResponse response = productVariantService.getProductExcludingInactive(id);
+            return ResponseEntity.ok(response);
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -71,21 +99,56 @@ public class ProductVariantController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PutMapping("/secure/variants/{id}")
-    public ResponseEntity<?> updateProductVariant(@PathVariable Long id, @Valid @RequestBody VariantRequest request){
+    public ResponseEntity<?> updateVariantInfo(
+            @PathVariable Long id,
+            @RequestBody @Valid VariantRequest request
+    ) {
         try {
-            System.out.println(request.getImageUrls());
-            productVariantService.updateProductVariant(id,request);
-            return ResponseEntity.ok(new ApiResponse<>("Cập nhật biến thể thành công!",true,  null));
+            productVariantService.updateVariantInfo(id, request);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật thông tin thành công!", true, null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(new ApiResponse<>("Lỗi máy chủ khi cập nhật thông tin biến thể", false, null));
+        }
+    }
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PostMapping(value = "/secure/variants/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateVariantImages(
+            @PathVariable Long id,
+            @RequestParam(value = "newImages", required = false) List<MultipartFile> newImages,
+            @RequestParam(value = "deletedKeys", required = false) List<String> deletedKeys,
+            @RequestParam(value = "newMainKey", required = false) String newMainKey
+    ) {
+        try {
+            productVariantService.updateVariantImages(id, newImages, deletedKeys, newMainKey);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật hình ảnh thành công!", true, null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(new ApiResponse<>("Lỗi máy chủ khi cập nhật hình ảnh biến thể", false, null));
+        }
+    }
+
+
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PatchMapping("/secure/variants/active/{id}")
+    public ResponseEntity<?> changeProductVariantActive(@PathVariable Long id) {
+        try {
+            productVariantService.changeProductVariantActive(id);
+            return ResponseEntity.ok(new ApiResponse<>("Thay đổi trạng thái thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
-    @PatchMapping("/secure/variants/active/{id}")
-    public ResponseEntity<?> changeProductVariantActive(@PathVariable Long id){
+
+    @PostMapping("/internal/variants/status/{id}")
+    public ResponseEntity<?> changeProductVariantStatus(@PathVariable Long id, @RequestParam String status) {
         try {
-            productVariantService.changeProductVariantActive(id);
-            return ResponseEntity.ok(new ApiResponse<>("Thay đổi trạng thái thành công!",true,  null));
+            productVariantService.changeProductVariantStatus(id, status);
+            return ResponseEntity.ok(new ApiResponse<>("Thay đổi khả dụng thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -93,18 +156,40 @@ public class ProductVariantController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @DeleteMapping("/secure/variants/{id}")
-    public ResponseEntity<?> deleteProduct(@PathVariable Long id){
+    public ResponseEntity<?> deleteProductVariant(@PathVariable Long id) {
         try {
             productVariantService.deleteProductVariant(id);
-            return ResponseEntity.ok(new ApiResponse<>("Xóa biến thể thành công!",true,  null));
+            return ResponseEntity.ok(new ApiResponse<>("Xóa biến thể thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
+
+    @GetMapping("/internal/variants/search")
+    public List<Long> searchVariantIds(@RequestParam String code) {
+        return productVariantService.findByCodeContainingIgnoreCase(code)
+                .stream()
+                .map(ProductVariant::getId)
+                .toList();
+    }
+    @PostMapping("/internal/variants/{id}/importPrice")
+    public ResponseEntity<?> updateVariantImportPrice(@PathVariable Long id,@RequestParam BigDecimal importPrice) {
+        try {
+            productVariantService.updateVariantImportPrice(id,importPrice);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật giá nhập của biến thể thành công!", true, null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();
         error.put("message", ex.getReason());
         error.put("success", false);
         return ResponseEntity.status(ex.getStatusCode()).body(error);
     }
+
+
+
 }

@@ -1,49 +1,202 @@
-import React from "react";
-
-const products = [
-  { id: 1, name: "Táo", price: "50.000đ", image: "https://via.placeholder.com/150" },
-  { id: 2, name: "Cam", price: "40.000đ", image: "https://via.placeholder.com/150" },
-  { id: 3, name: "Chuối", price: "30.000đ", image: "https://via.placeholder.com/150" },
-  { id: 4, name: "Dưa hấu", price: "60.000đ", image: "https://via.placeholder.com/150" },
-];
+import React, { useEffect, useRef, useState } from "react";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { getActiveBrands, getActiveCategories, getHomeProduct } from "../apis/productApi";
+import Popup from "../components/Popup";
+import ProductCard from "../components/ProductCard";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function HomePage() {
+  const [newProducts, setNewProducts] = useState([]);
+  const [hotProducts, setHotProducts] = useState([]);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [discountProducts, setDiscountProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [activeTab, setActiveTab] = useState("new");
+  const [popup, setPopup] = useState({ message: "" });
+  const carouselRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    handleLoadProducts();
+    handleLoadCategories();
+    handleBrands();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => nextItem(), 3000);
+    return () => clearInterval(interval);
+  }, [currentIndex]);
+
+  const handleLoadProducts = async () => {
+    const res = await getHomeProduct(8, 8, 8, 8);
+    if (res.error) {
+      console.error(res.error);
+      setNewProducts([]);
+      setHotProducts([]);
+      setFeaturedProducts([]);
+      setDiscountProducts([]);
+      return;
+    }
+    
+    setNewProducts(res.data.newProducts);
+    setHotProducts(res.data.hotProducts);
+    setFeaturedProducts(res.data.featuredProducts);
+    setDiscountProducts(res.data.discountProducts);
+  };
+
+  const handleLoadCategories = async () => {
+    const res = await getActiveCategories();
+    if (res.error) {
+      console.error(res.error);
+      setCategories([]);
+      return;
+    }
+    setCategories(res.data.content);
+  };
+
+  const handleBrands = async () => {
+    const res = await getActiveBrands(0, 10);
+    if (res.error) {
+      console.error(res.error);
+      setBrands([]);
+      return;
+    }
+    setBrands(res.data.content);
+  };
+
+  const nextItem = () => {
+    const container = carouselRef.current;
+    if (!container) return;
+    const itemWidth = container.firstChild.offsetWidth;
+    let newIndex = currentIndex + 1;
+    if (newIndex >= categories.length) newIndex = 0;
+    container.scrollTo({ left: itemWidth * newIndex, behavior: "smooth" });
+    setCurrentIndex(newIndex);
+  };
+
+  const prevItem = () => {
+    const container = carouselRef.current;
+    if (!container) return;
+    const itemWidth = container.firstChild.offsetWidth;
+    let newIndex = currentIndex - 1;
+    if (newIndex < 0) newIndex = categories.length - 1;
+    container.scrollTo({ left: itemWidth * newIndex, behavior: "smooth" });
+    setCurrentIndex(newIndex);
+  };
+
+
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-green-600 text-white p-4">
-        <h1 className="text-2xl font-bold">Cửa hàng trái cây</h1>
-      </header>
+    <div className="">
+      {/* Categories */}
+      <div className="bg-gray-100 px-40 py-5">
+        <div className="flex justify-between items-center mb-4 rounded">
+          <h2 className="text-xl font-semibold">Tìm theo danh mục</h2>
+          <div className="flex gap-2">
+            <FiChevronLeft
+              className="text-2xl cursor-pointer hover:text-gray-600"
+              onClick={prevItem}
+            />
+            <FiChevronRight
+              className="text-2xl cursor-pointer hover:text-gray-600"
+              onClick={nextItem}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+          {categories.map((cat) => (
+            <a
+              key={cat.id}
+              href={`/category/${cat.slug}`}
+              className="flex flex-col items-center justify-center bg-gray-200 rounded p-4 sm:p-6 hover:bg-gray-300 transition"
+            >
+              <img
+                src={cat.imageUrl}
+                className="w-full aspect-square object-cover rounded mb-4"
+                alt={cat.name}
+              />
+              <span className="text-gray-800 font-semibold text-center">{cat.name}</span>
+            </a>
+          ))}
+        </div>
+      </div>
 
-      {/* Navbar */}
-      <nav className="bg-green-100 p-2 flex justify-center gap-4">
-        <a href="/" className="text-green-800 hover:underline">Trang chủ</a>
-        <a href="/products" className="text-green-800 hover:underline">Sản phẩm</a>
-        <a href="/cart" className="text-green-800 hover:underline">Giỏ hàng</a>
-        <a href="/contact" className="text-green-800 hover:underline">Liên hệ</a>
-      </nav>
+      {/* Tabs: New / Hot / Featured */}
+      <div className="px-40 py-8">
+        <div className="flex text-xl gap-6 mb-6 justify-center ">
+          {["new", "hot", "featured"].map((tab) => (
+            <h3
+              key={tab}
+              className={`font-semibold cursor-pointer ${activeTab === tab ? "text-gray-900" : "text-gray-400 hover:text-gray-900"
+                }`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === "new"
+                ? "Sản phẩm mới"
+                : tab === "hot"
+                  ? "Mua nhiều nhất"
+                  : "Nổi bật"}
+            </h3>
+          ))}
+        </div>
 
-      {/* Product Grid */}
-      <main className="flex-1 p-6 bg-gray-50">
-        <h2 className="text-xl font-semibold mb-4">Sản phẩm nổi bật</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.map(product => (
-            <div key={product.id} className="bg-white shadow rounded p-4 flex flex-col items-center">
-              <img src={product.image} alt={product.name} className="w-32 h-32 object-cover mb-2" />
-              <h3 className="font-medium">{product.name}</h3>
-              <p className="text-green-700 font-semibold">{product.price}</p>
-              <button className="mt-2 bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600">
-                Thêm vào giỏ
-              </button>
+        <div className="grid grid-cols-6 gap-5">
+          {(activeTab === "new"
+            ? newProducts
+            : activeTab === "hot"
+              ? hotProducts
+              : featuredProducts
+          ).map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Brands Carousel */}
+      <div className="relative bg-gray-100 group mt-8">
+        <div ref={carouselRef} className="flex overflow-x-hidden scroll-smooth gap-4 px-2">
+          {brands.map((b) => (
+            <div
+              key={b.id}
+              className="flex-shrink-0 flex flex-col justify-between bg-gray-100 rounded p-4 hover:bg-gray-200 transition w-60"
+            >
+              <img src={b.imageUrl} alt={b.name} className="w-full h-40 object-cover rounded mb-4" />
+              <span className="text-gray-800 font-bold text-lg mb-2">{b.name}</span>
+              <span className="text-gray-600 text-sm mb-4 line-clamp-3">{b.description}</span>
+              <Link
+                to={`/brand/${b.slug}`}
+                className="text-sm text-black border border-black px-6 py-2 mb-3 rounded hover:bg-black hover:text-white transition w-max"
+              >
+                Mua ngay
+              </Link>
             </div>
           ))}
         </div>
-      </main>
+      </div>
 
-      {/* Footer */}
-      <footer className="bg-green-600 text-white text-center p-4">
-        © 2025 Cửa hàng trái cây. All rights reserved.
-      </footer>
+      {/* Discount Products */}
+      <div className="px-40 py-8">
+        <h2 className="text-xl font-semibold mb-4">Khuyến mãi</h2>
+        <div className="grid grid-cols-6 gap-6">
+          {discountProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+            />
+          ))}
+        </div>
+      </div>
+
+      <Popup
+        message={popup.message}
+        type={popup.type}
+        onClose={() => setPopup({ message: "", type: "" })}
+        duration={3000}
+      />
     </div>
   );
 }

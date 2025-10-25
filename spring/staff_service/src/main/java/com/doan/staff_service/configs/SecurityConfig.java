@@ -22,7 +22,8 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable) // disable CSRF for API calls
                 .authorizeHttpRequests(auth->
-                        auth.anyRequest().permitAll() //tin tuong gateway
+                        auth.requestMatchers("/internal/**").permitAll()
+                                .anyRequest().authenticated() //tin tuong gateway
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .cors(cors->{});

@@ -1,17 +1,23 @@
 package com.doan.product_service.controllers;
 
 import com.doan.product_service.dtos.ApiResponse;
+import com.doan.product_service.dtos.other.HomeRequest;
+import com.doan.product_service.dtos.other.HomeResponse;
+import com.doan.product_service.dtos.product.ProductDetailsResponse;
 import com.doan.product_service.dtos.product.ProductRequest;
 import com.doan.product_service.dtos.product.ProductResponse;
-import com.doan.product_service.models.Product;
+import com.doan.product_service.dtos.product_variant.VariantResponse;
 import com.doan.product_service.services.ProductService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,47 +30,108 @@ public class ProductController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PostMapping("/secure/products")
-    public ResponseEntity<?> createProduct(@Valid @RequestBody ProductRequest productRequest){
+    public ResponseEntity<?> createProduct( @RequestPart("product") @Valid ProductRequest productRequest,
+                                            @RequestPart(value = "image", required = false) MultipartFile image){
         try {
-            productService.createProduct(productRequest);
+            productService.createProduct(productRequest,image);
             return ResponseEntity.ok(new ApiResponse<>("Tạo sản phẩm thành công!",true,  null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse( ex);
+        }
+    }
+
+    @GetMapping("/public/home")
+    public ResponseEntity<?> getHomeProduct(@ModelAttribute HomeRequest request) {
+        try {
+            Page<ProductResponse> newProductList = productService.getAllProducts(0, request.getNewProduct(), null,null,null, true,null,null,null,null,null,null,true);
+            Page<ProductResponse> hotProductList = productService.getAllProducts(0, request.getNewProduct(), null,null,null, true,null,null,"sold",null,null,null,true);
+            Page<ProductResponse> featuredProductList = productService.getAllProducts(0, request.getNewProduct(), null,null,null, true,true,null,null,null,null,null,true);
+            Page<ProductResponse> discountProductList = productService.getAllProducts(0, request.getNewProduct(), null,null,null, true,true,null,null,true,null,null,true);
+
+            HomeResponse response = new HomeResponse(
+                    newProductList.getContent(),
+                    hotProductList.getContent(),
+                    featuredProductList.getContent(),
+                    discountProductList.getContent()
+            );
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>("Lấy dữ liệu thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
+
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/products")
-    public ResponseEntity<?> getAllProducts(){
-        try{
-            List<Product> productList=productService.getAllProductsIncludingInactive();
+    public ResponseEntity<?> getAllProductsIncludingInactive(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) List<String> categoryName,
+            @RequestParam(required = false) List<String> brandName,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) Boolean desc,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) Boolean discount) {
+        try {
+            Page<ProductResponse> productList = productService.getAllProducts(page, size, keyword,categoryName,brandName, active,featured,desc,sortBy,discount,null,null,null);
             return ResponseEntity.ok(
-                    new ApiResponse<>("Lấy danh sách sản phẩm thành công!",true,
-                            productList.stream()
-                                    .map(product -> new ProductResponse(
-                                            product.getId(),
-                                            product.getName(),
-                                            product.getProductCode(),
-                                            product.getSlug(),
-                                            product.getDescription(),
-                                            product.getShortDescription(),
-                                            product.getCategory().getName(),
-                                            product.getBrand().getName(),
-                                            product.getTechnicalSpecs(),
-                                            product.getImageUrl(),
-                                            product.getIsActive(),
-                                            product.getIsFeatured(),
-                                            product.getCreatedAt()
-                                    )
-                            ).toList()));
+                    new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, productList));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/public/products")
+    public ResponseEntity<?> getAllActiveProducts(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) List<String> categoryName,
+            @RequestParam(required = false) List<String> brandName,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) Boolean desc,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) Boolean discount,
+            @RequestParam(required = false) Integer startPrice,
+            @RequestParam(required = false) Integer endPrice) {
+        try {
+            Page<ProductResponse> productList = productService.getAllProducts(page, size, keyword,categoryName,brandName, true,featured,desc,sortBy,discount,startPrice,endPrice,null);
+            return ResponseEntity.ok(
+                    new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, productList));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @GetMapping("/secure/products/{id}/variants")
+    public ResponseEntity<?> getProductVariantByProductId(@PathVariable Long id) {
+        try {
+            List<VariantResponse> response = productService.getProductVariantByProductId(id);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy biến thể thành công!", true, response));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/public/products/{slug}")
+    public ResponseEntity<?> getActiveProductDetails(@PathVariable String slug){
+        try {
+            ProductDetailsResponse response= productService.getActiveProductDetails(slug);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy sản phẩm thành công!",true,  response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PutMapping("/secure/products/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, @Valid @RequestBody ProductRequest productRequest){
+    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestPart("product") @Valid ProductRequest productRequest,
+                                           @RequestPart(value = "image", required = false) MultipartFile image){
         try {
-            productService.updateProduct(id,productRequest);
+            productService.updateProduct(id,productRequest,image);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật sản phẩm thành công!",true,  null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -74,7 +141,6 @@ public class ProductController {
     @PatchMapping("/secure/products/active/{id}")
     public ResponseEntity<?> changeProductActive(@PathVariable Long id){
         try {
-            System.out.println(id);
             productService.changeProductActive(id);
             return ResponseEntity.ok(new ApiResponse<>("Thay đổi trạng thái thành công!",true,  null));
         } catch (ResponseStatusException ex) {
@@ -85,7 +151,6 @@ public class ProductController {
     @PatchMapping("/secure/products/featured/{id}")
     public ResponseEntity<?> changeProductFeatured(@PathVariable Long id){
         try {
-            System.out.println(id);
             productService.changeProductFeatured(id);
             return ResponseEntity.ok(new ApiResponse<>("Thay đổi nổi bật thành công!",true,  null));
         } catch (ResponseStatusException ex) {

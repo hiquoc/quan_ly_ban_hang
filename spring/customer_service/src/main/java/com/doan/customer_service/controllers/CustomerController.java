@@ -93,6 +93,30 @@ public class CustomerController {
                 .collect(Collectors.toList());
     }
 
+    @GetMapping("/internal/customers/ids")
+    public ResponseEntity<?> getCustomerByIds(@RequestParam List<Long> ids) {
+        try {
+            List <CustomerResponse> list = customerService.getCustomerByIds(ids).stream().map(customer ->
+                    new CustomerResponse(customer.getId(),customer.getFullName(),customer.getEmail(),customer.getPhone(),customer.getCreatedAt())).toList();
+            return ResponseEntity.ok(list);
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @GetMapping("/internal/customers/keyword")
+    public ResponseEntity<?> getCustomerByKeyword(@RequestParam String keyword,
+                                                  @RequestParam String type,
+                                                  @RequestParam Integer page,
+                                                  @RequestParam Integer size) {
+        try {
+            List <CustomerResponse> list = customerService.getCustomerByKeyword(keyword,type,page,size).stream().map(customer ->
+                    new CustomerResponse(customer.getId(),customer.getFullName(),customer.getEmail(),customer.getPhone(),customer.getCreatedAt())).toList();
+            return ResponseEntity.ok(list);
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
     @GetMapping("/internal/customers")
     public ResponseEntity<?> getCustomerIdByEmail(@RequestParam String email) {
         try {

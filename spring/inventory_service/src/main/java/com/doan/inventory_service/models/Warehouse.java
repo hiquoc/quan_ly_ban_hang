@@ -15,7 +15,12 @@ public class Warehouse {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true)
     private String name;
+
+    @Column(unique = true)
+    private String code;
+
     private String address;
     private String description;
 
@@ -31,5 +36,12 @@ public class Warehouse {
     @PreUpdate
     public void preUpdate() {
         updatedAt = OffsetDateTime.now();
+    }
+
+    public Warehouse(String name,String code,String address,String description){
+        this.name=name;
+        this.code=code;
+        this.address=address;
+        this.description=description;
     }
 }

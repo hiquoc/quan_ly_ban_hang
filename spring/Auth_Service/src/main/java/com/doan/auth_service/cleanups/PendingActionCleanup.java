@@ -1,9 +1,9 @@
 package com.doan.auth_service.cleanups;
 
-import com.doan.auth_service.clients.CustomerServiceClient;
-import com.doan.auth_service.clients.StaffServiceClient;
 import com.doan.auth_service.models.PendingAction;
 import com.doan.auth_service.repositories.PendingActionRepository;
+import com.doan.auth_service.services.CustomerServiceClient;
+import com.doan.auth_service.services.StaffServiceClient;
 import lombok.AllArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

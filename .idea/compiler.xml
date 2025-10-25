@@ -3,6 +3,24 @@
   <component name="CompilerConfiguration">
     <annotationProcessing>
       <profile default="true" name="Default" enabled="true" />
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="cart_service" />
+        <module name="order_service" />
+        <module name="promotion_service" />
+        <module name="service_registry" />
+      </profile>
+      <profile name="Annotation profile for gateway_service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
+        </processorPath>
+        <module name="gateway_service" />
+      </profile>
       <profile name="Annotation profile for auth-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
@@ -15,32 +33,41 @@
         </processorPath>
         <module name="auth_service" />
       </profile>
-      <profile name="Annotation profile for user_service" enabled="true">
+      <profile name="Annotation profile for product_service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.34/lombok-1.18.34.jar" />
         </processorPath>
         <module name="inventory_service" />
         <module name="customer_service" />
         <module name="staff_service" />
         <module name="product_service" />
-        <module name="gateway_service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="Auth_Service" target="21" />
+      <module name="banhang-system" target="21" />
+      <module name="eureka-server" target="17" />
+      <module name="eureka_service" target="17" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="Auth_Service" options="-parameters" />
       <module name="auth_service" options="-parameters" />
+      <module name="banhang-system" options="-parameters" />
+      <module name="cart_service" options="-parameters" />
       <module name="customer_service" options="-parameters" />
+      <module name="eureka-server" options="-parameters" />
+      <module name="eureka_service" options="-parameters" />
       <module name="gateway_service" options="-parameters" />
       <module name="inventory_service" options="-parameters" />
+      <module name="order_service" options="-parameters" />
       <module name="product_service" options="-parameters" />
+      <module name="promotion_service" options="-parameters" />
+      <module name="service_registry" options="-parameters" />
       <module name="staff_service" options="-parameters" />
     </option>
   </component>

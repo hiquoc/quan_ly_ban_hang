@@ -1,7 +1,5 @@
 package com.doan.auth_service.controllers;
 
-import com.doan.auth_service.clients.CustomerServiceClient;
-import com.doan.auth_service.clients.StaffServiceClient;
 import com.doan.auth_service.dtos.Account.AccountResponse;
 import com.doan.auth_service.dtos.Account.ChangePasswordRequest;
 import com.doan.auth_service.dtos.Customer.CustomerRequest;
@@ -16,13 +14,12 @@ import com.doan.auth_service.models.PendingAction;
 import com.doan.auth_service.models.Role;
 import com.doan.auth_service.repositories.PendingActionRepository;
 import com.doan.auth_service.services.AccountService;
+import com.doan.auth_service.services.CustomerServiceClient;
 import com.doan.auth_service.services.RoleService;
-import com.doan.auth_service.utils.JwtUtil;
+import com.doan.auth_service.services.StaffServiceClient;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,9 +41,16 @@ public class AuthController {
     private final CustomerServiceClient customerServiceClient;
 
     @PostMapping("/public/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest){
-        LoginResponse loginResponse = accountService.login(loginRequest.getUsername(), loginRequest.getPassword());
-        return ResponseEntity.ok(loginResponse);
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest){
+        try{
+            LoginResponse loginResponse = accountService.login(loginRequest.getUsername(), loginRequest.getPassword());
+            return ResponseEntity.ok(loginResponse);
+        }catch (ResponseStatusException ex) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("message", ex.getReason());
+            error.put("success", false);
+            return ResponseEntity.status(ex.getStatusCode()).body(error);
+        }
     }
 
     @PostMapping("/public/register")
@@ -176,17 +180,13 @@ public class AuthController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/secure/accounts")
-    public List<AccountResponse> getAllAccounts(){
-        return accountService.getAllAccounts().stream()
-                .map(account->new AccountResponse(
-                        account.getId(),
-                        account.getUsername(),
-                        account.getOwnerId(),
-                        account.getRole().getName(),
-                        account.getIsActive(),
-                        account.getCreatedAt()
-                ))
-                .collect(Collectors.toList());
+    public Page<AccountResponse> getAllAccounts(@RequestParam(required = false) Integer page,
+                                                @RequestParam(required = false) Integer size,
+                                                @RequestParam(required = false) String keyword,
+                                                @RequestParam(required = false) String type,
+                                                @RequestParam(required = false) Boolean active,
+                                                @RequestParam(required = false) Long roleId){
+        return accountService.getAllAccounts(page, size, keyword, type, active,roleId);
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")

@@ -10,7 +10,8 @@ public class SupplierRequest {
     @NotBlank(message = "Vui lòng điền tên nhà cung cấp!")
     private String name;
 
-    private String contactName;
+    @NotBlank(message = "Vui lòng điền mã nhà cung cấp!")
+    private String code;
 
     @NotBlank(message = "Vui lòng điền số điện thoại nhà cung cấp!")
     private String phone;
@@ -23,5 +24,7 @@ public class SupplierRequest {
 
     @NotBlank(message = "Vui lòng điền mã số thuế nhà cung cấp!")
     private String taxCode;
+
+    private String description;
 }
 

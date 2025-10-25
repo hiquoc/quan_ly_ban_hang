@@ -12,11 +12,11 @@ export const updateCustomer= (fullName,phone,email,gender,dateOfBirth)=>
 export const getAllAddressesOfACustomer = () =>
   safeApiCall(() => api.get("customer/secure/customers/addresses"));
 
-export const createAddress= (street,ward,district,city)=>
-   safeApiCall(()=>api.post(`customer/secure/customers/addresses`,{street,ward,district,city}))
+export const createAddress= (name,phone,street,ward,district,city)=>
+   safeApiCall(()=>api.post(`customer/secure/customers/addresses`,{name,phone,street,ward,district,city}))
 
-export const updateAddress= (id,street,ward,district,city)=>
-   safeApiCall(()=>api.put(`customer/secure/customers/addresses/${id}`,{street,ward,district,city}))
+export const updateAddress= (id,name,phone,street,ward,district,city)=>
+   safeApiCall(()=>api.put(`customer/secure/customers/addresses/${id}`,{name,phone,street,ward,district,city}))
 
 export const changMainAddress= (id)=>
    safeApiCall(()=>api.patch(`customer/secure/customers/addresses/${id}`))

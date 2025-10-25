@@ -17,15 +17,18 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable) // disable CSRF for API calls
-                .authorizeHttpRequests(auth->
-                        auth.anyRequest().permitAll() //tin tuong gateway
+                .authorizeHttpRequests(auth ->
+                        auth.requestMatchers("/internal/**").permitAll()
+                                .anyRequest().authenticated() //tin tuong gateway
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .cors(cors->{});
+                .cors(cors -> {
+                });
         return http.build();
     }
 }

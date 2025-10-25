@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../../contexts/AuthContext";
-
+import { FaSignOutAlt } from "react-icons/fa";
 export default function AdminLayout({ children }) {
   const { username, setUsername, role, setRole } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -11,39 +11,39 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="h-screen bg-white">
       {/* Navbar */}
-      <nav className="bg-red-600 text-white shadow-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+      <nav className="bg-white border border-gray-300 border-b sticky top-0 z-50">
+        <div className="max-w-8xl mx-auto px-40 py-3 flex items-center justify-between">
           {/* Left: Logo */}
           <Link
             to="/admin"
             className="text-2xl font-bold hover:text-red-200 transition"
           >
-            Home
+            Elec
           </Link>
 
           {/* Right: User */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             {!!username ? (
               <>
                 <Link
-                  to="/admin/product"
-                  className="px-3 py-2 rounded bg-white/20 hover:bg-white/40 text-white transition flex items-center justify-center"
+                  to="/admin"
+                  className="px-3 py-1 rounded border border-gray-300 transition flex items-center justify-center"
                 >
                   {username}
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-2 rounded bg-white/20 hover:bg-white/40 text-white transition flex items-center justify-center"
+                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 hover:cursor-pointer transition text-red-500"
                 >
-                  Đăng xuất
+                  <FaSignOutAlt />
                 </button>
               </>
             ) : (
               <Link
                 to="/admin/login"
-                className="px-3 py-2 rounded bg-white/20 hover:bg-white/40 text-white transition flex items-center justify-center"
+                className="px-3 py-2 rounded transition flex items-center justify-center"
               >
                 Đăng nhập
               </Link>
@@ -70,6 +70,11 @@ export default function AdminLayout({ children }) {
           <Link to="/admin/products">
             <button className="w-full text-left px-4 py-2 rounded hover:bg-gray-700 transition">
               Sản phẩm
+            </button>
+          </Link>
+          <Link to="/admin/promotions">
+            <button className="w-full text-left px-4 py-2 rounded hover:bg-gray-700 transition">
+              Khuyến mãi
             </button>
           </Link>
           <Link to="/admin/inventory">

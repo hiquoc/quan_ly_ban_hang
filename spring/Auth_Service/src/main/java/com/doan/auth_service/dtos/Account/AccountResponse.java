@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class AccountResponse {
     private Long id;
@@ -16,4 +15,17 @@ public class AccountResponse {
     private String role;
     private Boolean active;
     private OffsetDateTime createdAt;
+
+    private String fullName;
+    private String email;
+    private String phone;
+
+    public AccountResponse(Long id,String username,Long ownerId,String role,Boolean active,OffsetDateTime createdAt){
+        this.id=id;
+        this.username=username;
+        this.ownerId=ownerId;
+        this.role=role;
+        this.active=active;
+        this.createdAt=createdAt;
+    }
 }

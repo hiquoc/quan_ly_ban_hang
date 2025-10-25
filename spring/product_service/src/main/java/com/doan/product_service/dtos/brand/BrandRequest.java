@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotBlank;
 public class BrandRequest {
     @NotBlank(message="Vui lòng điền tên thương hiệu!")
     private String name;
-    @NotBlank(message="Vui lòng slug thương hiệu!")
+    @NotBlank(message="Vui lòng điền slug thương hiệu!")
     private String slug;
-    private String imageUrl;
 }

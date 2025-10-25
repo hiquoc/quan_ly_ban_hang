@@ -8,6 +8,7 @@ import org.hibernate.annotations.*;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
@@ -34,7 +35,10 @@ public class ProductVariant {
     @Column(name = "import_price")
     private BigDecimal importPrice=BigDecimal.ZERO;
 
-    @Column(name = "selling_price", nullable = false)
+    @Column(name = "base_price")
+    private BigDecimal basePrice=BigDecimal.ZERO;
+
+    @Column(name = "selling_price")
     private BigDecimal sellingPrice=BigDecimal.ZERO;
 
     @Column(name = "discount_percent")
@@ -53,6 +57,10 @@ public class ProductVariant {
 
     @Column(name = "is_active")
     private Boolean isActive = false;
+
+    @Column(name = "status")
+    private String status ;
+
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt = OffsetDateTime.now();
@@ -73,16 +81,25 @@ public class ProductVariant {
         this.sku = sku;
         this.attributes = attributes;
         this.imageUrls = imageUrls;
+        this.status="OUT_OF_STOCK";
     }
 
-    // Dynamic discounted price
-    public BigDecimal getDiscountPrice() {
-        if (discountPercent != null && discountPercent > 0) {
-            return sellingPrice.multiply(BigDecimal.valueOf(100 - discountPercent))
-                    .divide(BigDecimal.valueOf(100));
-        }
-        return sellingPrice;
+
+    public void setBasePrice(BigDecimal basePrice) {
+        this.basePrice = basePrice;
+        updateSellingPrice();
     }
 
+    public void setDiscountPercent(int discountPercent) {
+        this.discountPercent = discountPercent;
+        updateSellingPrice();
+    }
+
+    private void updateSellingPrice() {
+        if (basePrice == null) return;
+        BigDecimal discountMultiplier = BigDecimal.valueOf(100 - discountPercent)
+                .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+        this.sellingPrice = basePrice.multiply(discountMultiplier).setScale(2, RoundingMode.HALF_UP);
+    }
 }
 

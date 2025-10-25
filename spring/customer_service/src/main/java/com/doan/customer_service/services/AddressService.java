@@ -23,9 +23,9 @@ public class AddressService {
     public Address createAddress(AddressRequest request){
         Customer customer=customerRepository.findById(request.getCustomerId())
                 .orElseThrow(()->new RuntimeException("Không tìm thấy customer với id: "+request.getCustomerId()));
-        if(request.getStreet()==null || request.getWard()==null || request.getDistrict()==null ||request.getCity()==null)
+        if(request.getName()==null || request.getPhone()==null ||request.getStreet()==null || request.getWard()==null || request.getDistrict()==null ||request.getCity()==null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng điền đầy đủ thông tin!");
-        Address address=new Address(customer,request.getStreet(),request.getWard(),request.getDistrict(),request.getCity());
+        Address address=new Address(customer,request.getName(),request.getPhone(),request.getStreet(),request.getWard(),request.getDistrict(),request.getCity());
         return addressRepository.save(address);
     }
     public Address getAddress(Long id){
@@ -35,19 +35,22 @@ public class AddressService {
     public List<Address> getAllAddressesOfACustomer(Long id){
         return addressRepository.findByCustomerId(id);
     }
+
+    @Transactional
     public void updateAddress(Long id, AddressRequest request,Long customerId){
         Address address=addressRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Không tìm thấy địa chỉ với id: "+id));
         if(!Objects.equals(address.getCustomer().getId(), customerId)){
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền chỉnh sửa dữ liệu!");
         }
-        if(request.getStreet()==null || request.getWard()==null || request.getDistrict()==null ||request.getCity()==null)
+        if(request.getName()==null ||request.getPhone()==null ||request.getStreet()==null || request.getWard()==null || request.getDistrict()==null ||request.getCity()==null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng điền đầy đủ thông tin!");
+        address.setName((request.getName()));
+        address.setPhone(request.getPhone());
         address.setStreet(request.getStreet());
         address.setWard(request.getWard());
         address.setDistrict(request.getDistrict());
         address.setCity(request.getCity());
-        addressRepository.save(address);
     }
     @Transactional
     public void changeMainAddress(Long id,Long customerId){
