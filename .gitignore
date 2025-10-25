@@ -4,6 +4,7 @@
 .env
 *.keystore
 *.jks
+spring/Auth_Service/src/main/resources/application.properties
 
 # =======================
 # Build / Dependency Folders
