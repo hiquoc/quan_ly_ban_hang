@@ -4,6 +4,7 @@ import com.doan.inventory_service.dtos.supplier.SupplierRequest;
 import com.doan.inventory_service.dtos.warehouse.WarehouseRequest;
 import com.doan.inventory_service.models.Supplier;
 import com.doan.inventory_service.models.Warehouse;
+import com.doan.inventory_service.repositories.InventoryRepository;
 import com.doan.inventory_service.repositories.SupplierRepository;
 import com.doan.inventory_service.repositories.WarehouseRepository;
 import jakarta.transaction.Transactional;
@@ -19,6 +20,7 @@ import java.util.Objects;
 @AllArgsConstructor
 public class WarehouseService {
     private final WarehouseRepository warehouseRepository;
+    private final InventoryRepository inventoryRepository;
 
     public Warehouse createWarehouse(WarehouseRequest request){
         if(warehouseRepository.existsByName(request.getName()))
@@ -57,9 +59,10 @@ public class WarehouseService {
         return warehouse;
     }
     public void deleteWarehouse(Long id){
-        /// /
         Warehouse supplier=warehouseRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy kho!"));
+        if(inventoryRepository.existsByWarehouseId(id))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Kho đang được sử dụng!");
         warehouseRepository.delete(supplier);
     }
 }

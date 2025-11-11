@@ -13,6 +13,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.security.Key;
+import java.util.Objects;
 
 @Component
 public class JwtAuthFilter implements GatewayFilter {
@@ -23,14 +24,22 @@ public class JwtAuthFilter implements GatewayFilter {
     }
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+        String token = null;
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // 1. Check Authorization header
+        String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        }
+
+        if (token == null && exchange.getRequest().getCookies().containsKey("jwt")) {
+            token = Objects.requireNonNull(exchange.getRequest().getCookies().getFirst("jwt")).getValue();
+        }
+
+        if (token == null) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
-
-        String token = authHeader.substring(7);
 
         try {
             Claims claims = Jwts.parserBuilder()

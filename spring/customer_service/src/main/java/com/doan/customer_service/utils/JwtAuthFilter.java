@@ -21,13 +21,6 @@ import java.util.List;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private final Key key;
-
-    public JwtAuthFilter(@Value("${JWT_SECRET}") String secret) {
-        byte[] decodedKey = java.util.Base64.getDecoder().decode(secret);
-        this.key = Keys.hmacShaKeyFor(decodedKey);
-    }
-
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,

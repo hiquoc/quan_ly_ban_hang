@@ -2,14 +2,17 @@ package com.doan.product_service.dtos.product_variant;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
 @Data
 @AllArgsConstructor
-public class VariantDetailsResponse {
+@NoArgsConstructor
+public class VariantDetailsResponse implements Serializable {
     private Long id;
     private Long productId;
     private String name;

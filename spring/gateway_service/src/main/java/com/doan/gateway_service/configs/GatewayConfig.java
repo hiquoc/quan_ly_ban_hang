@@ -12,99 +12,113 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Objects;
 
 @Configuration
 @AllArgsConstructor
 public class GatewayConfig {
+
     private final JwtAuthFilter jwtAuthFilter;
 
     @Bean
     public RouteLocator customRoutes(RouteLocatorBuilder builder){
         return builder.routes()
-                // Public endpoints (no auth)
+
+                // AUTH SERVICE
                 .route("auth-public", r -> r.path("/auth/public/**")
                         .filters(f -> f.stripPrefix(1))
-                        .uri("http://localhost:8081"))
-                //social login
-                .route("auth-service-login", r -> r.path("/oauth2/authorization/**", "/login/oauth2/**")
-                        .filters(f -> f.preserveHostHeader()
-                                .addRequestHeader("Cookie", "#{request.headers.Cookie}")
-                                .addResponseHeader("Set-Cookie", "#{response.headers.Set-Cookie}"))
-                        .uri("http://localhost:8081"))
+                        .uri("lb://AUTH-SERVICE"))
 
+                .route("auth-service-login", r -> r.path("/oauth2/authorization/**")
+                        .filters(GatewayFilterSpec::preserveHostHeader)
+                        .uri("lb://AUTH-SERVICE"))
 
-                // Secured endpoints (any authenticated customer)
+                .route("auth-service-callback", r -> r.path("/login/oauth2/code/**")
+                        .filters(GatewayFilterSpec::preserveHostHeader)
+                        .uri("lb://AUTH-SERVICE"))
+
                 .route("auth-secure", r -> r.path("/auth/secure/**")
                         .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
-                        .uri("http://localhost:8081"))
+                        .uri("lb://AUTH-SERVICE"))
 
-                //staff-service
-                // Secured endpoints (any authenticated customer)
+                // STAFF SERVICE
                 .route("staff-secure", r -> r.path("/staff/secure/**")
                         .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
-                        .uri("http://localhost:8082"))
+                        .uri("lb://STAFF-SERVICE"))
 
-                //customer-service
+                // CUSTOMER SERVICE
                 .route("customer-public", r -> r.path("/customer/public/**")
                         .filters(f -> f.stripPrefix(1))
-                        .uri("http://localhost:8083"))
+                        .uri("lb://CUSTOMER-SERVICE"))
 
-                // Secured endpoints (any authenticated customer)
                 .route("customer-secure", r -> r.path("/customer/secure/**")
                         .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
-                        .uri("http://localhost:8083"))
+                        .uri("lb://CUSTOMER-SERVICE"))
 
-                //product-service
+                // PRODUCT SERVICE
                 .route("product-public", r -> r.path("/product/public/**")
                         .filters(f -> f.stripPrefix(1))
-                        .uri("http://localhost:8084"))
+                        .uri("lb://PRODUCT-SERVICE"))
 
-                // Secured endpoints (any authenticated customer)
                 .route("product-secure", r -> r.path("/product/secure/**")
                         .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
-                        .uri("http://localhost:8084"))
+                        .uri("lb://PRODUCT-SERVICE"))
 
-                // inventory-service
+                // INVENTORY SERVICE
                 .route("inventory-secure", r -> r.path("/inventory/secure/**")
                         .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
-                        .uri("http://localhost:8085"))
-                // inventory-service
-                .route("cart", r -> r.path("/cart/**")
-                        .filters(f -> f.filter(jwtAuthFilter))
-                        .uri("http://localhost:8086"))
-                .route("order", r -> r.path("/orders/**")
-                        .filters(f -> f.filter(jwtAuthFilter))
-                        .uri("http://localhost:8087"))
-                .route("promotion", r -> r.path("/promotions/**")
-                        .filters(f -> f.filter(jwtAuthFilter))
-                        .uri("http://localhost:8088"))
-                .build();
+                        .uri("lb://INVENTORY-SERVICE"))
 
+                // CART SERVICE
+                .route("cart", r -> r.path("/cart/**")
+                        .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
+                        .uri("lb://CART-SERVICE"))
+
+                // ORDER SERVICE
+                .route("order", r -> r.path("/orders/**")
+                        .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
+                        .uri("lb://ORDER-SERVICE"))
+
+                .route("order-vnpay", r -> r.path("/payments/vnpay-callback")
+                        .uri("lb://ORDER-SERVICE"))
+
+                .route("order-payments", r -> r.path("/payments/**")
+                        .filters(f -> f.filter(jwtAuthFilter))
+                        .uri("lb://ORDER-SERVICE"))
+
+                // PROMOTION SERVICE
+                .route("promotion", r -> r.path("/promotions/**")
+                        .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
+                        .uri("lb://PROMOTION-SERVICE"))
+
+                // DASHBOARD SERVICE
+                .route("dashboard", r -> r.path("/dashboard/**")
+                        .filters(f -> f.filter(jwtAuthFilter))
+                        .uri("lb://DASHBOARD-SERVICE"))
+
+                .build();
     }
+
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+        http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges.anyExchange().permitAll())
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable);
         return http.build();
     }
+
     @Bean
     public CorsWebFilter corsWebFilter() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("*"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedMethods(List.of("*"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", config);
         return new CorsWebFilter(source);
     }
-
 }

@@ -2,6 +2,7 @@ package com.doan.inventory_service.services;
 
 import com.doan.inventory_service.dtos.supplier.SupplierRequest;
 import com.doan.inventory_service.models.Supplier;
+import com.doan.inventory_service.repositories.PurchaseOrderRepository;
 import com.doan.inventory_service.repositories.SupplierRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.Objects;
 @AllArgsConstructor
 public class SupplierService {
     private final SupplierRepository supplierRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
 
     public Supplier createSupplier(SupplierRequest request){
         if(supplierRepository.existsByName(request.getName()))
@@ -78,6 +80,8 @@ public class SupplierService {
         /// /
         Supplier supplier=supplierRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy nhà cung cấp!"));
+        if(purchaseOrderRepository.existsBySupplierId(id))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Nhà cung cấp đã được sử dụng!");
         supplierRepository.delete(supplier);
     }
 }

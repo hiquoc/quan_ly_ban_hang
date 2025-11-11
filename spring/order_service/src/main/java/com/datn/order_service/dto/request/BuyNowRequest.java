@@ -35,6 +35,9 @@ public class BuyNowRequest {
     @NotBlank
     private String paymentMethod;
 
+    @NotBlank
+    private String platform;
+
     private String promotionCode;
     private String notes;
 }

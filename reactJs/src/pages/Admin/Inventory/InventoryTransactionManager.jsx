@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import SearchableSelect from "../../../components/SearchableSelect";
-import { getInventoryTransactions, createInventoryTransaction, getAllInventories, updateInventoryTransactionStatus } from "../../../apis/inventoryApi";
-import { FiRefreshCw, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { getInventoryTransactions, createInventoryTransaction, getAllInventories, updateInventoryTransactionStatus, getAllWarehouses } from "../../../apis/inventoryApi";
+import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye } from "react-icons/fi";
 import { FaGear } from "react-icons/fa6";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { createPortal } from "react-dom";
 
 export default function InventoryTransactionManager() {
     const [transactions, setTransactions] = useState([]);
@@ -26,9 +28,19 @@ export default function InventoryTransactionManager() {
     const [showSortSettings, setShowSortSettings] = useState(false);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [ignoreReserveRelease, setIgnoreReserveRelease] = useState(true)
+
     const [warehouses, setWarehouses] = useState([]);
+    const [filteredWarehouses, setFilteredWarehouses] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+    const [confirmStatusPanel, setConfirmStatusPanel] = useState({
+        visible: false,
+        code: null,
+        status: "",
+    });
+    const [confirmNotes, setConfirmNotes] = useState("");
 
     const [form, setForm] = useState({
         warehouseId: null,
@@ -37,11 +49,73 @@ export default function InventoryTransactionManager() {
         transactionType: "IMPORT",
         note: ""
     });
+    const buttonRefs = useRef({});
+    const [dropdownOpen, setDropdownOpen] = useState({});
+
+    const DropdownMenu = ({ buttonRef, dropdownOpen, setDropdownOpen, onSelect }) => {
+        const dropdownRef = useRef(null);
+        const [pos, setPos] = useState({ top: 0, left: 0 });
+
+        useEffect(() => {
+            if (dropdownOpen && buttonRef) {
+                const rect = buttonRef.getBoundingClientRect();
+                setPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+            }
+        }, [dropdownOpen, buttonRef]);
+
+        useEffect(() => {
+            const handleClickOutside = (e) => {
+                if (
+                    dropdownRef.current &&
+                    !dropdownRef.current.contains(e.target) &&
+                    buttonRef &&
+                    !buttonRef.contains(e.target)
+                ) {
+                    setDropdownOpen(false);
+                }
+            };
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
+        }, [buttonRef, setDropdownOpen]);
+
+        if (!dropdownOpen) return null;
+
+        const handleSelect = (status) => {
+            onSelect(status);
+            setDropdownOpen(false);
+        };
+
+        return createPortal(
+            <div
+                ref={dropdownRef}
+                style={{ top: pos.top, left: pos.left }}
+                className="absolute z-50 w-28 bg-white border border-gray-200 rounded shadow-lg"
+            >
+                <button
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-green-500"
+                    onClick={() => handleSelect("COMPLETED")}
+                >
+                    Hoàn tất
+                </button>
+                <button
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
+                    onClick={() => handleSelect("CANCELLED")}
+                >
+                    Hủy
+                </button>
+            </div>,
+            document.body
+        );
+    };
 
     useEffect(() => {
         loadTransactions(0)
-        loadData();
     }, []);
+
+    useEffect(() => {
+        if (warehouses.length === 0) return;
+        loadInventoriesBaseOnWarehouseId();
+    }, [form.warehouseId])
 
     async function loadTransactions(page,
         status = null,
@@ -49,8 +123,10 @@ export default function InventoryTransactionManager() {
         start = startDate,
         end = endDate,
         searchKeyword = keyword,
-        searchType = keywordType
+        searchType = keywordType,
+        ignore = ignoreReserveRelease,
     ) {
+        console.log(1)
         setLoading(true);
         try {
             const keywordToSend = searchKeyword?.trim() || null;
@@ -64,7 +140,8 @@ export default function InventoryTransactionManager() {
                 start,
                 end,
                 keywordToSend,
-                typeToSend
+                typeToSend,
+                ignore
             );
 
             if (transactionsRes?.error) {
@@ -81,45 +158,22 @@ export default function InventoryTransactionManager() {
         }
     }
 
-    async function loadData() {
-        const [inventoryRes] = await Promise.all([
-            getAllInventories()
-        ]);
+    async function loadWarehouse() {
+        const res = await getAllWarehouses();
+        if (res.error) return setPopup({ message: res.error })
+        setWarehouses(res.data);
+        setFilteredWarehouses(res.data)
+    }
+    async function loadInventoriesBaseOnWarehouseId(keyword = "") {
+        const res = await getAllInventories(0, 5, keyword, form.warehouseId, true)
+        if (res.error) return //setPopup({ message: res.error })
+        setInventories(res.data.content);
+    }
 
-        if (inventoryRes?.error) {
-            setPopup({ message: "Lỗi khi tải giao dịch!", type: "error" });
-            return;
-        }
-        setInventories(inventoryRes.data.content);
-        const newWarehouses = inventoryRes.data.content.map(i => i.warehouse)
-        setWarehouses(prev => {
-            const combined = [...prev, ...newWarehouses];
-            return Array.from(new Map(combined.map(w => [w.id, w])).values());
-        })
-        const newVariants = inventoryRes.data.content.map(i => i.variant);
-        setVariants(prev => {
-            const combined = [...prev, ...newVariants];
-            return Array.from(new Map(combined.map(w => [w.id, w]).values()));
-        })
-    }
-    function handleChangeStatus(id, status) {
-        setConfirmPanel({
-            visible: true,
-            message: `Bạn có chắc muốn ${status === "CANCELLED" ? "hủy" : "hoàn tất"} phiếu này ?`,
-            onConfirm: async () => {
-                const res = await updateInventoryTransactionStatus(id, status)
-                if (!res.error) {
-                    setTransactions((prev) => prev.map(p => (p.id === id ? { ...p, status } : p)))
-                    setPopup({ message: "Cập nhật trạng thái thành công!", type: "success" });
-                } else {
-                    setPopup({ message: res.error, type: "error" });
-                }
-            }
-        });
-    }
     const closeConfirmPanel = () => setConfirmPanel({ visible: false, message: "", onConfirm: null });
 
     function handleOpenForm() {
+        loadWarehouse();
         setForm({
             warehouseId: "",
             variantId: "",
@@ -148,19 +202,33 @@ export default function InventoryTransactionManager() {
 
         setPopup({ message: "Tạo phiếu thành công!", type: "success" });
         setShowForm(false);
-        loadTransactions(transactionPage);
-        loadData();
+        setTransactions(prev => [res.data, ...prev])
     }
-
+    function getPageNumbers() {
+        const pages = [];
+        const maxVisible = 4;
+        if (transactionTotalPages <= maxVisible + 2) {
+            for (let i = 0; i < transactionTotalPages; i++) pages.push(i);
+        } else {
+            if (transactionPage <= 2) {
+                pages.push(0, 1, 2, 3, "...", transactionTotalPages - 1);
+            } else if (transactionPage >= transactionTotalPages - 3) {
+                pages.push(0, "...", transactionTotalPages - 4, transactionTotalPages - 3, transactionTotalPages - 2, transactionTotalPages - 1);
+            } else {
+                pages.push(0, "...", transactionPage - 1, transactionPage, transactionPage + 1, "...", transactionTotalPages - 1);
+            }
+        }
+        return pages;
+    }
     return (
-        <div className="p-6 bg-gray-50 rounded shadow">
+        <div className="p-6 bg-white rounded shadow">
             {/* Header */}
             <div className=" md:flex-row justify-between items-center mb-6 gap-4">
                 <div className="flex justify-between">
                     <h3 className="text-2xl font-semibold text-gray-800">Lịch sử phiếu</h3>
                     <button
                         onClick={handleOpenForm}
-                        className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        className="px-3 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
                     >
                         Tạo phiếu
                     </button>
@@ -218,7 +286,29 @@ export default function InventoryTransactionManager() {
 
             {/* Transactions Table */}
             {loading ? (
-                <p className="text-center text-gray-500">Đang tải...</p>
+                <div className="flex items-center justify-center gap-2">
+                    <svg
+                        className="animate-spin h-5 w-5 text-black"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                        ></circle>
+                        <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        ></path>
+                    </svg>
+                    Đang tải dữ liệu...
+                </div>
             ) : (
                 <div className="overflow-x-auto shadow-md rounded-lg">
                     <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
@@ -251,7 +341,7 @@ export default function InventoryTransactionManager() {
                                 </tr>
                             ) : (
                                 transactions.map(t => (
-                                    <tr key={t.id} className="hover:bg-gray-50 transition">
+                                    <tr key={t.id} className="hover:bg-gray-100 transition">
                                         <td className="p-4 text-center border-b border-gray-200">{t.code}</td>
                                         <td className="p-4 text-center border-b border-gray-200">{t.variant.sku}</td>
                                         <td className="p-4 text-center border-b border-gray-200">{t.warehouse.code}</td>
@@ -267,53 +357,56 @@ export default function InventoryTransactionManager() {
                                                         t.transactionType === "RELEASE" ? "Hủy giữ hàng" : "Điều chỉnh"}
                                         </td>
                                         <td className="p-4 text-center border-b border-gray-200">{t.quantity}</td>
-                                        <td className="p-4 text-center border-b border-gray-200">
-                                            {(() => {
-                                                if (t.status === "PENDING" && t.transactionType !== "RESERVE") {
-                                                    return (
-                                                        <div className="flex gap-1 justify-center">
-                                                            <button
-                                                                onClick={() => handleChangeStatus(t.id, "COMPLETED")}
-                                                                className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-                                                            >
-                                                                Hoàn tất
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleChangeStatus(t.id, "CANCELLED")}
-                                                                className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                                                            >
-                                                                Hủy
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                }
-
-                                                const statusMap = {
-                                                    PENDING: { label: "Đang xử lý", color: "bg-yellow-600" },
-                                                    COMPLETED: { label: "Hoàn tất", color: "bg-green-600" },
-                                                    CANCELLED: { label: "Đã hủy", color: "bg-red-600" },
-                                                };
-
-                                                const { label, color } = statusMap[t.status] || {};
-                                                return (
+                                        <td className="p-4 text-center border-b border-gray-200 relative overflow-visible">
+                                            {t.status === "PENDING" && t.transactionType !== "RESERVE" ? (
+                                                <>
                                                     <button
-                                                        disabled
-                                                        className={`px-3 py-2 rounded text-white ${color} cursor-not-allowed opacity-90`}
+                                                        ref={(el) => (buttonRefs.current[t.id] = el)}
+                                                        onClick={() => setDropdownOpen((prev) => ({ ...prev, [t.id]: !prev[t.id] }))}
+                                                        className="px-3 py-1 text-sm rounded-full font-semibold cursor-pointer transition bg-yellow-500 text-white hover:bg-yellow-400"
                                                     >
-                                                        {label}
+                                                        Đang xử lý
                                                     </button>
-                                                );
-                                            })()}
+
+                                                    <DropdownMenu
+                                                        buttonRef={buttonRefs.current[t.id]}
+                                                        dropdownOpen={dropdownOpen[t.id]}
+                                                        setDropdownOpen={(val) =>
+                                                            setDropdownOpen((prev) => ({ ...prev, [t.id]: val }))
+                                                        }
+                                                        onSelect={(status) =>
+                                                            setConfirmStatusPanel({ visible: true, id: t.id, status, code: t.code })
+                                                        }
+                                                    />
+                                                </>
+                                            ) : (
+                                                (() => {
+                                                    const statusMap = {
+                                                        PENDING: { label: "Đang xử lý", color: "bg-yellow-500" },
+                                                        COMPLETED: { label: "Hoàn tất", color: "bg-green-500" },
+                                                        CANCELLED: { label: "Đã hủy", color: "bg-red-500" },
+                                                    };
+                                                    const { label, color } = statusMap[t.status] || {};
+                                                    return (
+                                                        <button
+                                                            disabled
+                                                            className={`px-3 py-1 text-sm rounded-full text-white ${color} cursor-not-allowed`}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                    );
+                                                })()
+                                            )}
                                         </td>
+
                                         <td className="p-4 text-center border-b border-gray-200">
                                             <button
                                                 onClick={() => setSelectedTransaction(t)}
-                                                className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                                                className="p-2 text-blue-600  hover:bg-blue-100 rounded transition"
                                             >
-                                                Xem
+                                                <FiEye></FiEye>
                                             </button>
                                         </td>
-
                                         <td className="p-4 text-center border-b border-gray-200">{new Date(t.updatedAt ? t.updatedAt : t.createdAt).toLocaleDateString("vi-VN")}</td>
                                     </tr>
                                 ))
@@ -325,30 +418,45 @@ export default function InventoryTransactionManager() {
             }
 
             {/* Pagination */}
-            <div className="flex justify-center items-center gap-4 mt-4">
-                <button
-                    disabled={transactionPage === 0}
-                    onClick={() => loadTransactions(transactionPage - 1, status, transactionType, startDate, endDate)}
-                    className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
-                >
-                    <FiChevronLeft className="w-5 h-5" />
-                    <span className="ml-1">Trước</span>
-                </button>
-                <span className="text-gray-700 font-medium text-center">Trang {transactionPage + 1} / {transactionTotalPages}</span>
-                <button
-                    disabled={transactionPage >= transactionTotalPages - 1}
-                    onClick={() => loadTransactions(transactionPage + 1, status, transactionType, startDate, endDate)}
-                    className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
-                >
-                    <span className="mr-1">Sau</span>
-                    <FiChevronRight className="w-5 h-5" />
-                </button>
-            </div>
+            {transactionTotalPages > 0 && (
+                <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+                    <button
+                        onClick={() => loadTransactions(transactionPage - 1, status, transactionType, startDate, endDate)}
+                        disabled={transactionPage === 0}
+                        className={`p-3 rounded ${transactionPage === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronLeft />
+                    </button>
+
+                    {getPageNumbers().map((num, i) =>
+                        num === "..." ? (
+                            <span key={i} className="px-2 text-gray-500">...</span>
+                        ) : (
+                            <button
+                                key={i}
+                                onClick={() => loadTransactions(num, status, transactionType, startDate, endDate)}
+                                className={`w-8 h-8 flex items-center justify-center rounded border transition-all
+                                                              ${transactionPage === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+                            >
+                                {num + 1}
+                            </button>
+                        )
+                    )}
+
+                    <button
+                        onClick={() => loadTransactions(transactionPage + 1, status, transactionType, startDate, endDate)}
+                        disabled={transactionPage >= transactionTotalPages - 1}
+                        className={`p-3 rounded ${transactionPage >= transactionTotalPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronRight />
+                    </button>
+                </div>
+            )}
 
             {/* Popup */}
             <Popup message={popup.message} type={popup.type} onClose={() => setPopup({ message: "", type: "" })} duration={3000} />
             {showSortSettings && (
-                <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+                <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 pb-20">
                     <div className="bg-white p-6 rounded-lg w-[400px] shadow-lg">
                         <div className="flex justify-between">
                             <h3 className="text-xl font-semibold mb-4 text-gray-800">Bộ lọc giao dịch</h3>
@@ -386,6 +494,20 @@ export default function InventoryTransactionManager() {
                                 <option value="RELEASE">Hủy giữ hàng</option>
                             </select>
                         </div>
+                        <div className="mb-3 flex items-center space-x-2">
+                            <label className="inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    checked={!!ignoreReserveRelease}
+                                    onChange={() => setIgnoreReserveRelease(prev => !prev)}
+                                />
+                                <span className="ml-2 text-gray-700 font-medium">
+                                    Hiển thị đặt/ hủy giữ hàng
+                                </span>
+                            </label>
+                        </div>
+
 
                         {/* Date Range */}
                         <div className="mb-3">
@@ -417,7 +539,7 @@ export default function InventoryTransactionManager() {
                                     setShowSortSettings(false);
                                     loadTransactions(0);
                                 }}
-                                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                className="px-4 py-2 border rounded hover:bg-gray-100"
                             >
                                 Đặt lại
                             </button>
@@ -426,7 +548,7 @@ export default function InventoryTransactionManager() {
                                     setShowSortSettings(false);
                                     loadTransactions(0, status, transactionType, startDate, endDate);
                                 }}
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
                             >
                                 Lọc
                             </button>
@@ -437,18 +559,30 @@ export default function InventoryTransactionManager() {
 
             {/* Create Transaction Form */}
             {showForm && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-49">
+                <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-[750px] max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-semibold mb-4">Tạo giao dịch</h3>
+                        <h3 className="text-xl font-semibold mb-4">Tạo phiếu</h3>
 
                         {/* Kho */}
                         <div className="mb-4">
                             <h4 className="font-semibold mb-2">Kho</h4>
                             <SearchableSelect
-                                options={warehouses.map(w => ({ label: `${w.code} | ${w.name}`, value: w.id }))}
+                                options={filteredWarehouses.map(w => ({ label: `${w.code} | ${w.name}`, value: w.id }))}
                                 value={form.warehouseId}
                                 onChange={id => setForm({ ...form, warehouseId: id })}
                                 placeholder="Chọn kho..."
+                                onInputChange={input => {
+                                    if (!input) {
+                                        setFilteredWarehouses(warehouses);
+                                        return;
+                                    }
+                                    const keyword = input.toLowerCase();
+                                    setFilteredWarehouses(
+                                        warehouses.filter(
+                                            w => w.code.toLowerCase().includes(keyword) || w.name.toLowerCase().includes(keyword)
+                                        )
+                                    );
+                                }}
                             />
                         </div>
 
@@ -457,14 +591,14 @@ export default function InventoryTransactionManager() {
                             <h4 className="font-semibold mb-2">Sản phẩm</h4>
                             <SearchableSelect
                                 options={inventories
-                                    .filter(inv => inv.warehouse.id === form.warehouseId)
                                     .map(inv => ({
                                         label: `${inv.variant.sku || inv.variant.productName} | ${inv.variant.productName}`,
                                         value: inv.variant.id
                                     }))}
                                 value={form.variantId}
                                 onChange={id => setForm({ ...form, variantId: id })}
-                                placeholder="Chọn sản phẩm..."
+                                placeholder="Chọn sản phẩm... (Tìm theo SKU biến thể)"
+                                onInputChange={(input) => loadInventoriesBaseOnWarehouseId(input)}
                             />
                         </div>
 
@@ -540,15 +674,15 @@ export default function InventoryTransactionManager() {
                         <div className="flex justify-end gap-2 mt-4">
                             <button
                                 onClick={() => setShowForm(false)}
-                                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                className="px-4 py-2 border rounded hover:bg-gray-100"
                             >
                                 Đóng
                             </button>
                             <button
                                 onClick={handleSaveTransaction}
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
                             >
-                                Tạo giao dịch
+                                Tạo phiếu
                             </button>
                         </div>
                     </div>
@@ -558,130 +692,166 @@ export default function InventoryTransactionManager() {
 
             {/* Transaction Detail Modal */}
             {selectedTransaction && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-white rounded-lg shadow-xl w-11/12 max-w-3xl p-6 relative max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 overflow-y-auto p-4">
+                    <div className="bg-white rounded shadow w-11/12 max-w-5xl p-10 relative my-10 max-h-[90vh] overflow-y-auto relative">
 
                         {/* Header */}
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-2xl font-bold text-gray-800">
-                                Chi tiết phiếu: {selectedTransaction.code}
-                            </h3>
+                        <div className="flex justify-between items-start mb-5">
+                            <div>
+                                <h3 className="text-3xl font-bold text-black mb-2">
+                                    Chi tiết phiếu
+                                </h3>
+                                <p className="text-xl text-gray-600 font-medium">{selectedTransaction.code}</p>
+                            </div>
                             <button
                                 onClick={() => setSelectedTransaction(null)}
-                                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                                className="text-gray-400 hover:text-black text-4xl font-light transition-colors leading-none absolute top-4 right-4"
                             >
                                 ×
                             </button>
                         </div>
 
-                        {/* Content */}
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-gray-600 text-base">
-                            {/* Cột trái: Loại phiếu, Kho, SKU, Số lượng */}
-                            <div className="space-y-3">
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Loại phiếu:</span>
-                                    <span className={`${selectedTransaction.transactionType === "IMPORT" ? "text-green-600" :
-                                        selectedTransaction.transactionType === "EXPORT" ? "text-red-600" :
-                                            selectedTransaction.transactionType === "RESERVE" ? "text-blue-600" :
-                                                selectedTransaction.transactionType === "RELEASE" ? "text-yellow-600" :
-                                                    "text-gray-800"
-                                        }`}>
-                                        {selectedTransaction.transactionType === "IMPORT" ? "Nhập kho" :
-                                            selectedTransaction.transactionType === "EXPORT" ? "Xuất kho" :
-                                                selectedTransaction.transactionType === "RESERVE" ? "Đặt giữ hàng" :
-                                                    selectedTransaction.transactionType === "RELEASE" ? "Hủy giữ hàng" : "Điều chỉnh"}
+                        {/* Status Badge */}
+                        <div className="mb-5 flex flex-wrap gap-2">
+                            {/** Status badge */}
+                            {(() => {
+                                const statusMap = {
+                                    PENDING: { label: "⏳ Đang xử lý", bg: "bg-yellow-100", text: "text-yellow-800" },
+                                    COMPLETED: { label: "✓ Hoàn tất", bg: "bg-green-100", text: "text-green-800" },
+                                    CANCELLED: { label: "✗ Đã hủy", bg: "bg-red-100", text: "text-red-800" },
+                                };
+                                const { label, bg, text } = statusMap[selectedTransaction.status] || { label: "Unknown", bg: "bg-gray-100", text: "text-gray-700" };
+                                return (
+                                    <span className={`inline-block px-4 py-1 rounded-full font-semibold ${bg} ${text} border border-gray-200`}>
+                                        {label}
                                     </span>
+                                );
+                            })()}
 
-                                </div>
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Kho:</span>
-                                    <span>{selectedTransaction.warehouse?.code || "—"}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">SKU:</span>
-                                    <span>{selectedTransaction.variant?.sku || "—"}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Số lượng:</span>
-                                    <span>
-                                        {selectedTransaction.quantity}
-                                        {selectedTransaction.transactionType !== "RESERVE" && selectedTransaction.transactionType !== "RELEASE" && (
-                                            <> ({new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(selectedTransaction.pricePerItem)})</>
-                                        )}
+                            {/** Transaction type badge */}
+                            {(() => {
+                                const typeMap = {
+                                    IMPORT: { label: "📥 Nhập kho", bg: "bg-gray-100", text: "text-black" },
+                                    EXPORT: { label: "📤 Xuất kho", bg: "bg-gray-100", text: "text-black" },
+                                    RESERVE: { label: "🔒 Đặt giữ hàng", bg: "bg-gray-200", text: "text-gray-800" },
+                                    RELEASE: { label: "🔓 Hủy giữ hàng", bg: "bg-gray-200", text: "text-gray-800" },
+                                    ADJUST: { label: "⚙️ Điều chỉnh", bg: "bg-gray-100", text: "text-gray-700" },
+                                };
+                                const { label, bg, text } = typeMap[selectedTransaction.transactionType] || typeMap.ADJUST;
+                                return (
+                                    <span className={`inline-block px-4 py-1 rounded-full font-semibold ${bg} ${text} border border-gray-200`}>
+                                        {label}
                                     </span>
-                                </div>
-
-                                {selectedTransaction.transactionType !== "RESERVE" && selectedTransaction.transactionType !== "RELEASE" && (
-                                    <div className="flex">
-                                        <span className="font-semibold w-36 text-gray-700">Tổng tiền:</span>
-                                        <span>
-                                            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                                selectedTransaction.pricePerItem * selectedTransaction.quantity
-                                            )}
-                                        </span>
-                                    </div>
-                                )}
-
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Trạng thái:</span>
-                                    <span className={`font-semibold ${selectedTransaction.status === "PENDING" ? "text-yellow-600" :
-                                        selectedTransaction.status === "COMPLETED" ? "text-green-600" :
-                                            "text-red-600"
-                                        }`}>
-                                        {selectedTransaction.status === "PENDING" ? "Đang xử lý" :
-                                            selectedTransaction.status === "COMPLETED" ? "Hoàn tất" : "Đã hủy"}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Cột phải: Người tạo/cập nhật, ngày tạo/cập nhật, tham chiếu */}
-                            <div className="space-y-3">
-                                {selectedTransaction.createdBy &&
-                                    (<div className="flex">
-                                        <span className="font-semibold w-36 text-gray-700">NV tạo:</span>
-                                        <span>NV{selectedTransaction.createdBy}</span>
-                                    </div>)}
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Ngày tạo:</span>
-                                    <span>{new Date(selectedTransaction.createdAt).toLocaleString("vi-VN")}</span>
-                                </div>
-                                {selectedTransaction.updatedBy &&
-                                    (<div className="flex">
-                                        <span className="font-semibold w-36 text-gray-700">NV cập nhật:</span>
-                                        <span>NV{selectedTransaction.updatedBy}</span>
-                                    </div>)}
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Ngày cập nhật:</span>
-                                    <span>{selectedTransaction.updatedAt ? new Date(selectedTransaction.updatedAt).toLocaleString("vi-VN") : "—"}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Loại giao dịch:</span>
-                                    <span>
-                                        {selectedTransaction.referenceType === "PURCHASE_ORDER" ? "Đơn mua" :
-                                            selectedTransaction.referenceType === "ORDER" ? "Đơn bán" : "—"}
-                                    </span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-semibold w-36 text-gray-700">Mã giao dịch:</span>
-                                    <span>{selectedTransaction.referenceCode || "—"}</span>
-                                </div>
-                            </div>
-
-                            {/* Ghi chú (full width) */}
-                            {selectedTransaction.note && (
-                                <div className="col-span-2 flex">
-                                    <span className="font-semibold text-gray-700">Ghi chú:</span>
-                                    <p className="text-gray-600 pl-2 ">{selectedTransaction.note}</p>
-                                </div>
-                            )}
-
+                                );
+                            })()}
                         </div>
 
-                        {/* Close Button */}
-                        <div className="flex justify-end mt-6">
+
+                        {/* Content Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Left Column - Transaction Info */}
+                            <div className="bg-gray-50 rounded p-6 space-y-4">
+                                <h4 className="text-lg font-bold text-black mb-4 pb-2 border-b-2 border-gray-300">Thông tin giao dịch</h4>
+
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span className="text-gray-600 font-medium">Kho</span>
+                                        <span className="text-black font-semibold">{selectedTransaction.warehouse?.code || "—"}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span className="text-gray-600 font-medium">SKU</span>
+                                        <span className="text-black font-semibold">{selectedTransaction.variant?.sku || "—"}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span className="text-gray-600 font-medium">Số lượng</span>
+                                        <span className="text-black font-bold text-lg">{selectedTransaction.quantity}</span>
+                                    </div>
+
+                                    {selectedTransaction.transactionType !== "RESERVE" && selectedTransaction.transactionType !== "RELEASE" && (
+                                        <>
+                                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                                <span className="text-gray-600 font-medium">Đơn giá</span>
+                                                <span className="text-black font-semibold">
+                                                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(selectedTransaction.pricePerItem)}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center py-3  mt-2">
+                                                <span className="text-black font-bold">Tổng tiền</span>
+                                                <span className="text-red-500 font-bold text-xl">
+                                                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                                                        selectedTransaction.pricePerItem * selectedTransaction.quantity
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Right Column - Reference & Tracking Info */}
+                            <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                                <h4 className="text-lg font-bold text-black mb-4 pb-2 border-b-2 border-gray-300">Thông tin theo dõi</h4>
+
+                                <div className="space-y-3">
+                                    {selectedTransaction.createdBy && (
+                                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                            <span className="text-gray-600 font-medium">Nhân viên tạo</span>
+                                            <span className="text-black font-semibold">NV{selectedTransaction.createdBy}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span className="text-gray-600 font-medium">Ngày tạo</span>
+                                        <span className="text-black font-semibold">{new Date(selectedTransaction.createdAt).toLocaleString("vi-VN")}</span>
+                                    </div>
+
+                                    {selectedTransaction.updatedBy && (
+                                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                            <span className="text-gray-600 font-medium">Nhân viên cập nhật</span>
+                                            <span className="text-black font-semibold">NV{selectedTransaction.updatedBy}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span className="text-gray-600 font-medium">Ngày cập nhật</span>
+                                        <span className="text-black font-semibold">{selectedTransaction.updatedAt ? new Date(selectedTransaction.updatedAt).toLocaleString("vi-VN") : "—"}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span className="text-gray-600 font-medium">Loại giao dịch</span>
+                                        <span className={`font-semibold px-4 py-2 rounded-full ${selectedTransaction.referenceType === "PURCHASE_ORDER" ? "bg-blue-500 text-white" :
+                                            selectedTransaction.referenceType === "ORDER" ? "bg-rose-500 text-white" :
+                                                "text-black"
+                                            }`}>
+                                            {selectedTransaction.referenceType === "PURCHASE_ORDER" ? "Đơn mua" :
+                                                selectedTransaction.referenceType === "ORDER" ? "Đơn bán" : "—"}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span className="text-gray-600 font-medium">Mã giao dịch</span>
+                                        <span className="text-black font-semibold">{selectedTransaction.referenceCode || "—"}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Note Section */}
+                        {selectedTransaction.note && (
+                            <div className="mt-5 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6">
+                                <h4 className="text-sm font-bold text-yellow-800 mb-2 uppercase tracking-wide">Ghi chú</h4>
+                                <p className="text-gray-800 leading-relaxed">{selectedTransaction.note}</p>
+                            </div>
+                        )}
+
+                        {/* Action Button */}
+                        <div className="flex justify-end mt-5 pt-6 border-t-2 border-gray-200">
                             <button
                                 onClick={() => setSelectedTransaction(null)}
-                                className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                className="px-10 py-3 bg-black text-white rounded hover:bg-gray-800 transition-all font-semibold text-lg shadow-lg hover:shadow-xl"
                             >
                                 Đóng
                             </button>
@@ -690,7 +860,77 @@ export default function InventoryTransactionManager() {
                 </div>
             )
             }
+            {confirmStatusPanel.visible && (
+                <div
+                    className="fixed inset-0 bg-gray-800/30 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+                    onClick={() => {
+                        setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
+                        setConfirmNotes(""); // reset notes
+                    }}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close Button */}
+                        <button
+                            className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 font-bold text-2xl"
+                            onClick={() => {
+                                setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
+                                setConfirmNotes("");
+                            }}
+                        >
+                            &times;
+                        </button>
 
+                        <h3 className="text-xl font-semibold mb-4">
+                            Xác nhận đổi trạng thái
+                        </h3>
+                        <p className="mb-4">
+                            Phiếu <span className="font-semibold">{confirmStatusPanel.code}</span> sẽ được chuyển sang trạng thái
+                            <span className={`font-semibold px-3 rounded py-1 ${confirmStatusPanel.status === "COMPLETED" ? "text-green-500" : "text-red-500"}`}>
+                                {confirmStatusPanel.status === "COMPLETED" ? "Hoàn tất" : "Đã hủy"}
+                            </span>
+                        </p>
+                        <textarea
+                            placeholder="Ghi chú (tùy chọn)..."
+                            value={confirmNotes}
+                            onChange={(e) => setConfirmNotes(e.target.value)}
+                            className="w-full border rounded p-3 mb-4 focus:outline-none focus:ring-1 focus:ring-gray-700"
+                            rows={3}
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button
+                                className="px-4 py-2 rounded border hover:bg-gray-100"
+                                onClick={() => {
+                                    setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
+                                    setConfirmNotes("");
+                                }}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+                                onClick={async () => {
+                                    const { id, status } = confirmStatusPanel;
+
+                                    setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
+
+                                    const res = await updateInventoryTransactionStatus(id, status, confirmNotes);
+                                    if (res.error) return setPopup({ message: res.error });
+                                    setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: status } : t))
+                                    // loadTransactions(transactionPage);
+                                    setPopup({ message: "Cập nhật trạng thái thành công!", type: "success" });
+                                    setConfirmNotes("");
+                                }}
+                            >
+                                Xác nhận
+                            </button>
+
+                        </div>
+                    </div>
+                </div>
+            )}
             <ConfirmPanel
                 visible={confirmPanel.visible}
                 message={confirmPanel.message}

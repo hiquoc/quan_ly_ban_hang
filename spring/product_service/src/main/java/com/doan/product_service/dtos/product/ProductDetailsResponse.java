@@ -22,6 +22,7 @@ public class ProductDetailsResponse {
     private String categorySlug;
     private String brandName;
     private String brandSlug;
+    private Long totalSold;
     private Map<String, String> technicalSpecs;
     @JsonProperty("isFeatured")
     private boolean isFeatured;

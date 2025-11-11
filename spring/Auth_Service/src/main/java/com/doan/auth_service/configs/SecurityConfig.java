@@ -1,6 +1,5 @@
 package com.doan.auth_service.configs;
 
-import com.doan.auth_service.services.CustomOAuth2UserService;
 import com.doan.auth_service.services.security.CustomAccountDetailsService;
 import com.doan.auth_service.utils.CustomHttpCookieOAuth2AuthorizationRequestRepository;
 import com.doan.auth_service.utils.JwtAuthFilter;
@@ -26,15 +25,15 @@ public class SecurityConfig {
 
     private final CustomAccountDetailsService customAccountDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
-    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler successHandler;
 
     public SecurityConfig(
             CustomAccountDetailsService customAccountDetailsService,
             JwtAuthFilter jwtAuthFilter,
-            CustomOAuth2UserService customOAuth2UserService) {
+            OAuth2LoginSuccessHandler successHandler) {
         this.customAccountDetailsService = customAccountDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
-        this.customOAuth2UserService = customOAuth2UserService;
+        this.successHandler = successHandler;
     }
 
     @Bean
@@ -56,37 +55,21 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CustomHttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository() {
-        return new CustomHttpCookieOAuth2AuthorizationRequestRepository();
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**","/oauth2/**").permitAll()
-                        .anyRequest().authenticated() // trusted through gateway
+                        .requestMatchers("/public/**", "/oauth2/**","/internal/**").permitAll()
+                        .anyRequest().authenticated()
                 )
                 .authenticationProvider(daoAuthenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .cors(cors -> {})
                 .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(authEndpoint ->
-                                authEndpoint.authorizationRequestRepository(cookieAuthorizationRequestRepository())
-                        )
-                        .userInfoEndpoint(userInfo ->
-                                userInfo.userService(customOAuth2UserService)
-                        )
-                        .defaultSuccessUrl("http://localhost:5173")
-                        .failureUrl("http://localhost:5173/login?error=true")
-                        .failureHandler((request, response, exception) -> {
-                            exception.printStackTrace();
-                            response.sendRedirect("http://localhost:5173/login?error=" + exception.getMessage());
-                        })
+                        .successHandler(successHandler)
                 );
 
         return http.build();
     }
+
 
     @Bean
     public ForwardedHeaderFilter forwardedHeaderFilter() {

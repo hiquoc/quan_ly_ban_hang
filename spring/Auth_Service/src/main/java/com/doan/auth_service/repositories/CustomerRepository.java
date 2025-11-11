@@ -3,6 +3,7 @@ package com.doan.auth_service.repositories;
 import com.doan.auth_service.dtos.Customer.CustomerRequest;
 import com.doan.auth_service.dtos.Customer.CustomerResponse;
 import com.doan.auth_service.dtos.Staff.OwnerIdResponse;
+import com.doan.auth_service.dtos.Staff.StaffResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,9 @@ public interface CustomerRepository {
 
     @DeleteMapping("/{id}")
     ResponseEntity<Void> deleteCustomer(@PathVariable("id") Long id);
+
+    @GetMapping("/{id}")
+    ResponseEntity<List<CustomerResponse>> getCustomerByIdLike(@PathVariable Long id);
 
     @GetMapping("/ids")
     ResponseEntity<List<CustomerResponse>> getCustomerByIds(@RequestParam List<Long> ids);

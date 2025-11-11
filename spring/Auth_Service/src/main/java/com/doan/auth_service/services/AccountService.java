@@ -10,10 +10,9 @@ import com.doan.auth_service.models.Account;
 import com.doan.auth_service.models.Role;
 import com.doan.auth_service.repositories.AccountRepository;
 import com.doan.auth_service.utils.JwtUtil;
-import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
-import org.hibernate.Session;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -21,7 +20,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -37,44 +39,47 @@ public class AccountService {
     private final JwtUtil jwtUtil;
 
 
-    public Account createAccount(String username, String rawPassword,Long ownerId, Role role){
-        String hashedPassword=passwordEncoder.encode(rawPassword);
-        return accountRepository.save(
-                new Account(username,hashedPassword,ownerId,role));
+    public void createAccount(String username, String rawPassword, Long ownerId, Role role, boolean isVerified) {
+        String hashedPassword = passwordEncoder.encode(rawPassword);
+        Account account = new Account(username, hashedPassword, ownerId, role);
+        if (isVerified)
+            account.setIsVerified(true);
+        accountRepository.save(account);
     }
-    public LoginResponse login(String username, String password){
-        Account account=accountRepository.findByUsername(username)
+
+    public LoginResponse login(String username, String password) {
+        Account account = accountRepository.findByUsername(username)
                 .or(() -> {
                     if (username.contains("@")) {
                         try {
                             Optional<Account> optionalAccount = accountRepository
                                     .findByOwnerIdAndRole_Id(
                                             customerServiceClient.getCustomerIdByEmail(username)
-                                                    .getOwnerId(),4L);
+                                                    .getOwnerId(), 4L);
                             if (optionalAccount.isPresent()) return optionalAccount;
 
                         } catch (Exception ex) {
                             System.out.println("Customer not found with email: " + username);
                         }
 
-                        try{
+                        try {
                             Long ownerId = staffServiceClient.getStaffIdByEmail(username).getOwnerId();
-                            return accountRepository.findByOwnerIdAndRole_IdNot(ownerId,4L);
-                        }catch (Exception ignored){
-                            System.out.println("Staff not found with email: "+username);
+                            return accountRepository.findByOwnerIdAndRole_IdNot(ownerId, 4L);
+                        } catch (Exception ignored) {
+                            System.out.println("Staff not found with email: " + username);
                         }
                     }
                     return Optional.empty();
                 })
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND, "Sai tên tài khoản hoặc mật khẩu! "));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sai tên tài khoản hoặc mật khẩu! "));
         if (!passwordEncoder.matches(password, account.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sai tên tài khoản hoặc mật khẩu!");
         }
-        if(!account.getIsActive())
+        if (!account.getIsActive())
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tài khoản đã bị khóa!");
 
 
-        String token = jwtUtil.generateToken(account.getUsername(),account.getId(), account.getRole().getName(),account.getOwnerId());
+        String token = jwtUtil.generateToken(account.getUsername(), account.getId(), account.getRole().getName(), account.getOwnerId());
 
         LoginResponse response = new LoginResponse();
         response.setUsername(account.getUsername());
@@ -83,10 +88,12 @@ public class AccountService {
 
         return response;
     }
-    public Account getAccountById(Long id){
+
+    public Account getAccountById(Long id) {
         return accountRepository.findById(id)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy tài khoản với id: "+id))  ;
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
     }
+
     public Page<AccountResponse> getAllAccounts(
             Integer page, Integer size, String keyword, String type, Boolean active, Long roleId
     ) {
@@ -94,73 +101,100 @@ public class AccountService {
         int pageSize = size != null ? size : 10;
         Pageable pageable = PageRequest.of(currentPage, pageSize);
 
-        Page<Account> accounts;
+        List<Account> accountsList = new ArrayList<>();
 
-        if (keyword != null && !keyword.isEmpty() && type != null && !type.isEmpty()) {
+        boolean hasKeyword = keyword != null && !keyword.isBlank();
+        boolean hasType = type != null && !type.isBlank();
+        String numericPart = hasKeyword ? keyword.replaceAll("\\D", "") : null;
+        Long number = (numericPart != null && !numericPart.isEmpty()) ? Long.parseLong(numericPart) : null;
 
+        if (hasKeyword && hasType) {
             switch (type.toLowerCase()) {
+                case "account":
+                    if (number != null) {
+                        String numberStr = number.toString();
+                        Page<Account> accounts = accountRepository.findByIdLikeAndRole(numberStr, roleId, pageable);
+                        accountsList.addAll(accounts.getContent());
+                    }
+                    break;
 
-                case "code":
-                    Pattern pattern = Pattern.compile("(NV|CUS)?(\\d+)");
-                    Matcher matcher = pattern.matcher(keyword);
-                    if (!matcher.matches()) return Page.empty(pageable);
 
-                    String rolePrefix = matcher.group(1);
-                    Long number = Long.parseLong(matcher.group(2));
+                case "nv": // staff
+                    List<Long> staffIds = staffServiceClient.getStaffByIdLike(number)
+                            .stream().map(StaffResponse::getId).toList();
+                    if (!staffIds.isEmpty()) {
+                        Page<Account> staffAccounts = accountRepository.findStaffAccounts(
+                                staffIds,
+                                active,
+                                roleId,
+                                pageable
+                        );
+                        accountsList.addAll(staffAccounts.getContent());
+                    }
+                    break;
 
-                    if (rolePrefix == null) {
-                        accounts = (roleId != null) ?
-                                accountRepository.findByIdAndRole_Id(number, roleId, pageable) :
-                                accountRepository.findById(number, pageable);
-                    } else if ("NV".equals(rolePrefix)) {
-                        accounts = (roleId != null) ?
-                                accountRepository.findByIdAndRole_IdNotAndRole_Id(number, 4L, roleId, pageable) :
-                                accountRepository.findByIdAndRole_IdNot(number, 4L, pageable);
-                    } else {
-                        accounts = (roleId != null) ?
-                                accountRepository.findByIdAndRole_IdAndRole_Id(number, 4L, roleId, pageable) :
-                                accountRepository.findByIdAndRole_Id(number, 4L, pageable);
+                case "kh": // customer
+                    List<Long> customerIds = customerServiceClient.getCustomerByIdLike(number)
+                            .stream().map(CustomerResponse::getId).toList();
+                    if (!customerIds.isEmpty()) {
+                        Page<Account> customerAccounts = accountRepository.findCustomerAccounts(
+                                customerIds,
+                                active,
+                                4L,
+                                pageable
+                        );
+                        accountsList.addAll(customerAccounts.getContent());
                     }
                     break;
 
                 case "username":
+                    Page<Account> usernameAccounts;
                     if (active != null && roleId != null)
-                        accounts = accountRepository.findByUsernameContainingAndIsActiveAndRole_Id(keyword, active, roleId, pageable);
+                        usernameAccounts = accountRepository.findByUsernameContainingAndIsActiveAndRole_Id(keyword, active, roleId, pageable);
                     else if (active != null)
-                        accounts = accountRepository.findByUsernameContainingAndIsActive(keyword, active, pageable);
+                        usernameAccounts = accountRepository.findByUsernameContainingAndIsActive(keyword, active, pageable);
                     else if (roleId != null)
-                        accounts = accountRepository.findByUsernameContainingAndRole_Id(keyword, roleId, pageable);
+                        usernameAccounts = accountRepository.findByUsernameContainingAndRole_Id(keyword, roleId, pageable);
                     else
-                        accounts = accountRepository.findByUsernameContaining(keyword, pageable);
+                        usernameAccounts = accountRepository.findByUsernameContaining(keyword, pageable);
+                    accountsList.addAll(usernameAccounts.getContent());
                     break;
 
                 case "fullname":
                 case "email":
                 case "phone":
-                    List<Long> customerIds = customerServiceClient.getCustomerByKeyword(keyword, type, currentPage, pageSize)
-                            .stream()
-                            .map(CustomerResponse::getId)
-                            .toList();
+                    List<Long> custIdsByKeyword = customerServiceClient.getCustomerByKeyword(keyword, type, currentPage, pageSize)
+                            .stream().map(CustomerResponse::getId).toList();
+                    List<Long> staffIdsByKeyword = staffServiceClient.getStaffByKeyword(keyword, type, currentPage, pageSize)
+                            .stream().map(StaffResponse::getId).toList();
 
-                    List<Long> staffIds = staffServiceClient.getStaffByKeyword(keyword, type, currentPage, pageSize)
-                            .stream()
-                            .map(StaffResponse::getId)
-                            .toList();
+                    if ((roleId == null || roleId == 4L) && !custIdsByKeyword.isEmpty()) {
+                        Page<Account> custAccounts = accountRepository.findCustomerAccounts(
+                                custIdsByKeyword,
+                                active,
+                                4L,
+                                pageable
+                        );
+                        accountsList.addAll(custAccounts.getContent());
+                    }
 
-                    accounts = accountRepository.findByOwnerIdsWithFilters(
-                            customerIds.isEmpty() ? null : customerIds,
-                            staffIds.isEmpty() ? null : staffIds,
-                            active,
-                            roleId,
-                            pageable
-                    );
+                    if ((roleId == null || roleId != 4L) && !staffIdsByKeyword.isEmpty()) {
+                        Page<Account> staffAccounts = accountRepository.findStaffAccounts(
+                                staffIdsByKeyword,
+                                active,
+                                roleId,
+                                pageable
+                        );
+                        accountsList.addAll(staffAccounts.getContent());
+                    }
                     break;
+
 
                 default:
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loại tìm kiếm không hợp lệ: " + type);
             }
-
         } else {
+            Page<Account> accounts;
             if (active != null && roleId != null)
                 accounts = accountRepository.findByIsActiveAndRole_Id(active, roleId, pageable);
             else if (active != null)
@@ -169,73 +203,73 @@ public class AccountService {
                 accounts = accountRepository.findByRole_Id(roleId, pageable);
             else
                 accounts = accountRepository.findAll(pageable);
+
+            accountsList.addAll(accounts.getContent());
         }
 
-        Page<AccountResponse> accountResponses = accounts.map(this::toAccountResponse);
+        List<AccountResponse> accountResponses = accountsList.stream()
+                .map(this::toAccountResponse)
+                .toList();
 
-        List<Long> custIds = accountResponses.getContent().stream()
+        List<Long> custIds = accountResponses.stream()
                 .filter(acc -> "CUSTOMER".equals(acc.getRole()) && acc.getOwnerId() != null)
                 .map(AccountResponse::getOwnerId)
                 .toList();
-
         if (!custIds.isEmpty()) {
-            List<CustomerResponse> customers = customerServiceClient.getCustomerByIds(custIds);
-            Map<Long, CustomerResponse> customerMap = customers.stream()
-                    .collect(Collectors.toMap(CustomerResponse::getId, c -> c));
-
-            accountResponses.stream()
-                    .filter(acc -> "CUSTOMER".equals(acc.getRole()) && acc.getOwnerId() != null)
-                    .forEach(acc -> {
-                        CustomerResponse c = customerMap.get(acc.getOwnerId());
-                        if (c != null) {
-                            acc.setFullName(c.getFullName());
-                            acc.setEmail(c.getEmail());
-                            acc.setPhone(c.getPhone());
-                        }
-                    });
+            Map<Long, CustomerResponse> customerMap = customerServiceClient.getCustomerByIds(custIds)
+                    .stream().collect(Collectors.toMap(CustomerResponse::getId, c -> c));
+            accountResponses.forEach(acc -> {
+                if ("CUSTOMER".equals(acc.getRole()) && acc.getOwnerId() != null) {
+                    CustomerResponse c = customerMap.get(acc.getOwnerId());
+                    if (c != null) {
+                        acc.setFullName(c.getFullName());
+                        acc.setEmail(c.getEmail());
+                        acc.setPhone(c.getPhone());
+                    }
+                }
+            });
         }
 
-// --- Enrich staff data ---
-        List<Long> stfIds = accountResponses.getContent().stream()
+        List<Long> stfIds = accountResponses.stream()
                 .filter(acc -> !"CUSTOMER".equals(acc.getRole()) && acc.getOwnerId() != null)
                 .map(AccountResponse::getOwnerId)
                 .toList();
-
         if (!stfIds.isEmpty()) {
-            List<StaffResponse> staffs = staffServiceClient.getStaffByIds(stfIds);
-            Map<Long, StaffResponse> staffMap = staffs.stream()
-                    .collect(Collectors.toMap(StaffResponse::getId, s -> s));
-
-            accountResponses.stream()
-                    .filter(acc -> !"CUSTOMER".equals(acc.getRole()) && acc.getOwnerId() != null)
-                    .forEach(acc -> {
-                        StaffResponse s = staffMap.get(acc.getOwnerId());
-                        if (s != null) {
-                            acc.setFullName(s.getFullName());
-                            acc.setEmail(s.getEmail());
-                            acc.setPhone(s.getPhone());
-                        }
-                    });
+            Map<Long, StaffResponse> staffMap = staffServiceClient.getStaffByIds(stfIds)
+                    .stream().collect(Collectors.toMap(StaffResponse::getId, s -> s));
+            accountResponses.forEach(acc -> {
+                if (!"CUSTOMER".equals(acc.getRole()) && acc.getOwnerId() != null) {
+                    StaffResponse s = staffMap.get(acc.getOwnerId());
+                    if (s != null) {
+                        acc.setFullName(s.getFullName());
+                        acc.setEmail(s.getEmail());
+                        acc.setPhone(s.getPhone());
+                    }
+                }
+            });
         }
 
-        return accountResponses;
+        return new PageImpl<>(accountResponses, pageable, accountResponses.size());
     }
 
-    public Account updateAccount(Long id,Account accountDetails){
+
+    public Account updateAccount(Long id, Account accountDetails) {
         return accountRepository.findById(id)
                 .map(account -> {
                     account.setPassword(accountDetails.getPassword());
                     account.setRole(accountDetails.getRole());
                     return accountRepository.save(account);
                 })
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy tài khoản với id: "+id))  ;
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
     }
-    public void changeAccountRole(Long accountId,Role role){
-        Account account=accountRepository.findById(accountId)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy tài khoản với id: "+accountId));
+
+    public void changeAccountRole(Long accountId, Role role) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + accountId));
         account.setRole(role);
         accountRepository.save(account);
     }
+
     public void changePassword(Long accountId, ChangePasswordRequest request) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -255,26 +289,36 @@ public class AccountService {
         account.setPassword(passwordEncoder.encode(request.getNewPassword()));
         accountRepository.save(account);
     }
-    public void deleteAccount(Long id){
+
+    public void deleteAccount(Long id) {
         accountRepository.deleteById(id);
     }
 
-    public void changeAccountActive(Long id){
-        Account account=accountRepository.findById(id)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy tài khoản với id: "+id))  ;
+    public void changeAccountActive(Long id) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
         account.setIsActive(!account.getIsActive());
         accountRepository.save(account);
     }
-    public void checkRegisterRequest(RegisterRequest request){
-        if(request.getUsername().contains("@")
-           || !request.getUsername().matches("^[a-zA-Z0-9_-]+$")){
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tên tài khoản không được chứa kí tự đặc biệt!");
+
+    public void checkRegisterRequest(RegisterRequest request) {
+        if (request.getUsername().contains("@")
+                || !request.getUsername().matches("^[a-zA-Z0-9_-]+$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên tài khoản không được chứa kí tự đặc biệt!");
         }
-        if(accountRepository.existsByUsername(request.getUsername())){
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tên tài khoản đã tồn tại!");
+        if (request.getUsername().length() > 20) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên tài khoản quá dài!");
+        }
+        if (accountRepository.existsByUsername(request.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên tài khoản đã tồn tại!");
         }
     }
-    public AccountResponse toAccountResponse(Account account){
+
+    public boolean checkAccountIsVerified(Long id) {
+        return accountRepository.existsByIdAndIsVerified(id, true);
+    }
+
+    public AccountResponse toAccountResponse(Account account) {
         return new AccountResponse(
                 account.getId(),
                 account.getUsername(),

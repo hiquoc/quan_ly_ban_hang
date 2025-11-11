@@ -6,6 +6,7 @@ import com.doan.inventory_service.models.Supplier;
 import com.doan.inventory_service.services.SupplierService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,9 +21,10 @@ import java.util.Map;
 @AllArgsConstructor
 public class SupplierController {
     private final SupplierService supplierService;
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("")
-    public ResponseEntity<?> createSupplier(@Valid @RequestBody SupplierRequest request){
+    public ResponseEntity<?> createSupplier(@Valid @RequestBody SupplierRequest request,
+                                            @RequestHeader("X-User-Role")String role){
         try{
             Supplier supplier= supplierService.createSupplier(request);
             return  ResponseEntity.ok(new ApiResponse<>("Tạo nhà cung cấp thành công!",true,supplier));
@@ -40,9 +42,10 @@ public class SupplierController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateSupplier(@PathVariable Long id,@Valid @RequestBody SupplierRequest request){
+    public ResponseEntity<?> updateSupplier(@PathVariable Long id,@Valid @RequestBody SupplierRequest request,
+                                            @RequestHeader("X-User-Role")String role){
         try{
             Supplier supplier= supplierService.updateSupplier(id,request);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật nhà cung cấp thành công!",true,supplier));
@@ -50,9 +53,10 @@ public class SupplierController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') ")
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteSupplier(@PathVariable Long id){
+    public ResponseEntity<?> deleteSupplier(@PathVariable Long id,
+                                            @RequestHeader("X-User-Role")String role){
         try{
             supplierService.deleteSupplier(id);
             return ResponseEntity.ok(new ApiResponse<>("Xóa nhà cung cấp thành công!",true,null));

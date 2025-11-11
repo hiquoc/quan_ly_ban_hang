@@ -1,90 +1,114 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../../contexts/AuthContext";
-import { FaSignOutAlt } from "react-icons/fa";
+import { FaSignOutAlt, FaChartLine, FaShoppingCart, FaUsers, FaBox, FaTags, FaWarehouse, FaUserCircle } from "react-icons/fa";
+
 export default function AdminLayout({ children }) {
-  const { username, setUsername, role, setRole } = useContext(AuthContext);
+  const { username, role } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
 
   function handleLogout() {
     navigate("/logout", { replace: true });
   }
 
+  const isActive = (path) =>
+    location.pathname === path || location.pathname.startsWith(path + "/");
+
+  const menuItems = [
+    { path: "/admin/orders", label: "Đơn hàng", icon: FaShoppingCart },
+    { path: "/admin/accounts", label: "Tài khoản", icon: FaUsers, hideForStaff: true },
+    { path: "/admin/products", label: "Sản phẩm", icon: FaBox },
+    { path: "/admin/promotions", label: "Khuyến mãi", icon: FaTags },
+    { path: "/admin/inventory", label: "Tồn kho", icon: FaWarehouse },
+    { path: "/admin/dashboard", label: "Thống kê", icon: FaChartLine, hideForStaff: true },
+  ];
+
   return (
-    <div className="h-screen bg-white">
-      {/* Navbar */}
-      <nav className="bg-white border border-gray-300 border-b sticky top-0 z-50">
+    <div className="h-screen flex flex-col bg-gray-50 z-50">
+      {/* Header */}
+      <nav className="bg-white border-b border-gray-300 fixed top-0 left-0 right-0 z-50">        
         <div className="max-w-8xl mx-auto px-40 py-3 flex items-center justify-between">
-          {/* Left: Logo */}
-          <Link
-            to="/admin"
-            className="text-2xl font-bold hover:text-red-200 transition"
-          >
-            Elec
-          </Link>
+        <Link to="/admin/orders" className="text-2xl font-bold tracking-tight text-gray-800">
+          Elec<span className="text-blue-500">Admin</span>
+        </Link>
 
-          {/* Right: User */}
-          <div className="flex items-center space-x-4">
-            {!!username ? (
-              <>
-                <Link
-                  to="/admin"
-                  className="px-3 py-1 rounded border border-gray-300 transition flex items-center justify-center"
-                >
-                  {username}
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 hover:cursor-pointer transition text-red-500"
-                >
-                  <FaSignOutAlt />
+        <div className="flex items-center gap-4">
+          {username ? (
+            <>
+              <div className="relative group">
+                <button onClick={()=>navigate(`/`)}
+                 className="flex items-center gap-2 bg-gray-100 px-4 py-2 cursor-pointer rounded-full text-gray-700 font-medium hover:bg-gray-200 transition">
+                  <FaUserCircle className="text-xl" />
+                  <span className="max-w-[130px] truncate">{username}</span>
                 </button>
-              </>
-            ) : (
-              <Link
-                to="/admin/login"
-                className="px-3 py-2 rounded transition flex items-center justify-center"
-              >
-                Đăng nhập
-              </Link>
-            )}
-          </div>
-        </div>
-      </nav>
 
-      {/* Container: Sidebar + Main content */}
-      <div className="flex flex-1">
-        <aside className="w-64 bg-gray-800 text-white flex flex-col p-4 space-y-2">
-          <Link to="/admin/orders">
-            <button className="w-full text-left px-4 py-2 rounded hover:bg-gray-700 transition">
-              Đơn hàng
-            </button>
-          </Link>
-          {role !== "STAFF" && (
-            <Link to="/admin/accounts">
-              <button className="w-full text-left px-4 py-2 rounded hover:bg-gray-700 transition">
-                Tài khoản
+                {/* Tooltip only if long */}
+                {username.length > 12 && (
+                  <div
+                   className="absolute top-full mt-1 bg-black text-white text-sm px-3 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
+                    {username}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-full bg-gray-100 hover:bg-red-200 text-red-500 transition"
+                title="Đăng xuất"
+              >
+                <FaSignOutAlt />
               </button>
+            </>
+          ) : (
+            <Link to="/admin/login" className="px-4 py-2 rounded hover:bg-gray-100 transition">
+              Đăng nhập
             </Link>
           )}
-          <Link to="/admin/products">
-            <button className="w-full text-left px-4 py-2 rounded hover:bg-gray-700 transition">
-              Sản phẩm
-            </button>
-          </Link>
-          <Link to="/admin/promotions">
-            <button className="w-full text-left px-4 py-2 rounded hover:bg-gray-700 transition">
-              Khuyến mãi
-            </button>
-          </Link>
-          <Link to="/admin/inventory">
-            <button className="w-full text-left px-4 py-2 rounded hover:bg-gray-700 transition">
-              Tồn kho
-            </button>
-          </Link>
+        </div>
+      </div>
+      </nav>
+
+      {/* Container */}
+      <div className="flex flex-1">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r border-gray-200 shadow-sm flex flex-col h-screen fixed">
+          <div className="p-6 overflow-y-auto h-full">
+            <div className="mt-17">
+              <h2 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-4">
+                Menu
+              </h2>
+
+              <nav className="space-y-2">
+                {menuItems.map((item) => {
+                  if (item.hideForStaff && role === "STAFF") return null;
+                  const active = isActive(item.path);
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${active
+                        ? "bg-blue-100 text-blue-700 font-semibold"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <Icon className={`text-lg ${active ? "text-blue-600" : "text-gray-400"}`} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
         </aside>
 
-        <main className="flex-1 bg-gray-100 p-4 overflow-auto">{children}</main>
+        {/* Content */}
+        <main className="flex-1 ml-64 mt-16">
+          {children}
+        </main>
+
       </div>
     </div>
   );

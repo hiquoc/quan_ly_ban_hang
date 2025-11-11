@@ -1,11 +1,10 @@
 spring:
   application:
     name: cart-service
-  
   datasource:
-    url: jdbc:postgresql://localhost:5432/sales_db
-    username: postgres
-    password: 123456
+    url: jdbc:postgresql://cart-db:5432/cart_db
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   
   jpa:
@@ -23,7 +22,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://service-registry:8761/eureka
     register-with-eureka: true
     fetch-registry: true
   instance:

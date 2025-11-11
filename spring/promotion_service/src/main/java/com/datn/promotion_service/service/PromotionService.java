@@ -2,23 +2,28 @@ package com.datn.promotion_service.service;
 
 import com.datn.promotion_service.dto.request.CreatePromotionRequest;
 import com.datn.promotion_service.dto.request.UpdatePromotionRequest;
-import com.datn.promotion_service.dto.response.PromotionDetailResponse;
-import com.datn.promotion_service.dto.response.PromotionResponse;
+import com.datn.promotion_service.dto.response.*;
 import com.datn.promotion_service.entity.Promotion;
 import com.datn.promotion_service.entity.PromotionUsage;
+import com.datn.promotion_service.enums.PromotionType;
 import com.datn.promotion_service.exception.PromotionNotFoundException;
 import com.datn.promotion_service.repository.PromotionRepository;
 import com.datn.promotion_service.repository.PromotionUsageRepository;
+import com.datn.promotion_service.repository.feign.ProductClientRepository;
+import com.datn.promotion_service.utils.WebhookUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,6 +34,7 @@ public class PromotionService {
 
     private final PromotionRepository promotionRepository;
     private final PromotionUsageRepository promotionUsageRepository;
+    private final ProductClientRepository productClientRepository;
 
     // Tạo khuyến mãi mới
     @Transactional
@@ -42,21 +48,28 @@ public class PromotionService {
         if (request.getEndDate().isBefore(request.getStartDate())) {
             throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu");
         }
+        if (request.getDiscountValue().compareTo(BigDecimal.valueOf(100)) > 0 &&
+                request.getPromotionType() == PromotionType.PERCENTAGE) {
+            throw new IllegalArgumentException("Không thể giảm quá 100%!");
+        }
+
 
         Promotion promotion = Promotion.builder()
                 .code(request.getCode().toUpperCase())
                 .name(request.getName())
                 .description(request.getDescription())
                 .promotionType(request.getPromotionType())
-                .discountType(request.getDiscountType())
                 .discountValue(request.getDiscountValue())
                 .minOrderAmount(request.getMinOrderAmount())
                 .maxDiscountAmount(request.getMaxDiscountAmount())
                 .usageLimit(request.getUsageLimit())
                 .usageCount(0)
                 .usageLimitPerCustomer(request.getUsageLimitPerCustomer())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
+                .startDate(request.getStartDate().withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+                        .toLocalDateTime())
+                .endDate(request.getEndDate()
+                        .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+                        .toLocalDateTime())
                 .applicableProducts(request.getApplicableProducts())
                 .applicableCategories(request.getApplicableCategories())
                 .applicableBrands(request.getApplicableBrands())
@@ -65,6 +78,7 @@ public class PromotionService {
                 .build();
 
         promotion = promotionRepository.save(promotion);
+        WebhookUtils.postToWebhook(promotion.getId(), "insert");
         log.info("Khuyến mãi tạo thành công với ID: {}", promotion.getId());
 
         return mapToResponse(promotion);
@@ -74,9 +88,18 @@ public class PromotionService {
     @Transactional
     public PromotionResponse updatePromotion(Long id, UpdatePromotionRequest request) {
         log.info("Cập nhật khuyến mãi ID: {}", id);
-
+        System.out.println(request);
         Promotion promotion = promotionRepository.findById(id)
                 .orElseThrow(() -> new PromotionNotFoundException("Không tìm thấy khuyến mãi với ID: " + id));
+
+        if (request.getEndDate().isBefore(request.getStartDate())) {
+            throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu");
+        }
+        if (request.getDiscountValue() != null && request.getPromotionType() != null &&
+                request.getDiscountValue().compareTo(BigDecimal.valueOf(100)) > 0 &&
+                request.getPromotionType() == PromotionType.PERCENTAGE) {
+            throw new IllegalArgumentException("Không thể giảm quá 100%!");
+        }
 
         if (request.getName() != null) promotion.setName(request.getName());
         if (request.getDescription() != null) promotion.setDescription(request.getDescription());
@@ -84,18 +107,38 @@ public class PromotionService {
         if (request.getMinOrderAmount() != null) promotion.setMinOrderAmount(request.getMinOrderAmount());
         if (request.getMaxDiscountAmount() != null) promotion.setMaxDiscountAmount(request.getMaxDiscountAmount());
         if (request.getUsageLimit() != null) promotion.setUsageLimit(request.getUsageLimit());
-        if (request.getUsageLimitPerCustomer() != null) promotion.setUsageLimitPerCustomer(request.getUsageLimitPerCustomer());
-        if (request.getStartDate() != null) promotion.setStartDate(request.getStartDate());
-        if (request.getEndDate() != null) promotion.setEndDate(request.getEndDate());
-        if (request.getApplicableProducts() != null) promotion.setApplicableProducts(request.getApplicableProducts());
-        if (request.getApplicableCategories() != null) promotion.setApplicableCategories(request.getApplicableCategories());
-        if (request.getApplicableBrands() != null) promotion.setApplicableBrands(request.getApplicableBrands());
-        if (request.getIsActive() != null) promotion.setIsActive(request.getIsActive());
+        if (request.getUsageLimitPerCustomer() != null)
+            promotion.setUsageLimitPerCustomer(request.getUsageLimitPerCustomer());
+        if (request.getStartDate() != null) {
+            promotion.setStartDate(request.getStartDate()
+                    .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+                    .toLocalDateTime());
+        }
+        if (request.getEndDate() != null) {
+            promotion.setEndDate(request.getEndDate()
+                    .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+                    .toLocalDateTime());
+        }
+        promotion.setApplicableProducts(request.getApplicableProducts());
+        promotion.setApplicableCategories(request.getApplicableCategories());
+        promotion.setApplicableBrands(request.getApplicableBrands());
 
         promotion = promotionRepository.save(promotion);
+        WebhookUtils.postToWebhook(id, "update");
         log.info("Khuyến mãi cập nhật thành công: {}", id);
 
         return mapToResponse(promotion);
+    }
+
+    public PromotionResponse updatePromotionActive(Long id) {
+        log.info("Cập nhật khuyến mãi ID: {}", id);
+
+        Promotion promotion = promotionRepository.findById(id)
+                .orElseThrow(() -> new PromotionNotFoundException("Không tìm thấy khuyến mãi với ID: " + id));
+
+        promotion.setIsActive(!promotion.getIsActive());
+        WebhookUtils.postToWebhook(promotion.getId(), "update");
+        return mapToResponse(promotionRepository.save(promotion));
     }
 
     // Lấy khuyến mãi theo ID
@@ -131,8 +174,10 @@ public class PromotionService {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("isActive"), isActive));
         }
 
-        return promotionRepository.findAll(spec, pageable)
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "id"));
+        return promotionRepository.findAll(spec, sortedPageable)
                 .map(this::mapToResponse);
+
     }
 
 
@@ -162,6 +207,7 @@ public class PromotionService {
         }
 
         promotionRepository.deleteById(id);
+        WebhookUtils.postToWebhook(id, "delete");
         log.info("Khuyến mãi xóa thành công: {}", id);
     }
 
@@ -175,7 +221,7 @@ public class PromotionService {
         promotion = promotionRepository.save(promotion);
 
         log.info("Trạng thái khuyến mãi {} đổi thành: {}", id, promotion.getIsActive() ? "HOẠT ĐỘNG" : "KHÔNG HOẠT ĐỘNG");
-
+        WebhookUtils.postToWebhook(id, "update");
         return mapToResponse(promotion);
     }
 
@@ -201,8 +247,10 @@ public class PromotionService {
                 .orElseThrow(() -> new PromotionNotFoundException("Không tìm thấy khuyến mãi"));
 
         promotion.setUsageCount(promotion.getUsageCount() + 1);
+        if (promotion.getUsageLimit() != null && promotion.getUsageCount() >= promotion.getUsageLimit())
+            promotion.setIsActive(false);
         promotionRepository.save(promotion);
-
+        WebhookUtils.postToWebhook(promotionId, "update");
         log.info("Ghi nhận sử dụng khuyến mãi thành công");
     }
 
@@ -224,7 +272,6 @@ public class PromotionService {
                 .name(promotion.getName())
                 .description(promotion.getDescription())
                 .promotionType(promotion.getPromotionType())
-                .discountType(promotion.getDiscountType())
                 .discountValue(promotion.getDiscountValue())
                 .minOrderAmount(promotion.getMinOrderAmount())
                 .maxDiscountAmount(promotion.getMaxDiscountAmount())
@@ -250,7 +297,6 @@ public class PromotionService {
         response.setName(promotion.getName());
         response.setDescription(promotion.getDescription());
         response.setPromotionType(promotion.getPromotionType());
-        response.setDiscountType(promotion.getDiscountType());
         response.setDiscountValue(promotion.getDiscountValue());
         response.setMinOrderAmount(promotion.getMinOrderAmount());
         response.setMaxDiscountAmount(promotion.getMaxDiscountAmount());
@@ -265,11 +311,33 @@ public class PromotionService {
         response.setUpdatedAt(promotion.getUpdatedAt());
 
         // Set các field riêng của PromotionDetailResponse (con)
-        response.setApplicableProducts(promotion.getApplicableProducts());
-        response.setApplicableCategories(promotion.getApplicableCategories());
-        response.setApplicableBrands(promotion.getApplicableBrands());
-        response.setCreatedByStaffId(promotion.getCreatedByStaffId());
+        try {
+            List<ProductResponse> productData = null;
+            if (promotion.getApplicableProducts() != null && !promotion.getApplicableProducts().isEmpty()) {
+                List<Long> productIds = promotion.getApplicableProducts();
+                productData = productClientRepository.getProductsByIds(productIds);
+            }
+            response.setApplicableProducts(productData);
+            List<BrandResponse> brandData = null;
+            if (promotion.getApplicableBrands() != null && !promotion.getApplicableBrands().isEmpty()) {
+                List<Long> brandIds = promotion.getApplicableBrands();
+                brandData = productClientRepository.getBrandsByIds(brandIds);
+            }
+            response.setApplicableBrands(brandData);
+            List<CategoryResponse> categoryData = null;
+            if (promotion.getApplicableCategories() != null && !promotion.getApplicableCategories().isEmpty()) {
+                List<Long> categoryIds = promotion.getApplicableCategories();
+                categoryData = productClientRepository.getCategoriesByIds(categoryIds);
+            }
+            response.setApplicableCategories(categoryData);
+            response.setCreatedByStaffId(promotion.getCreatedByStaffId());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
 
         return response;
     }
+
+
 }

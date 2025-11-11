@@ -48,18 +48,24 @@ export const getAllPurchaseOrders = (page, size, status, startDate, endDate) => 
   return safeApiCall(() => api.get(`inventory/secure/orders?${params.toString()}`));
 }
 ////////////
-export const getAllInventories = (keyword, page, size) => {
+export const getAllInventories = (page, size, keyword, warehouseId, active = true) => {
   let url = "inventory/secure/inventories";
 
   const params = [];
   if (keyword !== undefined && keyword !== null) params.push(`keyword=${keyword}`);
   if (page !== undefined && page !== null) params.push(`page=${page}`);
   if (size !== undefined && size !== null) params.push(`size=${size}`);
+  if (warehouseId !== undefined && warehouseId !== null) params.push(`warehouseId=${warehouseId}`);
+  if (active !== undefined && active !== null) params.push(`active=${active}`);
 
   if (params.length > 0) url += "?" + params.join("&");
 
   return safeApiCall(() => api.get(url));
 };
+
+export const updateInventoryActive = (id) =>
+  safeApiCall(() => api.patch(`inventory/secure/inventories/${id}`));
+
 export const getInventoriesByVariantId = (id) =>
   safeApiCall(() => api.get(`inventory/secure/inventories/variantId/${id}`))
 
@@ -75,7 +81,8 @@ export const getInventoryTransactions = (
   startDate,
   endDate,
   keyword,
-  keywordType
+  keywordType,
+  ignoreReserveRelease
 ) => {
   const params = new URLSearchParams({
     page,
@@ -86,6 +93,10 @@ export const getInventoryTransactions = (
     ...(endDate ? { endDate } : {}),
     ...(keyword?.trim() ? { keyword: keyword.trim() } : {}),
     ...(keywordType?.trim() ? { keywordType } : {}),
+    ...(ignoreReserveRelease !== undefined && ignoreReserveRelease !== null
+      ? { ignoreReserveRelease }
+      : {})
+
   });
 
   return safeApiCall(() => api.get(`inventory/secure/transactions?${params.toString()}`));
@@ -103,6 +114,29 @@ export const getInventoryTransaction = (id, page, size, startDate, endDate) => {
   return safeApiCall(() => api.get(`inventory/secure/transactions/${id}?${params.toString()}`));
 }
 
-export const updateInventoryTransactionStatus = (id, status) =>
-  safeApiCall(() => api.patch(`inventory/secure/transactions/${id}`, status));
+export const updateInventoryTransactionStatus = (id, status, note) =>
+  safeApiCall(() => api.patch(`inventory/secure/transactions/${id}`, { status, note }));
 
+export const getInventoryOrderByStock = async (page, size) => {
+  const params = {}
+  if (page != null) params.page = page;
+  if (size != null) params.size = size;
+
+  return safeApiCall(() => api.get(`inventory/secure/inventories/warning`, { params }))
+}
+
+export const getInventoryQuantityChanges = async (id, from, to) => {
+  const params = new URLSearchParams();
+  params.append("from", new Date(from.setHours(0, 0, 0, 0)).toISOString());
+  params.append("to", new Date(to.setHours(23, 59, 59, 999)).toISOString());
+
+  // console.log(`inventory/secure/inventory-quantity/${id}?${params.toString()}`);
+  return safeApiCall(() =>
+    api.get(`inventory/secure/inventory-quantity/${id}?${params.toString()}`)
+  );
+};
+
+function formatLocalDate(date) {
+  const pad = (n) => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}

@@ -110,6 +110,7 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
+
     </dependencies>
 
 	<build>
@@ -138,6 +139,15 @@
 					</excludes>
 				</configuration>
 			</plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.doan.customer_service.CustomerServiceApplication</mainClass>
+                    <!-- This ensures ONLY app.jar is built -->
+                    <finalName>app</finalName>
+                </configuration>
+            </plugin>
 		</plugins>
 	</build>
 

@@ -1,12 +1,13 @@
 package com.datn.promotion_service.dto.request;
 
-import com.datn.promotion_service.enums.DiscountType;
 import com.datn.promotion_service.enums.PromotionType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Data
@@ -14,44 +15,43 @@ import java.util.List;
 @AllArgsConstructor
 public class CreatePromotionRequest {
 
-    @NotBlank(message = "Code is required")
-    @Pattern(regexp = "^[A-Z0-9_-]+$", message = "Code must contain only uppercase letters, numbers, underscores and hyphens")
+    @NotBlank(message = "Mã khuyến mãi là bắt buộc")
+    @Pattern(regexp = "^[A-Z0-9_-]+$", message = "Mã chỉ được chứa chữ in hoa, số, dấu gạch dưới và dấu gạch ngang")
     private String code;
 
-    @NotBlank(message = "Name is required")
+    @NotBlank(message = "Tên khuyến mãi là bắt buộc")
     private String name;
 
     private String description;
 
-    @NotNull(message = "Promotion type is required")
+    @NotNull(message = "Loại khuyến mãi là bắt buộc")
     private PromotionType promotionType;
 
-    private DiscountType discountType;
-
-    @DecimalMin(value = "0.0", message = "Discount value must be positive")
+    @DecimalMin(value = "0.0", message = "Giá trị giảm giá phải lớn hơn hoặc bằng 0")
     private BigDecimal discountValue;
 
-    @DecimalMin(value = "0.0", message = "Min order amount must be positive")
+    @DecimalMin(value = "0.0", message = "Giá trị đơn hàng tối thiểu phải lớn hơn hoặc bằng 0")
     private BigDecimal minOrderAmount;
 
     private BigDecimal maxDiscountAmount;
 
-    @Min(value = 1, message = "Usage limit must be at least 1")
+    @Min(value = 1, message = "Giới hạn sử dụng phải ít nhất là 1")
     private Integer usageLimit;
 
-    @Min(value = 1, message = "Usage limit per customer must be at least 1")
+    @Min(value = 1, message = "Giới hạn sử dụng cho mỗi khách hàng phải ít nhất là 1")
     private Integer usageLimitPerCustomer;
 
-    @NotNull(message = "Start date is required")
-    private LocalDateTime startDate;
+    @NotNull(message = "Ngày bắt đầu là bắt buộc")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+    private ZonedDateTime startDate;
 
-    @NotNull(message = "End date is required")
-    private LocalDateTime endDate;
+    @NotNull(message = "Ngày kết thúc là bắt buộc")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+    private ZonedDateTime endDate;
 
     private List<Long> applicableProducts;
     private List<Long> applicableCategories;
     private List<Long> applicableBrands;
 
-    @NotNull(message = "Staff ID is required")
     private Long createdByStaffId;
 }

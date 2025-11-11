@@ -16,6 +16,8 @@ import java.util.Map;
 @NoArgsConstructor
 @Entity
 @Table(name = "product_variants")
+@SQLDelete(sql = "UPDATE product_variants SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
 public class ProductVariant {
 
     @Id
@@ -69,7 +71,8 @@ public class ProductVariant {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
-
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
     // Constructor
     public ProductVariant(Product product,
                           String name,

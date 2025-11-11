@@ -141,6 +141,15 @@
 					</excludes>
 				</configuration>
 			</plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.doan.inventory_service.InventoryServiceApplication</mainClass>
+                    <!-- This ensures ONLY app.jar is built -->
+                    <finalName>app</finalName>
+                </configuration>
+            </plugin>
 		</plugins>
 	</build>
 

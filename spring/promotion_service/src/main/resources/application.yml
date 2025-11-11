@@ -3,11 +3,11 @@ spring:
     name: promotion-service
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/sales_db
-    username: postgres
-    password: 123456
+    url: ${SUPABASE_PROMOTION_URL}
+    username: ${SUPABASE_PROMOTION_USER}
+    password: ${SUPABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
-  
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -26,7 +26,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
     register-with-eureka: true
     fetch-registry: true
   instance:
@@ -35,4 +35,5 @@ eureka:
 logging:
   level:
     com.datn.promotion_service: DEBUG
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN

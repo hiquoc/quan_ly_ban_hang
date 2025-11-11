@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import { FiRefreshCw, FiFilter, FiChevronRight, FiChevronLeft } from "react-icons/fi";
+import { FiRefreshCw, FiFilter, FiChevronRight, FiChevronLeft, FiEye, FiTrash2 } from "react-icons/fi";
 import {
   getAllCategories, getAllProducts, getAllBrands, createProduct, updateProduct,
   changeProductActive, changeProductFeatured, deleteProduct,
   getProductVariantByProductId
 } from "../../../apis/productApi";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaX } from "react-icons/fa6";
 
 export default function ProductManager() {
   const [products, setProducts] = useState([]);
@@ -38,11 +40,13 @@ export default function ProductManager() {
   const [searchText, setSearchText] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
-  const [selectedActive, setSelectedActive] = useState(null);
+  const [selectedActive, setSelectedActive] = useState(true);
   const [selectedFeatured, setSelectedFeatured] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [totalSold, setTotalSold] = useState(null)
+  const [sortBy, setSortBy] = useState("")
   const [discountedOnly, setDiscountedOnly] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+
   useEffect(() => {
     handleLoadProducts();
     handleLoadCategories();
@@ -65,8 +69,8 @@ export default function ProductManager() {
       selectedBrand ? [selectedBrand] : [],
       selectedActive,
       selectedFeatured,
-      totalSold,
-      totalSold !== null ? "sold" : undefined,
+      true,
+      sortBy,
       discountedOnly !== null ? discountedOnly : undefined
     );
 
@@ -121,42 +125,51 @@ export default function ProductManager() {
   };
 
   const handleCreateProduct = async () => {
-    if (form.name === "" || form.slug === "" || form.productCode === "" || form.categoryId === "" || form.brandId === "") {
-      setPopup({ message: "Vui lòng điền đầy đủ thông tin!", type: "error" });
-      return;
+    if (isProcessing) return;
+    try {
+      setIsProcessing(true)
+      if (form.name === "" || form.slug === "" || form.productCode === "" || form.categoryId === "" || form.brandId === "") {
+        setPopup({ message: "Vui lòng điền đầy đủ thông tin!", type: "error" });
+        return;
+      }
+
+      const payload = {
+        ...form,
+        technicalSpecs: Object.values(specs).reduce((acc, { key, value }) => {
+          if (key) acc[key] = value;
+          return acc;
+        }, {}),
+      };
+
+      const response = await createProduct(
+        payload.name,
+        payload.productCode,
+        payload.slug,
+        payload.description,
+        payload.shortDescription,
+        payload.categoryId,
+        payload.brandId,
+        payload.technicalSpecs,
+        imageFile || undefined
+      );
+
+      if (response?.error) {
+        setPopup({ message: response.error, type: "error" });
+        return;
+      }
+
+      setPopup({ message: "Tạo sản phẩm thành công!", type: "success" });
+      setSpecs(null);
+      setShowForm(false);
+      setForm({
+        name: "", productCode: "", slug: "", description: "", shortDescription: "",
+        categoryId: "", brandId: "", technicalSpecs: ""
+      });
+      setImageFile(null);
+      handleLoadProducts();
+    } finally {
+      setIsProcessing(false)
     }
-
-    const payload = {
-      ...form,
-      technicalSpecs: specs,
-    };
-
-    const response = await createProduct(
-      payload.name,
-      payload.productCode,
-      payload.slug,
-      payload.description,
-      payload.shortDescription,
-      payload.categoryId,
-      payload.brandId,
-      payload.technicalSpecs,
-      imageFile || undefined
-    );
-
-    if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
-      return;
-    }
-
-    setPopup({ message: "Tạo sản phẩm thành công!", type: "success" });
-    setSpecs(null);
-    setShowForm(false);
-    setForm({
-      name: "", productCode: "", slug: "", description: "", shortDescription: "",
-      categoryId: "", brandId: "", technicalSpecs: ""
-    });
-    setImageFile(null);
-    handleLoadProducts();
   };
   const handleAddProduct = () => {
     handleLoadCategories();
@@ -197,49 +210,66 @@ export default function ProductManager() {
       imageUrl: product.imageUrl || "",
       mainVariantId: product.mainVariantId || ""
     });
-    setSpecs(product.technicalSpecs || {});
+    setSpecs(
+      Object.entries(product.technicalSpecs).reduce((acc, [key, value]) => {
+        const id = Date.now() + Math.random();
+        acc[id] = { key, value };
+        return acc;
+      }, {})
+    );
+
     setEditingProductId(product.id);
     setShowForm(true);
   };
 
 
   const handleUpdateProduct = async () => {
-    if (form.name == "" || form.slug == "" || form.productCode == "" || form.categoryId == "" || form.brandId == "") {
-      setPopup({ message: "Vui lòng điền đầy đủ thông tin!", type: "error" })
-      return;
-    }
-    const payload = {
-      ...form,
-      technicalSpecs: specs,
-    };
-    const response = await updateProduct(editingProductId,
-      payload.name,
-      payload.productCode,
-      payload.slug,
-      payload.description,
-      payload.shortDescription,
-      payload.categoryId,
-      payload.brandId,
-      payload.technicalSpecs,
-      imageFile || undefined,
-      payload.mainVariantId
-    );
+    if (isProcessing) return;
+    try {
+      setIsProcessing(true)
+      if (form.name == "" || form.slug == "" || form.productCode == "" || form.categoryId == "" || form.brandId == "") {
+        setPopup({ message: "Vui lòng điền đầy đủ thông tin!", type: "error" })
+        return;
+      }
+      const payload = {
+        ...form,
+        technicalSpecs: Object.values(specs).reduce((acc, { key, value }) => {
+          if (key) acc[key] = value;
+          return acc;
+        }, {}),
+      };
+      
+      const response = await updateProduct(editingProductId,
+        payload.name,
+        payload.productCode,
+        payload.slug,
+        payload.description,
+        payload.shortDescription,
+        payload.categoryId,
+        payload.brandId,
+        payload.technicalSpecs,
+        imageFile || undefined,
+        payload.mainVariantId
+      );
 
-    if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
-      return;
+      if (response?.error) {
+        setPopup({ message: response.error, type: "error" });
+        return;
+      }
+      setPopup({ message: "Cập nhật sản phẩm thành công!", type: "success" });
+      setShowForm(false);
+      setSpecs(null);
+      setForm({
+        name: "", productCode: "", slug: "", description: "", shortDescription: "",
+        categoryId: "", brandId: "", technicalSpecs: "",
+        isActive: false, isFeatured: false
+      });
+      setImageFile(null)
+      setEditingProductId(null);
+      handleLoadProducts();
+    } finally {
+      setIsProcessing(false)
     }
-    setPopup({ message: "Cập nhật sản phẩm thành công!", type: "success" });
-    setShowForm(false);
-    setSpecs(null);
-    setForm({
-      name: "", productCode: "", slug: "", description: "", shortDescription: "",
-      categoryId: "", brandId: "", technicalSpecs: "",
-      isActive: false, isFeatured: false
-    });
-    setImageFile(null)
-    setEditingProductId(null);
-    handleLoadProducts();
   };
 
   const handleChangeProductActive = async (id) => {
@@ -316,25 +346,32 @@ export default function ProductManager() {
   };
 
   const addSpec = () => {
-    setSpecs((prev) => ({ ...prev, "": "" }));
+    const id = Date.now() + Math.random();
+    setSpecs((prev) => ({ ...prev, [id]: { key: "", value: "" } }));
   };
 
-  const removeSpec = (key) => {
-    const newSpecs = { ...specs };
-    delete newSpecs[key];
-    setSpecs(newSpecs);
-  };
-
-  const updateSpecKey = (oldKey, newKey) => {
+  const removeSpec = (id) => {
     setSpecs((prev) => {
-      const { [oldKey]: val, ...rest } = prev;
-      return { ...rest, [newKey]: val };
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
     });
   };
 
-  const updateSpecValue = (key, value) => {
-    setSpecs((prev) => ({ ...prev, [key]: value }));
+  const updateSpecKey = (id, newKey) => {
+    setSpecs((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], key: newKey },
+    }));
   };
+
+  const updateSpecValue = (id, newValue) => {
+    setSpecs((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], value: newValue },
+    }));
+  };
+
 
 
   const generateSlug = (text) => {
@@ -348,24 +385,39 @@ export default function ProductManager() {
       .replace(/[^\w-]+/g, "")
       .replace(/--+/g, "-");
   };
-
+  function getPageNumbers() {
+    const pages = [];
+    const maxVisible = 4;
+    if (totalPages <= maxVisible + 2) {
+      for (let i = 0; i < totalPages; i++) pages.push(i);
+    } else {
+      if (page <= 2) {
+        pages.push(0, 1, 2, 3, "...", totalPages - 1);
+      } else if (page >= totalPages - 3) {
+        pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
+      } else {
+        pages.push(0, "...", page - 1, page, page + 1, "...", totalPages - 1);
+      }
+    }
+    return pages;
+  }
   return (
-    <div className="p-6 bg-gray-50 rounded shadow">
+    <div className="p-6 bg-white rounded shadow">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-5 gap-4">
         <h2 className="text-2xl font-semibold text-gray-800">Sản phẩm</h2>
         <div className="flex gap-2">
           <button
             onClick={() => { handleLoadProducts(0) }}
-            className="flex items-center px-4 py-2 border border-gray-300 text-gray-800 rounded hover:bg-gray-300 transition"
+            className="flex items-center px-4 py-2 border text-gray-800 rounded hover:bg-gray-200 transition"
             title="Reload Products"
           >
             <FiRefreshCw className="h-5 w-5 mr-2" />
-            Reload
+            Làm mới
           </button>
           <button
             onClick={() => handleAddProduct()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
           >
             Thêm sản phẩm
           </button>
@@ -386,13 +438,13 @@ export default function ProductManager() {
           <div className="flex gap-2">
             <button
               onClick={() => { handleLoadProducts(0) }}
-              className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+              className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded hover:bg-bgray-800 transition"
             >
               Tìm
             </button>
             <button
               onClick={() => setShowFilters(prev => !prev)}
-              className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+              className="flex items-center gap-2 border px-4 py-2 rounded hover:bg-gray-200 transition"
             >
               <FiFilter /> Bộ lọc
             </button>
@@ -470,17 +522,17 @@ export default function ProductManager() {
                 </div>
                 {/* Lượt mua (sort by sold count) */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lượt mua</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Xếp theo</label>
                   <select
-                    value={totalSold ?? true}
+                    value={sortBy}
                     onChange={e =>
-                      setTotalSold(e.target.value === null ? null : e.target.value === "true")
+                      setSortBy(e.target.value)
                     }
                     className="w-full border p-2 rounded"
                   >
                     <option value="">Mặc định</option>
-                    <option value="true">Giảm dần</option>
-                    <option value="false">Tăng dần</option>
+                    <option value="sold">Lượt mua</option>
+                    <option value="rating">Đánh giá</option>
                   </select>
                 </div>
 
@@ -520,7 +572,7 @@ export default function ProductManager() {
                     handleLoadProducts(0);
                     setShowFilters(false);
                   }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
                 >
                   Lọc
                 </button>
@@ -535,14 +587,13 @@ export default function ProductManager() {
         <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
           <thead className="bg-gray-200 text-gray-700 font-medium">
             <tr>
-              <th className="p-3 text-center border-b border-gray-300">ID</th>
               <th className="p-3 text-center border-b border-gray-300">Hình ảnh</th>
+              <th className="p-3 text-center border-b border-gray-300">Mã sản phẩm</th>
               <th
                 className="p-3 text-center border-b border-gray-300 cursor-pointer select-none"
               >
                 Tên
               </th>
-              <th className="p-3 text-center border-b border-gray-300">Mã sản phẩm</th>
               <th
                 className="p-3 text-center border-b border-gray-300 cursor-pointer select-none"
               >
@@ -554,7 +605,8 @@ export default function ProductManager() {
               >
                 Thương hiệu
               </th>
-              <th className="p-3 text-center border-b border-gray-300">Tổng lượt mua</th>
+              <th className="p-3 text-center border-b border-gray-300">Lượt mua</th>
+              <th className="p-3 text-center border-b border-gray-300">Đánh giá</th>
               <th
                 className="p-3 text-center border-b border-gray-300 cursor-pointer select-none"
               >
@@ -572,20 +624,23 @@ export default function ProductManager() {
           <tbody className="bg-white">
             {products.length > 0 ? products.map(p => (
               <tr key={p.id} className="hover:bg-gray-50 transition">
-                <td className="p-3 border-b border-gray-200 text-center">{p.id}</td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-16 h-16 object-cover mx-auto rounded" /> : "-"}
                 </td>
+                <td className="p-3 border-b border-gray-200 text-center">{p.productCode}</td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   <div className="truncate max-w-[150px] mx-auto">{p.name}</div>
                 </td>
-                <td className="p-3 border-b border-gray-200 text-center">{p.productCode}</td>
                 <td className="p-3 border-b border-gray-200 text-center">{p.categoryName || "-"}</td>
                 <td className="p-3 border-b border-gray-200 text-center">{p.brandName || "-"}</td>
                 <td className="p-3 border-b border-gray-200 text-center">{p.totalSold}</td>
+                <td className="p-3 border-b border-gray-200 text-center">{p.ratingAvg}</td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   <button
-                    className={`px-3 py-1 rounded transition ${p.isActive ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-400 text-white hover:bg-gray-500"}`}
+                    className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                       ${p.isActive ? "bg-green-500 text-white hover:bg-green-400"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
                     onClick={() => toggleProductActive(p.id, p.isActive, p.name)}
                   >
                     {p.isActive ? "Hoạt động" : "Đã khóa"}
@@ -593,7 +648,10 @@ export default function ProductManager() {
                 </td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   <button
-                    className={`px-3 py-1 rounded transition ${p.isFeatured ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-400 text-white hover:bg-gray-500"}`}
+                    className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                       ${p.isFeatured ? "bg-green-500 text-white hover:bg-green-400"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
                     onClick={() => toggleProductFeatured(p.id, p.isFeatured, p.name)}
                   >
                     {p.isFeatured ? "Nổi bật" : "Không"}
@@ -603,250 +661,306 @@ export default function ProductManager() {
                 <td className="p-3 border-b border-gray-200 text-center">
                   <div className="inline-flex gap-2">
                     <button
-                      className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
                       onClick={() => handleEditProduct(p)}
                     >
-                      Chỉnh sửa
+                      <FiEye></FiEye>
                     </button>
                     <button
-                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      className="p-2 text-red-600 hover:bg-red-100 rounded transition"
                       onClick={() => toggleProductDelete(p.id, p.name)}
                     >
-                      Xóa
+                      <FiTrash2></FiTrash2>
                     </button>
                   </div>
                 </td>
               </tr>
             )) : (
               <tr>
-                <td colSpan={11} className="text-center p-4 text-gray-500">Không có sản phẩm phù hợp</td>
+                <td colSpan={10} className="text-center p-4 text-gray-500">Không có sản phẩm phù hợp</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      {/* Pagination */}
-      <div className="flex justify-center items-center gap-4 mt-4">
-        <button
-          disabled={page === 0}
-          onClick={() => handleLoadProducts(page - 1)}
-          className="flex items-center px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50 transition text-base"
-        >
-          <FiChevronLeft className="w-5 h-5 -ml-2" />
-          <span className="ml-2">Trước</span>
-        </button>
 
-        <span className="text-gray-700 font-medium text-center">
-          Trang {page + 1} / {totalPages}
-        </span>
+      {totalPages > 0 && (
+        <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+          <button
+            onClick={() => page > 0 && handleLoadProducts(page - 1)}
+            disabled={page === 0}
+            className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+          >
+            <FaChevronLeft />
+          </button>
 
-        <button
-          disabled={page >= totalPages - 1}
-          onClick={() => handleLoadProducts(page + 1)}
-          className="flex items-center px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50 transition text-base"
-        >
-          <span className="mr-2">Sau</span>
-          <FiChevronRight className="w-5 h-5 -mr-2" />
-        </button>
-      </div>
+          {getPageNumbers().map((num, i) =>
+            num === "..." ? (
+              <span key={i} className="px-2 text-gray-500">...</span>
+            ) : (
+              <button
+                key={i}
+                onClick={() => handleLoadProducts(num)}
+                className={`w-8 h-8 flex items-center justify-center rounded border transition-all
+                                                                    ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+              >
+                {num + 1}
+              </button>
+            )
+          )}
+
+          <button
+            onClick={() => page < totalPages - 1 && handleLoadProducts(page + 1)}
+            disabled={page === totalPages - 1}
+            className={`p-3 rounded ${page === totalPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+          >
+            <FaChevronRight />
+          </button>
+        </div>
+      )}
       {/* Add/Edit Product Form */}
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 overflow-y-auto">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-[600px] my-10 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-semibold mb-4 bg-white">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 overflow-y-auto p-4">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] my-10 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-3xl font-bold mb-5 text-black">
               {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
             </h3>
 
-            <div className="grid grid-cols-1 gap-3">
-              {/* Tên sản phẩm */}
-              <label className="flex flex-col">
-                <span className="text-sm font-medium mb-1">Tên sản phẩm</span>
-                <input
-                  type="text"
-                  placeholder="Tên sản phẩm"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="border p-2 rounded"
-                />
-              </label>
-
-              {/* Mã sản phẩm + Slug */}
-              <div className="flex justify-between gap-2">
-                <label className="flex-1 flex flex-col">
-                  <span className="text-sm font-medium mb-1">Mã sản phẩm</span>
+            <div className="grid grid-cols-2 gap-8">
+              {/* LEFT COLUMN */}
+              <div className="space-y-3">
+                {/* Tên sản phẩm */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Tên sản phẩm</span>
                   <input
                     type="text"
-                    placeholder="Mã sản phẩm"
-                    value={form.productCode}
-                    onChange={(e) => setForm({ ...form, productCode: e.target.value })}
-                    className="border p-2 rounded"
+                    placeholder="Nhập tên sản phẩm"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
                   />
                 </label>
 
-                <label className="flex-1 flex flex-col">
-                  <span className="text-sm font-medium mb-1">Slug</span>
+                {/* Mã sản phẩm */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Mã sản phẩm</span>
                   <input
                     type="text"
-                    placeholder="Slug"
+                    placeholder="Nhập mã sản phẩm"
+                    value={form.productCode}
+                    onChange={(e) => setForm({ ...form, productCode: e.target.value })}
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                  />
+                </label>
+
+                {/* Slug */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Slug</span>
+                  <input
+                    type="text"
+                    placeholder="Nhập slug"
                     value={form.slug}
                     onChange={(e) => {
                       setForm({ ...form, slug: e.target.value });
                       setIsSlugManuallyEdited(true);
                     }}
-                    className="border p-2 rounded"
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
                   />
                 </label>
-              </div>
 
-              {/* Mô tả ngắn */}
-              <label className="flex flex-col">
-                <span className="text-sm font-medium mb-1">Mô tả ngắn</span>
-                <textarea
-                  placeholder="Mô tả ngắn"
-                  value={form.shortDescription}
-                  onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
-                  className="border p-2 rounded"
-                />
-              </label>
-
-              {/* Mô tả chi tiết */}
-              <label className="flex flex-col">
-                <span className="text-sm font-medium mb-1">Mô tả chi tiết</span>
-                <textarea
-                  placeholder="Mô tả chi tiết"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="border p-2 rounded"
-                />
-              </label>
-
-              {/* Danh mục */}
-              <label className="flex flex-col">
-                <span className="text-sm font-medium mb-1">Danh mục</span>
-                <select
-                  value={form.categoryId}
-                  onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                  className="border p-2 rounded"
-                >
-                  <option value="">Chọn danh mục</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* Thương hiệu */}
-              <label className="flex flex-col">
-                <span className="text-sm font-medium mb-1">Thương hiệu</span>
-                <select
-                  value={form.brandId}
-                  onChange={(e) => setForm({ ...form, brandId: e.target.value })}
-                  className="border p-2 rounded"
-                >
-                  <option value="">Chọn thương hiệu</option>
-                  {brands.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* Thông số kỹ thuật */}
-              <div className="border p-2 rounded">
-                <h4 className="font-medium mb-2">Thông số kỹ thuật</h4>
-                {Object.entries(specs).map(([key, value], idx) => (
-                  <div key={idx} className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      placeholder="Tên thông số"
-                      value={key}
-                      onChange={(e) => updateSpecKey(key, e.target.value)}
-                      className="border p-1 rounded w-32"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Giá trị"
-                      value={value}
-                      onChange={(e) => updateSpecValue(key, e.target.value)}
-                      className="border p-1 rounded w-32"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeSpec(key)}
-                      className="px-2 bg-red-500 text-white rounded hover:bg-red-600"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addSpec}
-                  className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Thêm thông số
-                </button>
-              </div>
-
-              {/* Hình ảnh */}
-              <label className="block">
-                <span className="block text-sm font-medium mb-1">Hình ảnh sản phẩm</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files[0])}
-                  className="block w-full text-sm text-gray-700 border border-gray-300 rounded cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
-                />
-                {(imageFile || form.imageUrl) && (
-                  <img
-                    src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
-                    alt="Preview"
-                    className="w-32 h-32 object-cover rounded mt-2 mx-auto border"
-                  />
-                )}
-              </label>
-              {editingProductId &&
-                (<label className="flex flex-col">
-                  <span className="text-sm font-medium mb-1">Biến thể chính</span>
+                {/* Danh mục */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Danh mục</span>
                   <select
-                    value={form.mainVariantId}
-                    onChange={(e) => setForm({ ...form, mainVariantId: e.target.value })}
-                    className="border p-2 rounded"
+                    value={form.categoryId}
+                    onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
                   >
-                    <option value="">Chọn biến thể chính</option>
-                    {variants.map((c) => (
+                    <option value="">Chọn danh mục</option>
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </select>
-                </label>)}
+                </label>
 
+                {/* Thương hiệu */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Thương hiệu</span>
+                  <select
+                    value={form.brandId}
+                    onChange={(e) => setForm({ ...form, brandId: e.target.value })}
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                  >
+                    <option value="">Chọn thương hiệu</option>
+                    {brands.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {/* Hình ảnh */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Hình ảnh sản phẩm</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files[0])}
+                    className="block w-full text-black bg-white border rounded cursor-pointer file:mr-4 file:py-3 file:px-6 file:rounded file:border-0 file:bg-black file:text-white hover:file:bg-gray-800 file:cursor-pointer transition-all"
+                  />
+
+                  {(imageFile || form.imageUrl) && (
+                    <div className="mt-4 flex flex-col items-center gap-2 relative">
+                      <img
+                        src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
+                        alt="Preview"
+                        className="w-48 h-48 object-cover rounded border shadow-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setForm({ ...form, imageUrl: "" });
+                        }}
+                        className="absolute top-1 right-38 w-6 h-5 cursor-pointer hover:text-red-600"
+                      >
+                        <FaX></FaX>
+                      </button>
+                    </div>
+                  )}
+                </label>
+
+                {/* Biến thể chính */}
+                {editingProductId && (
+                  <label className="flex flex-col">
+                    <span className="text-gray-700 font-semibold mb-2 text-black">Biến thể chính</span>
+                    <select
+                      value={form.mainVariantId}
+                      onChange={(e) => setForm({ ...form, mainVariantId: e.target.value })}
+                      className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                    >
+                      <option value="">Chọn biến thể chính</option>
+                      {variants.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              {/* RIGHT COLUMN */}
+              <div className="space-y-5">
+                {/* Mô tả ngắn */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Mô tả ngắn</span>
+                  <textarea
+                    placeholder="Nhập mô tả ngắn"
+                    value={form.shortDescription}
+                    onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-700 transition-all h-35 resize-none"
+                  />
+                </label>
+
+                {/* Mô tả chi tiết */}
+                <label className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Mô tả chi tiết</span>
+                  <textarea
+                    placeholder="Nhập mô tả chi tiết"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-700 transition-all h-45 resize-none"
+                  />
+                </label>
+
+                {/* Thông số kỹ thuật */}
+                <div className="border p-5 rounded">
+                  <h4 className="font-semibold mb-4 text-black text-lg">Thông số kỹ thuật</h4>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {Object.entries(specs).map(([id, spec]) => (
+                      <div key={id} className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Tên thông số"
+                          value={spec.key}
+                          onChange={(e) => updateSpecKey(id, e.target.value)}
+                          className="bg-white border p-2 rounded text-black placeholder-gray-400 flex-1 focus:outline-none text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Giá trị"
+                          value={spec.value}
+                          onChange={(e) => updateSpecValue(id, e.target.value)}
+                          className="bg-white border p-2 rounded text-black placeholder-gray-400 flex-1 focus:outline-none text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSpec(id)}
+                          className="px-3 bg-rose-500 text-white rounded hover:bg-rose-600 cursor-pointer transition-colors font-medium text-sm"
+                        >
+                          <FaX />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={addSpec}
+                    className="mt-3 px-4 py-2 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold w-full"
+                  >
+                    + Thêm thông số
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Buttons */}
-            <div className="flex justify-end gap-2 mt-4 bg-white ">
+            <div className="flex justify-end gap-4 mt-8 pt-6 border-t-2 border-gray-200">
               <button
+                disabled={isProcessing}
                 onClick={closeAndResetForm}
-                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                className={`px-8 py-3 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold  ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 Hủy
               </button>
               <button
+                disabled={isProcessing}
                 onClick={editingProductId ? handleUpdateProduct : handleCreateProduct}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className={`flex items-center gap-1 px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {editingProductId ? "Cập nhật" : "Thêm"}
+                {isProcessing && (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                )}
+                {isProcessing ? "Đang xử lý..." : editingProductId ? "Cập nhật" : "Thêm"}
               </button>
             </div>
           </div>
         </div>
       )}
-
-
       <Popup
         message={popup.message}
         type={popup.type}

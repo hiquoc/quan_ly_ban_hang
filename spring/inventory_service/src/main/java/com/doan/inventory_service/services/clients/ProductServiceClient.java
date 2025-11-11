@@ -45,10 +45,9 @@ public class ProductServiceClient {
         }
     }
 
-    public void updateVariantImportPrice(Long id, BigDecimal importPrice) {
+    public void updateVariantImportPrice(Long id,int oldQuantity,int newQuantity, BigDecimal importPrice) {
         try {
-            System.out.println(id);
-            productVariantRepository.updateVariantImportPrice(id,importPrice);
+            productVariantRepository.updateVariantImportPrice(id, oldQuantity, newQuantity,importPrice);
         } catch (FeignException ex) {
             throw parseFeignException(ex);
         }

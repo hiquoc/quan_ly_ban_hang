@@ -5,6 +5,7 @@
     <file url="file://$PROJECT_DIR$/spring/banhang-system/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/spring/cart_service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/spring/customer_service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/spring/dashboard_service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/spring/eureka_server/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/spring/eureka_service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/spring/gateway_service/src/main/java" charset="UTF-8" />

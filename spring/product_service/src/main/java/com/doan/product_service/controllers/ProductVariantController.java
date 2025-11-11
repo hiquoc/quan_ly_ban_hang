@@ -41,8 +41,8 @@ public class ProductVariantController {
     public ResponseEntity<?> createProductVariant(@Valid @RequestPart("variant") VariantRequest request,
                                                   @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         try {
-            productVariantService.createProductVariant(request,images);
-            return ResponseEntity.ok(new ApiResponse<>("Tạo biến thể thành công!", true, null));
+            VariantResponse variantResponse= productVariantService.createProductVariant(request,images);
+            return ResponseEntity.ok(new ApiResponse<>("Tạo biến thể thành công!", true, variantResponse));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -52,6 +52,7 @@ public class ProductVariantController {
     @GetMapping("/secure/variants")
     public ResponseEntity<?> getAllProductVariantsIncludingInactive( @RequestParam(required = false) Integer page,
                                                                      @RequestParam(required = false) Integer size,
+                                                                     @RequestParam(required = false) Long productId,
                                                                      @RequestParam(required = false) String keyword,
                                                                      @RequestParam(required = false) Boolean active,
                                                                      @RequestParam(required = false) String status,
@@ -59,7 +60,7 @@ public class ProductVariantController {
                                                                      @RequestParam(required = false) BigDecimal minPrice,
                                                                      @RequestParam(required = false) BigDecimal maxPrice) {
         try {
-            Page<VariantResponse> list = productVariantService.getAllProductsIncludingInactive(page,size,keyword,active,status,discount,minPrice,maxPrice);
+            Page<VariantResponse> list = productVariantService.getAllProductsIncludingInactive(page,size,productId,keyword,active,status,discount,minPrice,maxPrice);
             return ResponseEntity.ok(new ApiResponse<>("Lấy biến thể thành công!",
                     true, list));
         } catch (ResponseStatusException ex) {
@@ -173,10 +174,27 @@ public class ProductVariantController {
                 .toList();
     }
     @PostMapping("/internal/variants/{id}/importPrice")
-    public ResponseEntity<?> updateVariantImportPrice(@PathVariable Long id,@RequestParam BigDecimal importPrice) {
+    public ResponseEntity<?> updateVariantImportPrice(
+            @PathVariable Long id,
+            @RequestParam int currentStock,
+            @RequestParam int newStock,
+            @RequestParam BigDecimal importPrice
+    ) {
         try {
-            productVariantService.updateVariantImportPrice(id,importPrice);
+            productVariantService.updateVariantImportPrice(id, currentStock, newStock, importPrice);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật giá nhập của biến thể thành công!", true, null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @PostMapping("/internal/variants/{id}/sold")
+    public ResponseEntity<?> updateVariantSold(
+            @PathVariable Long id,
+            @RequestParam int num
+    ) {
+        try {
+            productVariantService.updateVariantSoldCount(id,num);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật lượt bán của biến thể thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }

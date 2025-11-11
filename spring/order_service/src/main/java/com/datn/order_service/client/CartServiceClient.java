@@ -7,10 +7,10 @@ import org.springframework.web.bind.annotation.*;
 @FeignClient(name = "cart-service")
 public interface CartServiceClient {
 
-    @DeleteMapping("/cart/internal/customer")
+    @DeleteMapping("/internal/customer")
     ApiResponse<Void> clearCart(@RequestHeader("X-Owner-Id") Long customerId);
 
-    @DeleteMapping("/cart/internal/customer/variant/{variantId}")
+    @DeleteMapping("/internal/customer/variant/{variantId}")
     ApiResponse<Void> removeCartItem(
             @RequestHeader("X-Owner-Id") Long customerId,
             @PathVariable("variantId") Long variantId);

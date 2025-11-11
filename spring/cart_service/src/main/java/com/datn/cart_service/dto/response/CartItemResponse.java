@@ -2,6 +2,7 @@ package com.datn.cart_service.dto.response;
 
 import lombok.*;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +12,7 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CartItemResponse {
+public class CartItemResponse implements Serializable {
     private Long id;
 
     // Thông tin Variant

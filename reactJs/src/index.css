@@ -3,11 +3,12 @@
 @import "tailwindcss";
 
 /* Global font smoothing and base styles */
-html, body {
+html,
+body {
   font-family: 'Nunito Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility; 
+  text-rendering: optimizeLegibility;
   font-size: 16px;
   line-height: 1.5;
   background-color: #fff;
@@ -27,4 +28,17 @@ html, body {
   margin: 0 auto;
   mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.bg-gradient-overlay {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
 }

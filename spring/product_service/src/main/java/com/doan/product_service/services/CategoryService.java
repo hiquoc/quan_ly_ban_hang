@@ -136,4 +136,8 @@ public class CategoryService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Category not found with id: "+id));
         categoryRepository.delete(category);
     }
+
+    public List<Category> getCategoriesByIds(List<Long> ids) {
+        return categoryRepository.findAllById(ids);
+    }
 }

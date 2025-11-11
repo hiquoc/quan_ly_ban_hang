@@ -21,13 +21,17 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
     List<InventoryTransaction> findByInventoryIdAndCreatedAtBetween(
             Long inventoryId, OffsetDateTime start, OffsetDateTime end);
 
+    List<InventoryTransaction> findByInventoryIdAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(Long id, String status, OffsetDateTime from, OffsetDateTime to);
+    List<InventoryTransaction> findByInventoryIdAndStatusAndUpdatedAtBetweenOrderByCreatedAtAsc(Long id, String status, OffsetDateTime from, OffsetDateTime to);
+
+
     Page<InventoryTransaction> findByInventoryId(Long inventoryId, Pageable pageable);
 
     List<InventoryTransaction> findByInventoryId(Long inventoryId);
 
     List<InventoryTransaction> findByInventoryId(Long inventoryId, Sort sort);
 
-    List<InventoryTransaction> findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatus(String order, String orderCode, String reserve, String pending);
+    List<InventoryTransaction> findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatus(String refType, String refCode, String type, String status);
 
 
     // 🔹 Base generic filter
@@ -100,4 +104,5 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
             Pageable pageable
     );
 
+    List<InventoryTransaction> findByReferenceTypeAndReferenceCodeAndTransactionType(String refType, String refCode, String type);
 }

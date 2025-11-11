@@ -13,6 +13,8 @@ import java.time.OffsetDateTime;
 @Data
 @Entity
 @Table(name = "accounts")
+@SQLDelete(sql = "UPDATE accounts SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,8 +35,9 @@ public class Account {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @Column(name = "last_login")
-    private OffsetDateTime lastLogin;
+
+    @Column(name = "is_verified", nullable = false)
+    private Boolean isVerified = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -44,6 +47,8 @@ public class Account {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
 
     public Account(String username,String password,Long ownerId,Role role){
         this.username=username;

@@ -51,3 +51,14 @@ export const restoreAccount = async (accountId) => {
   return { success: result.success, message: result.message };
 };
 
+////////////////
+export const requestVerificationCode = (email) =>
+   safeApiCall(() => api.post(`auth/public/verify/send`, { email }))
+export const requestVerificationCodeSecure = (email) =>
+   safeApiCall(() => api.post(`auth/secure/verify/send`, { email }))
+
+export const checkVerificationCode = (email,code) =>
+   safeApiCall(() => api.post(`auth/public/verify/check`, { email ,code}))
+
+export const checkVerificationCodeSecure = (email,code) =>
+   safeApiCall(() => api.post(`auth/secure/verify/check`, { email ,code}))

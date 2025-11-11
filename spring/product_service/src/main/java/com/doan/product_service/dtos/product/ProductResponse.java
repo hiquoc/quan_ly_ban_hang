@@ -6,14 +6,18 @@ import com.doan.product_service.models.Product;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
+@NoArgsConstructor
 @Data
 @AllArgsConstructor
-public class ProductResponse {
+public class ProductResponse implements Serializable {
     private Long id;
     private String name;
     private String productCode;
@@ -29,6 +33,8 @@ public class ProductResponse {
     @JsonProperty("isFeatured")
     private boolean isFeatured;
     private Long totalSold;
+    private BigDecimal ratingAvg;
+    private Integer ratingCount;
     private Long mainVariantId;
     private List<VariantDetailsResponse> variants;
     private OffsetDateTime createdAt;

@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 @Entity
@@ -44,6 +45,9 @@ public class Order {
     @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
+    @Column(name = "revenue", precision = 15, scale = 2)
+    private BigDecimal revenue;
+
     @Column(name = "promotion_code", length = 50)
     private String promotionCode;
 
@@ -70,25 +74,25 @@ public class Order {
 
     // Dates
     @Column(name = "order_date")
-    private LocalDateTime orderDate = LocalDateTime.now();
+    private OffsetDateTime orderDate = OffsetDateTime.now();
 
     @Column(name = "shipped_date")
-    private LocalDateTime shippedDate;
+    private OffsetDateTime shippedDate;
 
     @Column(name = "delivered_date")
-    private LocalDateTime deliveredDate;
+    private OffsetDateTime deliveredDate;
 
     @Column(name = "cancelled_date")
-    private LocalDateTime cancelledDate;
+    private OffsetDateTime cancelledDate;
 
     @Column(columnDefinition = "TEXT")
     private String notes;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 }

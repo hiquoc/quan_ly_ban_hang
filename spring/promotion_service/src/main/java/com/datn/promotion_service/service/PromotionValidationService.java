@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -82,8 +84,15 @@ public class PromotionValidationService {
         // Kiểm tra số tiền tối thiểu
         if (promotion.getMinOrderAmount() != null &&
                 request.getOrderAmount().compareTo(promotion.getMinOrderAmount()) < 0) {
-            return String.format("Số tiền tối thiểu để áp dụng là %s. Hiện tại: %s",
-                    promotion.getMinOrderAmount(), request.getOrderAmount());
+
+            Locale vietnam = new Locale("vi", "VN");
+            NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(vietnam);
+
+            String minAmountFormatted = currencyFormatter.format(promotion.getMinOrderAmount());
+            String orderAmountFormatted = currencyFormatter.format(request.getOrderAmount());
+
+            return String.format("Số tiền tối thiểu để áp dụng là %s.\n Hiện tại: %s",
+                    minAmountFormatted, orderAmountFormatted);
         }
 
         // Kiểm tra sản phẩm áp dụng
@@ -97,7 +106,7 @@ public class PromotionValidationService {
         }
 
         // Kiểm tra danh mục áp dụng
-        if (promotion.getApplicableCategories() != null && !promotion.getApplicableCategories().isEmpty()) {
+        else if (promotion.getApplicableCategories() != null && !promotion.getApplicableCategories().isEmpty()) {
             if (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) return "Khuyến mãi yêu cầu danh mục sản phẩm cụ thể";
 
             boolean hasApplicableCategory = request.getCategoryIds().stream()
@@ -107,7 +116,7 @@ public class PromotionValidationService {
         }
 
         // Kiểm tra thương hiệu áp dụng
-        if (promotion.getApplicableBrands() != null && !promotion.getApplicableBrands().isEmpty()) {
+        else if (promotion.getApplicableBrands() != null && !promotion.getApplicableBrands().isEmpty()) {
             if (request.getBrandIds() == null || request.getBrandIds().isEmpty()) return "Khuyến mãi yêu cầu thương hiệu cụ thể";
 
             boolean hasApplicableBrand = request.getBrandIds().stream()
@@ -129,9 +138,6 @@ public class PromotionValidationService {
                 break;
             case FIXED_AMOUNT:
                 discountAmount = promotion.getDiscountValue();
-                break;
-            case FREE_SHIPPING:
-                discountAmount = BigDecimal.ZERO; // Giảm phí vận chuyển xử lý riêng
                 break;
         }
 
@@ -166,7 +172,6 @@ public class PromotionValidationService {
                 .name(promotion.getName())
                 .description(promotion.getDescription())
                 .promotionType(promotion.getPromotionType())
-                .discountType(promotion.getDiscountType())
                 .discountValue(promotion.getDiscountValue())
                 .minOrderAmount(promotion.getMinOrderAmount())
                 .maxDiscountAmount(promotion.getMaxDiscountAmount())

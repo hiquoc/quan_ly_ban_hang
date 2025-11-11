@@ -6,7 +6,8 @@ export default function SearchableSelect({
     onChange,
     placeholder,
     disabled,
-    filterOutValues = [] 
+    filterOutValues = [],
+    onInputChange 
 }) {
     const [search, setSearch] = useState("");
     const [isOpen, setIsOpen] = useState(false);
@@ -34,13 +35,19 @@ export default function SearchableSelect({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const handleInputChange = (e) => {
+        const val = e.target.value;
+        setSearch(val);
+        if (onInputChange) onInputChange(val); // notify parent
+    };
+
     return (
         <div ref={ref} className="relative w-full">
             <input
                 type="text"
                 placeholder={placeholder}
                 value={isOpen ? search : (selectedOption?.label ?? selectedOption?.name ?? "")}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={handleInputChange}
                 onFocus={() => setIsOpen(true)}
                 disabled={disabled}
                 className={`border p-2 rounded w-full ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}

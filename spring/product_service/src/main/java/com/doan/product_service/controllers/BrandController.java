@@ -5,6 +5,7 @@ import com.doan.product_service.dtos.brand.BrandRequest;
 import com.doan.product_service.dtos.category.CategoryRequest;
 import com.doan.product_service.models.Brand;
 import com.doan.product_service.models.Category;
+import com.doan.product_service.models.Product;
 import com.doan.product_service.services.BrandService;
 import com.doan.product_service.services.CategoryService;
 import com.doan.product_service.services.ProductService;
@@ -34,9 +35,10 @@ public class BrandController {
     @GetMapping("/public/brands")
     public ResponseEntity<?> getAllActiveBrands(@RequestParam(required = false) Integer page,
                                                            @RequestParam(required = false) Integer size,
-                                                           @RequestParam(required = false) String keyword){
+                                                           @RequestParam(required = false) String keyword,
+                                                            @RequestParam(required = false) Boolean featured){
         try{
-            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,true);
+            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,true,featured);
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thương hiệu thành công!",true,brandList));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -47,9 +49,10 @@ public class BrandController {
     public ResponseEntity<?> getAllBrandsIncludingInActive(@RequestParam(required = false) Integer page,
                                                            @RequestParam(required = false) Integer size,
                                                            @RequestParam(required = false) String keyword,
-                                                           @RequestParam(required = false) Boolean active){
+                                                           @RequestParam(required = false) Boolean active,
+                                                           @RequestParam(required = false) Boolean featured){
         try{
-            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,active);
+            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,active,featured);
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thương hiệu thành công!",true,brandList));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -88,6 +91,16 @@ public class BrandController {
         }
     }
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PatchMapping("/secure/brands/featured/{id}")
+    public ResponseEntity<?> changeBrandFeatured(@PathVariable Long id){
+        try {
+            brandService.changeBrandFeatured(id);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật nổi bật thành công!",true,  null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @DeleteMapping("/secure/brands/{id}")
     public ResponseEntity<?> deleteBrand(@PathVariable Long id){
         try {
@@ -97,6 +110,12 @@ public class BrandController {
             return errorResponse(ex);
         }
     }
+
+    @GetMapping("/internal/brands")
+    public List<Brand> getBrandsByIds(@RequestParam List<Long> ids){
+        return brandService.getBrandsByIds(ids);
+    }
+
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();
         error.put("message", ex.getReason());

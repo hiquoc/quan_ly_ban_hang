@@ -14,9 +14,9 @@ export function CartProvider({ children }) {
         const saved = localStorage.getItem("cartData");
         try {
             const parsed = saved ? JSON.parse(saved) : null;
-            return parsed || { items: [], totalItems: 0, subtotal: 0, estimatedTotal: 0 };
+            return parsed || { id: null, items: [], totalItems: 0, subtotal: 0, estimatedTotal: 0 };
         } catch {
-            return { items: [], totalItems: 0, subtotal: 0, estimatedTotal: 0 };
+            return { id: null, items: [], totalItems: 0, subtotal: 0, estimatedTotal: 0 };
         }
     });
     // console.log(cart)
@@ -37,7 +37,6 @@ export function CartProvider({ children }) {
                 // showPopup(res.error);
                 return;
             }
-
             setCart(res.data);
             localStorage.setItem("cartData", JSON.stringify(res.data));
         } catch (err) {
@@ -46,11 +45,7 @@ export function CartProvider({ children }) {
     }
     function checkLoggedIn() {
         if (!username) {
-            showPopup("Bạn chưa đăng nhập!");
-            setTimeout(() => {
-                localStorage.removeItem("token");
-                window.location.href = "/login";
-            }, 3000);
+            showPopup("Bạn chưa đăng nhập!", () => navigate(`/login`));
             return false;
         }
         return true;
@@ -64,8 +59,28 @@ export function CartProvider({ children }) {
 
     async function addToCart(variantId, quantity = 1) {
         if (!checkLoggedIn()) return;
+        const savedCart = localStorage.getItem("cartData");
+        let cartExistsInStorage = false;
+        if (savedCart) {
+            try {
+                const parsedCart = JSON.parse(savedCart);
+                if (parsedCart?.items?.length > 0) {
+                    cartExistsInStorage = true;
+                }
+            } catch {
+                cartExistsInStorage = false;
+            }
+        }
 
-        const res = await addItemToCart(variantId, quantity);
+        let res;
+        const existingItem = cart.items.find(item => item.variantId === variantId);
+        // console.log(existingItem)
+        if (!cartExistsInStorage || !existingItem) {
+            res = await addItemToCart(variantId, quantity);
+        }
+        else {
+            res = await updateCartItem(existingItem.id, existingItem.quantity + quantity);
+        }
         if (res.error) {
             showPopup(res.error);
             return;
@@ -84,11 +99,11 @@ export function CartProvider({ children }) {
         });
     }
 
-    async function updateCart(variantId, quantity = 1) {
+    async function updateCart(id, quantity = 1) {
         if (!checkLoggedIn()) return;
         if (quantity === 0) return;
 
-        const res = await updateCartItem(variantId, quantity);
+        const res = await updateCartItem(id, quantity);
         if (res.error) {
             showPopup(res.error);
             return;
@@ -96,10 +111,10 @@ export function CartProvider({ children }) {
 
         setCart(prevCart => {
             const updatedItems = prevCart.items.map(item =>
-                item.variantId === res.data.variantId ? { ...item, ...res.data } : item
+                item.id === res.data.id ? { ...item, ...res.data } : item
             );
 
-            if (!updatedItems.some(item => item.variantId === res.data.variantId)) {
+            if (!updatedItems.some(item => item.id === res.data.id)) {
                 updatedItems.push(res.data);
             }
 
@@ -135,9 +150,15 @@ export function CartProvider({ children }) {
     const reloadCart = async () => {
         loadCart();
     }
+    const clearSelectedItems = () => {
+        localStorage.removeItem("selectedItems");
+    };
+    const clearCart=()=>
+        localStorage.removeItem("cartData")
+
 
     return (
-        <CartContext.Provider value={{ cart, setCart, addToCart, updateCart, removeFromCart, buyNow,reloadCart }}>
+        <CartContext.Provider value={{ cart, setCart, addToCart, updateCart, removeFromCart, buyNow, reloadCart, clearSelectedItems,clearCart }}>
             {children}
         </CartContext.Provider>
     );

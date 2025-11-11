@@ -39,6 +39,9 @@ public class OrderItem {
     @Column(name = "total_price", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalPrice;
 
+    @Column(name = "import_price", precision = 15, scale = 2)
+    private BigDecimal importPrice;
+
     @Type(JsonBinaryType.class)
     @Column(name = "product_snapshot", columnDefinition = "jsonb")
     private Map<String, Object> productSnapshot;
@@ -46,4 +49,8 @@ public class OrderItem {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "return_requested", nullable = false)
+    private boolean returnRequested = false;
+
 }

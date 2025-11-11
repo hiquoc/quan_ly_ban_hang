@@ -12,12 +12,14 @@ import com.doan.inventory_service.repositories.PurchaseOrderItemRepository;
 import com.doan.inventory_service.repositories.PurchaseOrderRepository;
 import com.doan.inventory_service.repositories.SupplierRepository;
 import com.doan.inventory_service.repositories.WarehouseRepository;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -156,28 +159,35 @@ public class PurchaseOrderService {
     public Page<PurchaseOrderResponse> getPurchaseOrders(
             Integer page, Integer size, String status, OffsetDateTime start, OffsetDateTime end) {
 
-        Pageable pageable = PageRequest.of(page != null ? page : 0,
+        Pageable pageable = PageRequest.of(
+                page != null ? page : 0,
                 size != null ? size : 20,
-                Sort.by(Sort.Direction.DESC, "createdAt"));
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
 
-        if (status != null && !status.isBlank()) {
-            if (start != null && end != null) {
-                return purchaseOrderRepository.findByStatusAndCreatedAtBetween(status, start, end, pageable)
-                        .map(this::toResponse);
-            } else {
-                return purchaseOrderRepository.findByStatus(status, pageable)
-                        .map(this::toResponse);
+        Specification<PurchaseOrder> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status));
             }
-        } else {
+
             if (start != null && end != null) {
-                return purchaseOrderRepository.findByCreatedAtBetween(start, end, pageable)
-                        .map(this::toResponse);
-            } else {
-                return purchaseOrderRepository.findAll(pageable)
-                        .map(this::toResponse);
+                predicates.add(cb.between(root.get("createdAt"), start, end));
+            } else if (start != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), start));
+            } else if (end != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), end));
             }
-        }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<PurchaseOrder> ordersPage = purchaseOrderRepository.findAll(spec, pageable);
+
+        return ordersPage.map(this::toResponse);
     }
+
     public Boolean checkPurchaseOrderByVariantId(Long id){
         return purchaseOrderItemRepository.existsByVariantId(id);
     }

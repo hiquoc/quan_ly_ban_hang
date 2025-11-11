@@ -1,9 +1,12 @@
 package com.doan.auth_service.models;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
-@Table(name = "social_accounts")
+@Data
+@Table(name = "social_accounts",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"provider", "providerId"}))
 public class SocialAccount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

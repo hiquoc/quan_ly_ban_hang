@@ -5,6 +5,7 @@ import com.doan.customer_service.models.Address;
 import com.doan.customer_service.models.Customer;
 import com.doan.customer_service.repositories.AddressRepository;
 import com.doan.customer_service.repositories.CustomerRepository;
+import com.doan.customer_service.utils.WebhookUtils;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,13 +21,18 @@ public class AddressService {
     private final CustomerRepository customerRepository;
     private final AddressRepository addressRepository;
 
+    @Transactional
     public Address createAddress(AddressRequest request){
         Customer customer=customerRepository.findById(request.getCustomerId())
                 .orElseThrow(()->new RuntimeException("Không tìm thấy customer với id: "+request.getCustomerId()));
         if(request.getName()==null || request.getPhone()==null ||request.getStreet()==null || request.getWard()==null || request.getDistrict()==null ||request.getCity()==null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng điền đầy đủ thông tin!");
         Address address=new Address(customer,request.getName(),request.getPhone(),request.getStreet(),request.getWard(),request.getDistrict(),request.getCity());
-        return addressRepository.save(address);
+        if(customer.getAddresses().isEmpty())
+            address.setIsMain(true);
+        addressRepository.save(address);
+        WebhookUtils.postToWebhook(customer.getId(),"insert");
+        return address;
     }
     public Address getAddress(Long id){
         return addressRepository.findById(id)
@@ -51,6 +57,7 @@ public class AddressService {
         address.setWard(request.getWard());
         address.setDistrict(request.getDistrict());
         address.setCity(request.getCity());
+        WebhookUtils.postToWebhook(customerId,"update");
     }
     @Transactional
     public void changeMainAddress(Long id,Long customerId){
@@ -71,5 +78,6 @@ public class AddressService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền chỉnh sửa dữ liệu!");
         }
         addressRepository.delete(address);
+        WebhookUtils.postToWebhook(customerId,"delete");
     }
 }

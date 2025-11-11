@@ -16,6 +16,7 @@ public class VariantDTO {
     private Long id;
     private Long productId;
     private String productName;
+    private String productCode;
     private String productSlug;
     private String name;
     private String sku;

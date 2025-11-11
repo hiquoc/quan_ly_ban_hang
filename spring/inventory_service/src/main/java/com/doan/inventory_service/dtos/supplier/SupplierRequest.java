@@ -16,7 +16,7 @@ public class SupplierRequest {
     @NotBlank(message = "Vui lòng điền số điện thoại nhà cung cấp!")
     private String phone;
 
-    @NotBlank(message = "Vui lòng điền email nhà cung cấp!")
+//    @NotBlank(message = "Vui lòng điền email nhà cung cấp!")
     private String email;
 
     @NotBlank(message = "Vui lòng điền địa chỉ nhà cung cấp!")

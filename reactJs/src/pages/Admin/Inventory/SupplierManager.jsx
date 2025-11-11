@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getAllSuppliers, createSupplier, updateSupplier, deleteSupplier } from "../../../apis/inventoryApi";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import { FiRefreshCw } from "react-icons/fi";
+import { FiEye, FiRefreshCw, FiTrash2 } from "react-icons/fi";
 
 
 export default function SupplierManager() {
@@ -72,7 +72,7 @@ export default function SupplierManager() {
             return;
         }
         setPopup({ message: res.message || "Xóa thành công!", type: "success" });
-        setSuppliers(prev => prev.filter(s => s.id !== id ? res.data : s));
+        setSuppliers(prev => prev.filter(s => s.id !== id));
         closeAndResetForm();
     };
 
@@ -106,7 +106,7 @@ export default function SupplierManager() {
         });
 
     return (
-        <div className="p-6 bg-gray-50 rounded shadow">
+        <div className="p-6 bg-white rounded shadow">
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold text-gray-800">Nhà cung cấp</h2>
@@ -119,7 +119,7 @@ export default function SupplierManager() {
                     </button>
                     <button
                         onClick={() => setShowForm(true)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
                     >
                         Thêm nhà cung cấp
                     </button>
@@ -151,7 +151,8 @@ export default function SupplierManager() {
                             </th>
                             <th className="p-4 text-center border-b border-gray-300">Mã</th>
                             <th className="p-4 text-center border-b border-gray-300">SĐT</th>
-                            <th className="p-4 text-center border-b border-gray-300">Chi tiết</th>
+                            <th className="p-4 text-center border-b border-gray-300">Email</th>
+                            <th className="p-4 text-center border-b border-gray-300">Ghi chú</th>
                             <th className="p-4 text-center border-b border-gray-300">Hành động</th>
                         </tr>
                     </thead>
@@ -163,39 +164,32 @@ export default function SupplierManager() {
                                     <td className="p-4 text-center border-b border-gray-200">{s.name}</td>
                                     <td className="p-4 text-center border-b border-gray-200">{s.code || "-"}</td>
                                     <td className="p-4 text-center border-b border-gray-200">{s.phone || "-"}</td>
-                                    <td className="p-4 text-center border-b border-gray-200">
-                                        <button
-                                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                                            onClick={() => {
-                                                setForm(s);
-                                                setEditingSupplierId(s.id);
-                                                setReadOnly(true);
-                                                setShowForm(true);
-                                            }}
-                                        >
-                                            Chi tiết
-                                        </button>
+                                    <td className="p-4 text-center border-b border-gray-200">{s.email || "-"}</td>
+                                    <td className="p-4 text-center border-b border-gray-200 max-w-[200px] truncate overflow-hidden whitespace-nowrap">
+                                        {s.description}
                                     </td>
+
                                     <td className="p-4 text-center border-b border-gray-200">
                                         <div className="inline-flex gap-2">
                                             <button
-                                                className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
+                                                className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
                                                 onClick={() => {
                                                     setForm(s);
                                                     setEditingSupplierId(s.id);
                                                     setShowForm(true);
                                                 }}
                                             >
-                                                Chỉnh sửa
+                                                <FiEye></FiEye>
                                             </button>
                                             <button
-                                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                                                className="p-2 text-red-600 hover:bg-red-100 rounded transition"
                                                 onClick={() => toggleSupplierDelete(s.id, s.name)}
                                             >
-                                                Xóa
+                                                <FiTrash2></FiTrash2>
                                             </button>
                                         </div>
                                     </td>
+
                                 </tr>
                             ))
                         ) : (
@@ -216,77 +210,109 @@ export default function SupplierManager() {
                         <h3 className="text-lg font-semibold mb-4">
                             {editingSupplierId ? "Thông tin nhà cung cấp" : "Thêm nhà cung cấp"}
                         </h3>
+
                         <div className="grid grid-cols-1 gap-3">
-                            <input
-                                type="text"
-                                placeholder="Tên"
-                                value={form.name}
-                                onChange={e => setForm({ ...form, name: e.target.value })}
-                                className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={readOnly}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Mã"
-                                value={form.code}
-                                onChange={e => {
-                                    setForm({ ...form, code: e.target.value });
-                                    setIsCodeManuallyEdited(true);
-                                }}
-                                className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={readOnly}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Số điện thoại"
-                                value={form.phone}
-                                onChange={e => setForm({ ...form, phone: e.target.value })}
-                                className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={readOnly}
-                            />
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                value={form.email}
-                                onChange={e => setForm({ ...form, email: e.target.value })}
-                                className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={readOnly}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Địa chỉ"
-                                value={form.address}
-                                onChange={e => setForm({ ...form, address: e.target.value })}
-                                className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={readOnly}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Mã số thuế"
-                                value={form.taxCode}
-                                onChange={e => setForm({ ...form, taxCode: e.target.value })}
-                                className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={readOnly}
-                            />
-                            <textarea
-                                placeholder="Ghi chú"
-                                value={form.description}
-                                onChange={e => setForm({ ...form, description: e.target.value })}
-                                className="border p-2 rounded h-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={readOnly}
-                            />
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Tên nhà cung cấp</label>
+                                <input
+                                    type="text"
+                                    placeholder="Tên"
+                                    value={form.name}
+                                    onChange={e => setForm({ ...form, name: e.target.value })}
+                                    className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={readOnly}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Mã nhà cung cấp</label>
+                                <input
+                                    type="text"
+                                    placeholder="Mã"
+                                    value={form.code}
+                                    onChange={e => {
+                                        setForm({ ...form, code: e.target.value });
+                                        setIsCodeManuallyEdited(true);
+                                    }}
+                                    className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={readOnly}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Số điện thoại</label>
+                                <input
+                                    type="text"
+                                    placeholder="Số điện thoại"
+                                    value={form.phone}
+                                    onChange={e => setForm({ ...form, phone: e.target.value })}
+                                    className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={readOnly}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Email</label>
+                                <input
+                                    type="email"
+                                    placeholder="Email"
+                                    value={form.email}
+                                    onChange={e => setForm({ ...form, email: e.target.value })}
+                                    className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={readOnly}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Địa chỉ</label>
+                                <input
+                                    type="text"
+                                    placeholder="Địa chỉ"
+                                    value={form.address}
+                                    onChange={e => setForm({ ...form, address: e.target.value })}
+                                    className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={readOnly}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Mã số thuế</label>
+                                <input
+                                    type="text"
+                                    placeholder="Mã số thuế"
+                                    value={form.taxCode}
+                                    onChange={e => setForm({ ...form, taxCode: e.target.value })}
+                                    className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={readOnly}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Ghi chú</label>
+                                <textarea
+                                    placeholder="Ghi chú"
+                                    value={form.description}
+                                    onChange={e => setForm({ ...form, description: e.target.value })}
+                                    className="border p-2 rounded h-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={readOnly}
+                                />
+                            </div>
+
                         </div>
+
                         <div className="flex justify-end gap-2 mt-4">
                             <button
                                 onClick={closeAndResetForm}
-                                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition"
+                                className="px-4 py-2 border rounded hover:bg-gray-100 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 Đóng
                             </button>
+
                             {!readOnly && (
                                 <button
                                     onClick={editingSupplierId ? handleUpdateSupplier : handleCreateSupplier}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                                    className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
                                     {editingSupplierId ? "Cập nhật" : "Thêm"}
                                 </button>
@@ -295,6 +321,7 @@ export default function SupplierManager() {
                     </div>
                 </div>
             )}
+
 
             <Popup
                 message={popup.message}

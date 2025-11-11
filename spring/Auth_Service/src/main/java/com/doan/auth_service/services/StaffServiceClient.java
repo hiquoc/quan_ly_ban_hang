@@ -44,6 +44,14 @@ public class StaffServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public List<StaffResponse> getStaffByIdLike(Long id) {
+        try {
+            return staffRepository.getStaffByIdLike(id).getBody();
+
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
     public List<StaffResponse> getStaffByIds(List<Long> ids) {
         try {
             return staffRepository.getStaffByIds(ids).getBody();

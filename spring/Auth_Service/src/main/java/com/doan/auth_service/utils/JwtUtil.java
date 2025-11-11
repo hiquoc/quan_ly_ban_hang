@@ -1,5 +1,7 @@
 package com.doan.auth_service.utils;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +19,7 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(decodedKey);
     }
     public String generateToken(String username,Long id, String role,Long ownerId){
-        long expiration = 1000 * 60 * 60;
+        long expiration = 1000 * 60 * 60 *24;
         return Jwts.builder()
                 .setSubject(username)
                 .claim("id",id)
@@ -27,5 +29,12 @@ public class JwtUtil {
                 .setExpiration(new Date(System.currentTimeMillis()+ expiration))
                 .signWith(key)
                 .compact();
+    }
+    public Claims parseClaims(String token) throws JwtException {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

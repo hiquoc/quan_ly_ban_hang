@@ -13,8 +13,8 @@ import com.doan.product_service.repositories.BrandRepository;
 import com.doan.product_service.repositories.CategoryRepository;
 import com.doan.product_service.repositories.ProductRepository;
 import com.doan.product_service.repositories.ProductVariantRepository;
-import com.doan.product_service.services.client.InventoryServiceClient;
 import com.doan.product_service.services.cloud.CloudinaryService;
+import com.doan.product_service.utils.WebhookUtils;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -39,7 +37,9 @@ public class ProductService {
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
     private final CloudinaryService cloudinaryService;
-    public void createProduct(ProductRequest productRequest, MultipartFile image) {
+
+
+    public ProductResponse createProduct(ProductRequest productRequest, MultipartFile image) {
         Category category= categoryRepository.findById(productRequest.getCategoryId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy doanh mục với id: "+productRequest.getCategoryId()));
         Brand brand= brandRepository.findById(productRequest.getBrandId())
@@ -74,6 +74,8 @@ public class ProductService {
                 imageUrl
                 );
         productRepository.save(product);
+        WebhookUtils.postToWebhook(product.getId(),"insert");
+        return fromEntity(product);
     }
     public Page<ProductResponse> getAllProducts(
             Integer page,
@@ -86,30 +88,27 @@ public class ProductService {
             Boolean desc,
             String sortBy,
             Boolean discount,
-            Integer startPrice,
-            Integer endPrice,
+            Long startPrice,
+            Long endPrice,
             Boolean excludeOutOfStockProducts
     ) {
         Pageable pageable;
         if (page == null || size == null) {
             pageable = Pageable.unpaged();
         } else {
-            Sort sort;
-            if ("sold".equalsIgnoreCase(sortBy)) {
-                sort = Sort.by("totalSold");
-            } else {
-                sort = Sort.by("updatedAt");
-            }
-
-            if (desc != null && !desc) sort = sort.ascending();
-            else sort = sort.descending();
-
+            Sort sort = "sold".equalsIgnoreCase(sortBy)
+                    ? Sort.by("totalSold")
+                    : "rating".equalsIgnoreCase(sortBy)
+                    ? Sort.by("ratingAvg")
+                    : Sort.by("updatedAt");
+            sort = (desc != null && !desc) ? sort.ascending() : sort.descending();
             pageable = PageRequest.of(page, size, sort);
         }
 
         Specification<Product> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            // Keyword
             if (keyword != null && !keyword.isBlank()) {
                 String likeKeyword = "%" + keyword.trim().toLowerCase() + "%";
                 predicates.add(cb.or(
@@ -120,50 +119,46 @@ public class ProductService {
                 ));
             }
 
+            // Category
             if (categoryName != null && !categoryName.isEmpty()) {
                 Join<Product, Category> categoryJoin = root.join("category", JoinType.INNER);
-                List<Predicate> categoryPredicates = new ArrayList<>();
-                for (String cat : categoryName) {
-                    if (cat != null && !cat.isBlank()) {
-                        categoryPredicates.add(cb.like(cb.lower(categoryJoin.get("name")),
-                                "%" + cat.trim().toLowerCase() + "%"));
-                    }
-                }
-                if (!categoryPredicates.isEmpty()) {
-                    predicates.add(cb.or(categoryPredicates.toArray(new Predicate[0])));
-                }
+                List<Predicate> catPreds = categoryName.stream()
+                        .filter(c -> c != null && !c.isBlank())
+                        .map(c -> cb.like(cb.lower(categoryJoin.get("name")), "%" + c.trim().toLowerCase() + "%"))
+                        .toList();
+                if (!catPreds.isEmpty()) predicates.add(cb.or(catPreds.toArray(new Predicate[0])));
             }
 
+            // Brand
             if (brandName != null && !brandName.isEmpty()) {
                 Join<Product, Brand> brandJoin = root.join("brand", JoinType.INNER);
-                List<Predicate> brandPredicates = new ArrayList<>();
-                for (String brand : brandName) {
-                    if (brand != null && !brand.isBlank()) {
-                        brandPredicates.add(cb.like(cb.lower(brandJoin.get("name")),
-                                "%" + brand.trim().toLowerCase() + "%"));
-                    }
-                }
-                if (!brandPredicates.isEmpty()) {
-                    predicates.add(cb.or(brandPredicates.toArray(new Predicate[0])));
-                }
+                List<Predicate> brandPreds = brandName.stream()
+                        .filter(b -> b != null && !b.isBlank())
+                        .map(b -> cb.like(cb.lower(brandJoin.get("name")), "%" + b.trim().toLowerCase() + "%"))
+                        .toList();
+                if (!brandPreds.isEmpty()) predicates.add(cb.or(brandPreds.toArray(new Predicate[0])));
             }
 
+            // Active & Featured
             if (active != null) predicates.add(cb.equal(root.get("isActive"), active));
             if (featured != null) predicates.add(cb.equal(root.get("isFeatured"), featured));
 
-            Join<Product, ProductVariant> variantJoin = root.join("variants", JoinType.INNER);
-            List<Predicate> variantPredicates = new ArrayList<>();
+            // Variant-based filters: discount, price range, out-of-stock
+            if (Boolean.TRUE.equals(discount) || startPrice != null || endPrice != null || Boolean.TRUE.equals(excludeOutOfStockProducts)) {
+                Subquery<Long> variantSub = query.subquery(Long.class);
+                Root<ProductVariant> vRoot = variantSub.from(ProductVariant.class);
+                variantSub.select(vRoot.get("product").get("id"));
 
-            if (excludeOutOfStockProducts != null && excludeOutOfStockProducts) {
-                variantPredicates.add(cb.notEqual(cb.upper(variantJoin.get("status")), "OUT_OF_STOCK"));
-            }
+                List<Predicate> subPreds = new ArrayList<>();
+                subPreds.add(cb.equal(vRoot.get("product").get("id"), root.get("id")));
 
-            if (startPrice != null) variantPredicates.add(cb.greaterThanOrEqualTo(variantJoin.get("sellingPrice"), startPrice));
-            if (endPrice != null) variantPredicates.add(cb.lessThanOrEqualTo(variantJoin.get("sellingPrice"), endPrice));
-            if (discount != null && discount) variantPredicates.add(cb.greaterThan(variantJoin.get("discountPercent"), 0));
+                if (Boolean.TRUE.equals(discount)) subPreds.add(cb.greaterThan(vRoot.get("discountPercent"), 0));
+                if (Boolean.TRUE.equals(excludeOutOfStockProducts)) subPreds.add(cb.notEqual(cb.upper(vRoot.get("status")), "OUT_OF_STOCK"));
+                if (startPrice != null) subPreds.add(cb.greaterThanOrEqualTo(vRoot.get("sellingPrice"), startPrice));
+                if (endPrice != null) subPreds.add(cb.lessThanOrEqualTo(vRoot.get("sellingPrice"), endPrice));
 
-            if (!variantPredicates.isEmpty()) {
-                predicates.add(cb.and(variantPredicates.toArray(new Predicate[0])));
+                variantSub.where(cb.and(subPreds.toArray(new Predicate[0])));
+                predicates.add(cb.exists(variantSub));
             }
 
             query.distinct(true);
@@ -175,18 +170,13 @@ public class ProductService {
         return productsPage.map(product -> {
             ProductResponse pr = fromEntity(product);
 
-            List<ProductVariant> sortedVariants = product.getVariants().stream()
-                    .filter(v -> !(excludeOutOfStockProducts != null && excludeOutOfStockProducts)
+            List<ProductVariant> variants = product.getVariants().stream()
+                    .filter(v -> excludeOutOfStockProducts == null || !excludeOutOfStockProducts
                             || !"OUT_OF_STOCK".equalsIgnoreCase(v.getStatus()))
-                    .sorted(Comparator.comparing(
-                            v -> !(startPrice == null || v.getSellingPrice().compareTo(BigDecimal.valueOf(startPrice)) >= 0)
-                                    || !(endPrice == null || v.getSellingPrice().compareTo(BigDecimal.valueOf(endPrice)) <= 0)
-                                    || (discount != null && discount && v.getDiscountPercent() <= 0)
-                    ))
                     .sorted(Comparator.comparing(v -> v.getProduct().getTotalSold(), Comparator.reverseOrder()))
                     .toList();
 
-            pr.setVariants(sortedVariants.stream().map(this::toVariantDetailsResponse).toList());
+            pr.setVariants(variants.stream().map(this::toVariantDetailsResponse).toList());
             return pr;
         });
     }
@@ -195,6 +185,7 @@ public class ProductService {
     public List<Product> getAllProductsWithoutInactive(){
         return productRepository.findByIsActiveIsTrue();
     }
+
     @Transactional(rollbackFor = IOException.class)
     public void updateProduct(Long id, ProductRequest productRequest,MultipartFile image){
         Product product = productRepository.findById(id)
@@ -229,6 +220,7 @@ public class ProductService {
         product.setShortDescription(productRequest.getShortDescription());
         product.setDescription(productRequest.getDescription());
         product.setMainVariantId(productRequest.getMainVariantId());
+        product.setTechnicalSpecs(productRequest.getTechnicalSpecs());
 
         if(imageUrl!=null)
             product.setImageUrl(imageUrl);
@@ -247,6 +239,7 @@ public class ProductService {
                             "Không tìm thấy thương hiệu với id: " + productRequest.getBrandId()));
             product.setBrand(brand);
         }
+        WebhookUtils.postToWebhook(product.getId(),"update");
     }
     @Transactional
     public void changeProductActive(Long id){
@@ -258,6 +251,11 @@ public class ProductService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Doanh mục đang bị khóa!");
             if(!product.getBrand().getIsActive())
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Thương hiệu đang bị khóa!");
+            if(product.getVariants().isEmpty())
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Sản phẩm chưa có biến thể!");
+            if(product.getVariants().stream().noneMatch(ProductVariant::getIsActive))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Sản phẩm không có biến thể đang hoạt động!");
+
         }else{
             if(productVariantRepository.existsByProductIdAndIsActiveIsTrue(id)){
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Có biến thể đang hoạt động với sản phẩm này!");
@@ -266,6 +264,7 @@ public class ProductService {
 
         product.setIsActive(!product.getIsActive());
         productRepository.save(product);
+        WebhookUtils.postToWebhook(product.getId(),"update");
     }
 
     public void changeProductFeatured(Long id){
@@ -275,11 +274,12 @@ public class ProductService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Sản phầm đang bị khóa!");
         product.setIsFeatured(!product.getIsFeatured());
         productRepository.save(product);
+        WebhookUtils.postToWebhook(product.getId(),"update");
     }
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Product not found with id: "+id));
-        if(productVariantRepository.existsByProductId(product.getId())){
+        if(productVariantRepository.existsByProductIdAndIsDeletedNative(product.getId(),false)){
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Đang tồn tại biến thể của sản phẩm này!");
         }
 
@@ -292,6 +292,7 @@ public class ProductService {
 
         }
         productRepository.delete(product);
+        WebhookUtils.postToWebhook(product.getId(),"delete");
     }
 
     @Transactional
@@ -310,6 +311,8 @@ public class ProductService {
                 product.getIsActive(),
                 product.getIsFeatured(),
                 product.getTotalSold(),
+                product.getRatingAvg(),
+                product.getRatingCount(),
                 product.getMainVariantId(),
                 product.getVariants().stream().map(this::toVariantDetailsResponse).toList(),
                 product.getCreatedAt(),
@@ -317,15 +320,27 @@ public class ProductService {
         );
     }
 
-
-    public ProductDetailsResponse getActiveProductDetails(String slug) {
+    public ProductDetailsResponse getActiveProductDetails(String slug,boolean showInActive) {
         Product product =productRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Không tìm thấy sản phẩm với slug: " + slug));
         return new ProductDetailsResponse(product.getId(), product.getName(), product.getProductCode(), product.getSlug(), product.getDescription(), product.getShortDescription(),
-                product.getCategory().getName(),product.getCategory().getSlug(),product.getBrand().getName(),product.getBrand().getSlug(),product.getTechnicalSpecs(),
-                product.getIsFeatured(), product.getMainVariantId(),product.getVariants().stream().map(this::toVariantDetailsResponse).toList());
+                product.getCategory().getName(),product.getCategory().getSlug(),product.getBrand().getName(),product.getBrand().getSlug(),product.getTotalSold(),product.getTechnicalSpecs(),
+                product.getIsFeatured(), product.getMainVariantId(),product.getVariants().stream()
+                .filter(v -> showInActive || v.getIsActive())
+                .map(this::toVariantDetailsResponse)
+                .toList());
+    }
+    public List<ProductResponse> getRandomActiveProductByCategory(String categorySlug) {
+        if(!categoryRepository.existsBySlug(categorySlug))
+            throw new ResponseStatusException( HttpStatus.NOT_FOUND,"Không tìm thấy doanh mục với slug: "+categorySlug);
+        List<Product> products=productRepository.getRandomActiveProductByCategorySlug(categorySlug,10);
+        return products.stream().map(p->{
+            ProductResponse pr=fromEntity(p);
+            pr.setVariants(p.getVariants().stream().map(this::toVariantDetailsResponse).toList());
+            return pr;
+        }).toList();
     }
 
     @Transactional
@@ -343,6 +358,7 @@ public class ProductService {
                 productVariant.getId(),
                 productVariant.getProduct() != null ? productVariant.getProduct().getId() : null,
                 productVariant.getProduct() != null ? productVariant.getProduct().getName() : null,
+                productVariant.getProduct() != null ? productVariant.getProduct().getProductCode() : null,
                 productVariant.getProduct() != null ? productVariant.getProduct().getSlug() : null,
                 productVariant.getName(),
                 productVariant.getSku(),
@@ -374,4 +390,9 @@ public class ProductService {
                 productVariant.getStatus()
         );
     }
+
+    public List<ProductResponse> getProductsByIds(List<Long> ids) {
+        return productRepository.findAllById(ids).stream().map(this::fromEntity).toList();
+    }
+
 }

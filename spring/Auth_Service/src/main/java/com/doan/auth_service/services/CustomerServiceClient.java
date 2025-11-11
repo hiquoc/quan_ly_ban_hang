@@ -50,6 +50,15 @@ public class CustomerServiceClient {
         }
     }
 
+    public List<CustomerResponse> getCustomerByIdLike(Long id) {
+        try {
+            return customerRepository.getCustomerByIdLike(id).getBody();
+
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
+
     public List<CustomerResponse> getCustomerByIds(List<Long> ids) {
         try {
             return customerRepository.getCustomerByIds(ids).getBody();

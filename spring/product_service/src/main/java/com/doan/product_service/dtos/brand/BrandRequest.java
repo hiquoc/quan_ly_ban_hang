@@ -9,4 +9,5 @@ public class BrandRequest {
     private String name;
     @NotBlank(message="Vui lòng điền slug thương hiệu!")
     private String slug;
+    private String description;
 }

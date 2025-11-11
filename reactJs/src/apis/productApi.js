@@ -88,6 +88,9 @@ export const getProductVariantByProductId = (id) =>
 export const getActiveProductDetails = (slug) =>
   safeApiCall(() => api.get(`product/public/products/${slug}`));
 
+export const getProductDetails = (slug) =>
+  safeApiCall(() => api.get(`product/secure/products/${slug}`));
+
 export const getActiveProducts = (
   page,
   size,
@@ -169,10 +172,10 @@ export const createVariant = (productId, name, sku, attributes, images) => {
   );
 }
 
-export const updateVariantInfo = (id, { productId, name, sku, basePrice, discountPercent, attributes }) => {
+export const updateVariantInfo = (id, { productId, name, sku, basePrice, discountPercent,importPrice, attributes }) => {
   return safeApiCall(() =>
     api.put(`product/secure/variants/${id}`, {
-      productId, name, sku, basePrice, discountPercent, attributes
+      productId, name, sku, basePrice, discountPercent,importPrice, attributes
     })
   );
 };
@@ -198,15 +201,16 @@ export const updateVariantImages = (id, images) => {
 };
 
 export const updateVariant = async (
-  id, productId, name, sku, basePrice, discountPercent, attributes, images = []
+  id, productId, name, sku, basePrice, discountPercent,importPrice, attributes, images = []
 ) => {
   const resInfo = await updateVariantInfo(id, {
     productId,
     name,
     sku,
     basePrice,
+    importPrice,
     discountPercent,
-    attributes,
+    attributes
   });
 
   if (resInfo?.error) return { error: resInfo.error };
@@ -234,12 +238,13 @@ export const changeVariantFeatured = (id) =>
 export const deleteVariant = (id) =>
   safeApiCall(() => api.delete(`product/secure/variants/${id}`));
 
-export const getAllVariants = ({ page, size, keyword, active, status, discount, minPrice, maxPrice }
+export const getAllVariants = ({ page, size, productId, keyword, active, status, discount, minPrice, maxPrice }
   = {}) =>
   safeApiCall(() => {
     const params = {};
     if (page != null) params.page = page;
     if (size != null) params.size = size;
+    if (productId != null) params.productId = productId;
     if (keyword) params.keyword = keyword;
     if (active != null) params.active = active;
     if (status) params.status = status;
@@ -338,11 +343,12 @@ export const deleteCategory = (id) =>
 
 
 ///////////////
-export const createBrand = (name, slug, imageFile) => {
+export const createBrand = (name, slug, description, imageFile) => {
   const formData = new FormData();
   const brandData = {
     name,
     slug,
+    description,
   };
 
   formData.append(
@@ -363,11 +369,12 @@ export const createBrand = (name, slug, imageFile) => {
   );
 }
 
-export const updateBrand = (id, name, slug, imageFile) => {
+export const updateBrand = (id, name, slug, description, imageFile) => {
   const formData = new FormData();
   const brandData = {
     name,
     slug,
+    description
   };
 
   formData.append(
@@ -388,12 +395,13 @@ export const updateBrand = (id, name, slug, imageFile) => {
   );
 }
 
-export const getActiveBrands = (page, size, keyword) => {
+export const getActiveBrands = (page, size, keyword,featured) => {
   const params = new URLSearchParams();
-
+  
   if (page !== undefined) params.append("page", page);
   if (size !== undefined) params.append("size", size);
   if (keyword !== undefined && keyword !== "") params.append("keyword", keyword);
+  if (featured !== undefined) params.append("featured", featured);
 
   const queryString = params.toString();
   const url = queryString
@@ -403,13 +411,14 @@ export const getActiveBrands = (page, size, keyword) => {
   return safeApiCall(() => api.get(url));
 }
 
-export const getAllBrands = (page, size, keyword, active) => {
+export const getAllBrands = (page, size, keyword, active, featured) => {
   const params = new URLSearchParams();
 
   if (page !== undefined) params.append("page", page);
   if (size !== undefined) params.append("size", size);
   if (keyword !== undefined && keyword !== "") params.append("keyword", keyword);
   if (active !== null && active !== undefined) params.append("active", active);
+  if (featured !== null && featured !== undefined) params.append("featured", featured);
 
   const queryString = params.toString();
   const url = queryString
@@ -423,5 +432,73 @@ export const getAllBrands = (page, size, keyword, active) => {
 export const changeBrandActive = (id) =>
   safeApiCall(() => api.patch(`product/secure/brands/active/${id}`));
 
+export const changeBrandFeatured = (id) =>
+  safeApiCall(() => api.patch(`product/secure/brands/featured/${id}`));
+
 export const deleteBrand = (id) =>
   safeApiCall(() => api.delete(`product/secure/brands/${id}`));
+
+
+export const createProductReview = (orderId, variantId, rating, content, images) => {
+  const formData = new FormData();
+  const variantData = { orderId, variantId, rating, content };
+
+  formData.append(
+    "review",
+    new Blob([JSON.stringify(variantData)], { type: "application/json" })
+  );
+
+  images.forEach(img => {
+    formData.append("images", img);
+  });
+
+  return safeApiCall(() =>
+    api.post(`product/secure/reviews`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+}
+
+export const getProductReviews = (productId, page, size, rating, ownerId) => {
+  const params = {};
+  if (page !== undefined) params.page = page;
+  if (size !== undefined) params.size = size;
+  if (rating !== undefined && rating !== "") params.rating = rating;
+  if (ownerId !== undefined) params.ownerId = ownerId;
+
+  return safeApiCall(() => api.get(`product/public/review/${productId}`, { params }));
+}
+
+
+export const deleteProductReview = (id) =>
+  safeApiCall(() => api.delete(`product/secure/reviews/${id}`))
+
+export const updateProductReview = (id, rating, title, content, newImages, deletedKeys = []) => {
+  const formData = new FormData();
+  const reviewData = { rating, title, content };
+
+  formData.append(
+    "review",
+    new Blob([JSON.stringify(reviewData)], { type: "application/json" })
+  );
+
+  if (newImages && newImages.length > 0) {
+    newImages.forEach(img => formData.append("newImages", img.file || img));
+  }
+
+  deletedKeys.forEach(key => formData.append("deletedKeys", key));
+
+  return safeApiCall(() =>
+    api.put(`/product/secure/reviews/${id}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+  );
+};
+export const getCustomerReviews = () => {
+  return safeApiCall(() => api.get(`/product/secure/reviews/customer`))
+}
+
+export const getRandomActiveProductByCategory=async(categorySlug)=>
+  safeApiCall(()=>api.get(`/product/public/products-random/category/${categorySlug}`))

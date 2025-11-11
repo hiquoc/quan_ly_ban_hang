@@ -1,6 +1,9 @@
 import { useState, useEffect, useContext } from "react";
-import { FiEdit, FiPlus, FiTrash2, FiMapPin, FiPhone, FiStar, FiUser, FiPenTool } from "react-icons/fi";
-import { FaPlusCircle, FaQuestionCircle, FaStar } from "react-icons/fa";
+import {
+  FiEdit, FiPlus, FiTrash2, FiMapPin, FiPhone, FiStar,
+  FiUser, FiPenTool, FiShoppingCart, FiDollarSign, FiTrendingUp
+} from "react-icons/fi";
+import { FaBoxOpen, FaPlusCircle, FaQuestionCircle, FaStar } from "react-icons/fa";
 import { FaClock, FaCheckCircle, FaSpinner, FaTruck, FaCheck, FaTimes, FaUndo } from 'react-icons/fa';
 import { AuthContext } from "../../contexts/AuthContext";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -14,11 +17,17 @@ import {
 } from "../../apis/customerApi";
 import ConfirmPanel from "../../components/ConfirmPanel";
 import { changePassword } from "../../apis/authApi";
-import { cancelOrder, getCustomerOrders } from "../../apis/orderApi";
+import { cancelOrder, getCustomerOrders, getCustomerOrderStats, rePayPayment } from "../../apis/orderApi";
 import { CartContext } from "../../contexts/CartContext";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { FaCircleXmark, FaMoneyBillTransfer, FaX } from "react-icons/fa6";
+import { FaBoxArchive, FaCircleXmark, FaMoneyBillTransfer, FaX } from "react-icons/fa6";
 import { PopupContext } from "../../contexts/PopupContext";
+import VerificationSection from "../../components/VerificationSection";
+import CreateReviewModal from "../../components/CreateReviewModal";
+import { getCustomerReviews } from "../../apis/productApi";
+import { Helmet } from "react-helmet-async";
+import ReturnOrderModal from "../../components/ReturnOrderModal";
+
 
 export default function CustomerPage() {
   const { role, ownerId } = useContext(AuthContext);
@@ -37,17 +46,26 @@ export default function CustomerPage() {
   const [totalPage, setTotalPage] = useState(0)
   const [size, setSize] = useState(5)
   const [sortStatus, setSortStatus] = useState(null)
+  const [orderStats, setOrderStats] = useState(null)
 
   const [showEditForm, setShowEditForm] = useState(false);
+  const [initalEmail, setInitalEmail] = useState("")
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [forceLogout, setForceLogout] = useState(false);
   const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
+  //const [returnOrderForm, setReturnOrderForm] = useState({ visible: false, order: null })
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [showVerifyPanel, setShowVerifyPanel] = useState(false)
+  const [reviewingProduct, setReviewingProduct] = useState({ variantName: "", variantId: null, orerId: null })
+  const [reviewList, setReviewList] = useState([])
 
   useEffect(() => {
     loadCustomer();
-    loadOrders();
+    // loadOrders();
     reloadCart();
+    loadCustomerOrderStats()
   }, []);
 
   useEffect(() => {
@@ -59,17 +77,39 @@ export default function CustomerPage() {
     if (res.error) return showPopup("Lấy thông tin khách hàng thất bại!");
 
     setCustomer(res.data);
+    setInitalEmail(res.data.email);
   };
   const loadOrders = async (page = 0) => {
     const res = await getCustomerOrders(page, size, sortStatus);
     if (res.error) return showPopup("Lấy thông tin đơn hàng thất bại!");
     setOrders(res.data.content);
-    console.log(res.data.content)
     setTotalPage(res.data.totalPages)
     setPage(page)
-
+    console.log(res.data.content)
+    if (res.data.content.some(order => order.statusName === "DELIVERED"))
+      loadCustomerReviews()
   }
-
+  const loadCustomerReviews = async () => {
+    const res = await getCustomerReviews();
+    if (res.error)
+      return showPopup("Lỗi khi lấy lịch sử đánh giá!");
+    setReviewList(res.data)
+  }
+  const loadCustomerOrderStats = async () => {
+    const res = await getCustomerOrderStats();
+    if (res.error)
+      return showPopup(res.error)
+    setOrderStats(res.data)
+  }
+  const handleRePayPayment = async (id) => {
+    const res = await rePayPayment(id);
+    if (res.error)
+      return showPopup(res.error)
+    console.log(res.data)
+    if (res.data?.paymentUrl) {
+      window.location.href = res.data.paymentUrl;
+    }
+  }
   // -------------------- HANDLERS --------------------
   const handleUpdateCustomer = async () => {
     if (editForm.email) {
@@ -86,12 +126,18 @@ export default function CustomerPage() {
         return;
       }
     }
+    if (editForm.email !== initalEmail) {
+      return setShowVerifyPanel(true);
+    }
+    updateCustomerAPI();
+  };
+  const updateCustomerAPI = async () => {
     const res = await updateCustomer(editForm.fullName, editForm.phone, editForm.email, editForm.gender, editForm.dateOfBirth);
-    if (res.error) return showPopup("Cập nhật thông tin thất bại");
+    if (res.error) return showPopup(res.error);
     setCustomer(prev => ({ ...prev, ...editForm }));
     setShowEditForm(false);
-    showPopup("Cập nhật thông tin thành công");
-  };
+    // showPopup("Cập nhật thông tin thành công");
+  }
 
   const openAddressForm = (addr = null) => {
     if (addr) setEditAddressForm({ ...addr });
@@ -157,8 +203,36 @@ export default function CustomerPage() {
       loadOrders();
     }
   };
+  const getPaymentButton = (order) => {
+    let bgColor, label, onClick;
 
-
+    if (order.paymentMethod === "COD") {
+      bgColor = "bg-orange-500";
+      label = "Thanh toán khi nhận";
+      onClick = null;
+    } else if (order.paymentStatus === "PAID") {
+      bgColor = "bg-green-500";
+      label = "Đã thanh toán";
+    } else if (order.paymentStatus === "FAILED") {
+      bgColor = "bg-red-500";
+      onClick = () => handleRePayPayment(order.id);
+      label = "Thanh toán thất bại";
+    }
+    else {
+      bgColor = "bg-black hover:bg-gray-800";
+      label = "Thanh toán";
+      onClick = () => handleRePayPayment(order.id);
+    }
+    return (
+      <button
+        onClick={onClick}
+        className={`flex gap-2 items-center px-6 py-3 text-white rounded font-medium ${bgColor} ${!onClick ? "" : "hover:cursor-pointer"}`}
+      >
+        {order.paymentMethod === "COD" ? <FaBoxOpen /> : <FaMoneyBillTransfer />}
+        {label}
+      </button>
+    );
+  }
   function getPageNumbers() {
     const pages = [];
     const maxVisible = 4;
@@ -176,432 +250,598 @@ export default function CustomerPage() {
     return pages;
   }
   return (
-    <div className="px-40 py-10 bg-gray-50 min-h-screen">
-      <div className="flex gap-10">
-        {/* Left Panel: Addresses */}
-        <div className="flex-4 ">
-          <h2 className="text-xl font-bold mb-6">Lịch sử đơn hàng</h2>
-          {/* Tabs */}
-          <div className="flex justify-between gap-6 px-2 pb-2 mb-2">
-            {[
-              { key: "ALL", label: "Tất cả", color: "gray-900", icon: null },
-              { key: "PENDING", label: "Chờ xác nhận", color: "yellow-500" },
-              { key: "CONFIRMED", label: "Đã xác nhận", color: "blue-500" },
-              { key: "PROCESSING", label: "Đang chuẩn bị", color: "orange-500" },
-              { key: "SHIPPED", label: "Đang giao", color: "purple-500" },
-              { key: "DELIVERED", label: "Đã giao", color: "green-500" },
-              { key: "CANCELLED", label: "Đã hủy", color: "red-500" },
-              { key: "RETURNED", label: "Trả lại", color: "gray-500" },
-            ].map(tab => {
-              const isActive = sortStatus === tab.key || (tab.key === "ALL" && !sortStatus);
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setSortStatus(tab.key === "ALL" ? null : tab.key)}
-                  className={`flex items-center gap-2 font-semibold transition-all pb-2 border-b-2
-          ${isActive
-                      ? `text-${tab.color} border-${tab.color}`
-                      : "text-gray-700 border-transparent hover:text-black"
-                    }`}
-                >
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-col gap-6">
-            {orders.map(order => (
-              <div
-                key={order.id}
-                className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow flex flex-col gap-4"
-              >
-                {/* Header: Status & Time */}
-                <div className="flex px-3 justify-between items-center">
-
-                  {/* Status */}
-                  <div className="flex items-center gap-2 text-lg font-semibold">
-                    {order.statusName === "PENDING" && (
-                      <>
-                        <FaClock className="text-yellow-500" />
-                        <span className="text-yellow-500">Đang chờ</span>
-                      </>
-                    )}
-                    {order.statusName === "CONFIRMED" && (
-                      <>
-                        <FaCheckCircle className="text-blue-500" />
-                        <span className="text-blue-500">Đã xác nhận</span>
-                      </>
-                    )}
-                    {order.statusName === "PROCESSING" && (
-                      <>
-                        <FaSpinner className="text-orange-500 animate-spin" />
-                        <span className="text-orange-500">Đang xử lý</span>
-                      </>
-                    )}
-                    {order.statusName === "SHIPPED" && (
-                      <>
-                        <FaTruck className="text-purple-500" />
-                        <span className="text-purple-500">Đang giao</span>
-                      </>
-                    )}
-                    {order.statusName === "DELIVERED" && (
-                      <>
-                        <FaCheck className="text-green-500" />
-                        <span className="text-green-500">Đã giao</span>
-                      </>
-                    )}
-                    {order.statusName === "CANCELLED" && (
-                      <>
-                        <FaTimes className="text-red-500" />
-                        <span className="text-red-500 flex items-center gap-2">
-                          Đã hủy
-                          {order.notes && (
-                            <div className="relative group items-center">
-                              <FaQuestionCircle className="text-red-500 text-lg font-bold cursor-help mb-0.5" />
-                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs bg-black text-white text-sm rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-pre-wrap pointer-events-none">
-                                {order.notes}
-                              </div>
-                            </div>
-                          )}
-                        </span>
-                      </>
-                    )}
-
-                    {order.statusName === "RETURNED" && (
-                      <>
-                        <FaUndo className="text-gray-500" />
-                        <span className="text-gray-500">Trả lại</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Order Time */}
-                  <p className="text-gray-600 text-sm font-medium">
-                    {new Date(order.orderDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}{" "}
-                    {new Date(order.orderDate).toLocaleDateString("vi-VN")}
-                  </p>
-                </div>
-
-                {/* Items list */}
-                <div className="flex flex-col gap-3 pt-2 px-3">
-                  {order.items.map(item => (
-                    <div
-                      key={item.id}
-                      className="flex p-3 bg-gray-100 rounded-xl items-center hover:shadow-sm transition-shadow"
-                    >
-                      {/* Product Image */}
-                      <img
-                        src={item.imageUrl}
-                        alt={item.variantName}
-                        className="w-20 h-20 object-cover rounded mr-4 hover:cursor-pointer"
-                        onClick={() => navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
-                      />
-
-                      {/* Product Name */}
-                      <div
-                        className="min-h-[2.5rem] w-72 flex items-center hover:cursor-pointer"
-                        onClick={() => navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
-                      >
-                        <p className="text-lg font-medium line-clamp-2 leading-tight text-gray-800">{item.variantName}</p>
-                      </div>
-
-                      {/* Quantity & Total Price */}
-                      <div className="flex-1 flex justify-end items-center space-x-3">
-                        <span className=" rounded  flex justify-center items-center font-medium">
-                          x{item.quantity}
-                        </span>
-                        <span className="text-gray-800 font-semibold">{item.totalPrice.toLocaleString("vi-VN")}₫</span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Order summary (Fee, Discount, Total) */}
-                  <div className="flex justify-end mt-2">
-                    <div className="grid grid-cols-[auto_1fr] gap-x-2 w-55 text-right items-center">
-                      <span className=" text-gray-600">Tạm tính:</span>
-                      <span className="text-gray-800 font-semibold">{order.subtotal.toLocaleString()}₫</span>
-
-                      {order.fee > 0 && (
-                        <>
-                          <span className="text-gray-600">Phí vận chuyển:</span>
-                          <span className="text-gray-800 font-semibold">{order.fee.toLocaleString()}₫</span>
-                        </>
-                      )}
-                      {order.discountAmount > 0 && (
-                        <>
-                          <span className="text-red-500">Giảm giá:</span>
-                          <span className="text-red-500">{order.discountAmount.toLocaleString()}₫</span>
-                        </>
-                      )}
-                      <span className="font-semibold text-gray-800">Tổng:</span>
-                      <span className="font-semibold text-red-500 text-lg">{order.totalAmount.toLocaleString()}₫</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 justify-end mr-3">
-                  {order.statusName === "DELIVERED" && (
-                    <button className="px-6 py-3 border border-black rounded hover:bg-gray-100 hover:cursor-pointer font-medium">
-                      <FiEdit></FiEdit> Đánh giá
-                    </button>
-                  )}
-
-                  {order.paymentMethod !== "COD" && order.paymentStatus === "PENDING" && (
-                    <button className="flex gap-2 items-center px-6 py-3 bg-black text-white rounded hover:bg-gray-800 hover:cursor-pointer font-medium">
-                      <FaMoneyBillTransfer></FaMoneyBillTransfer> Thanh toán
-                    </button>
-                  )}
-                  {order.statusName !== "DELIVERED" && order.statusName !== "CANCELLED" && (
-                    <button
-                      onClick={() =>
-                        setConfirmPanel({
-                          visible: true,
-                          message: "Bạn có chắc chắn muốn hủy đơn hàng này?",
-                          onConfirm: () => handleCancelOrder(order.id)
-                        })
-                      }
-                      className="flex gap-2 items-center px-6 py-3 bg-rose-600 text-white rounded hover:bg-rose-700 hover:cursor-pointer font-medium"
-                    >
-                      <FaCircleXmark /> Hủy đơn
-                    </button>
-                  )}
-
-                </div>
-              </div>
-            ))}
-          </div>
-
-
-          {totalPage > 0 && (
-            <div className="flex justify-center items-center gap-3 mt-10">
-              <button
-                onClick={() => page > 0 && loadOrders(page - 1)}
-                disabled={page === 0}
-                className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
-              >
-                <FaChevronLeft />
-              </button>
-
-              {getPageNumbers().map((num, i) =>
-                num === "..." ? (
-                  <span key={i} className="px-2 text-gray-500">...</span>
-                ) : (
+    <>
+      <Helmet>
+        <title>Cá nhân</title></Helmet>
+      <div className="px-40 py-10 bg-gray-50 min-h-screen">
+        <div className="flex gap-10">
+          {/* Left Panel: Addresses */}
+          <div className="flex-4 ">
+            <h2 className="text-xl font-bold mb-6">Lịch sử đơn hàng</h2>
+            {/* Tabs */}
+            <div className="flex justify-between gap-6 px-2 pb-2 mb-2">
+              {[
+                { key: "ALL", label: "Tất cả", color: "gray-900", icon: null },
+                { key: "PENDING", label: "Chờ xác nhận", color: "yellow-500" },
+                { key: "CONFIRMED", label: "Đã xác nhận", color: "blue-500" },
+                { key: "PROCESSING", label: "Đang chuẩn bị", color: "orange-500" },
+                { key: "SHIPPED", label: "Đang giao", color: "purple-500" },
+                { key: "DELIVERED", label: "Đã giao", color: "green-500" },
+                { key: "CANCELLED", label: "Đã hủy", color: "red-500" },
+                { key: "RETURNED", label: "Trả lại", color: "gray-500" },
+              ].map(tab => {
+                const isActive = sortStatus === tab.key || (tab.key === "ALL" && !sortStatus);
+                return (
                   <button
-                    key={i}
-                    onClick={() => loadOrders(num)}
-                    className={`w-8 h-8 flex items-center justify-center rounded border transition-all
-                                              ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+                    key={tab.key}
+                    onClick={() => setSortStatus(tab.key === "ALL" ? null : tab.key)}
+                    className={`flex items-center gap-2 font-semibold transition-all pb-2 border-b-2
+          ${isActive
+                        ? `text-${tab.color} border-${tab.color}`
+                        : "text-gray-700 border-transparent hover:text-black"
+                      }`}
                   >
-                    {num + 1}
+                    <span>{tab.label}</span>
                   </button>
-                )
-              )}
-
-              <button
-                onClick={() => page < totalPage - 1 && loadOrders(page + 1)}
-                disabled={page === totalPage - 1}
-                className={`p-3 rounded ${page === totalPage - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
-              >
-                <FaChevronRight />
-              </button>
-            </div>
-          )}
-
-        </div>
-
-
-        {/* Right Panel: Customer Info + Password */}
-        <div className="flex flex-3 flex-col gap-4">
-          <div className="bg-white rounded-xl shadow p-6 flex flex-col gap-4">
-            <h2 className="font-bold text-black text-lg">Thông tin cá nhân</h2>
-            <p className="text-gray-700"><strong>Họ và tên:</strong> {customer?.fullName}</p>
-            <p className="text-gray-700"><strong>Email:</strong> {customer?.email}</p>
-            <p className="text-gray-700"><strong>SĐT:</strong> {customer?.phone}</p>
-            <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender}</p>
-            <p className="text-gray-700"><strong>Ngày sinh:</strong> {customer?.dateOfBirth}</p>
-            <div className="flex gap-2 mt-3">
-              <button onClick={() => { setEditForm(customer); setShowEditForm(true); }} className="px-5 py-2 bg-black text-white rounded hover:bg-gray-900 flex items-center gap-2 hover:cursor-pointer"><FiEdit /> Chỉnh sửa</button>
-              <button onClick={() => setShowPasswordForm(true)} className="px-3 py-2 border border-black text-black rounded hover:bg-gray-100 flex items-center gap-2 hover:cursor-pointer">
-                <FiPenTool></FiPenTool> Đổi mật khẩu</button>
-            </div>
-          </div>
-          <div className="p-6 flex flex-col gap-4 border border-gray-200 rounded-lg shadow bg-white">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-black">Địa chỉ nhận hàng</h2>
-
-              <button
-                onClick={() => openAddressForm()}
-                className="flex gap-2 items-center px-4 py-2.5 bg-black text-white rounded hover:bg-gray-900 hover:cursor-pointer"
-              ><FaPlusCircle></FaPlusCircle>
-                Thêm địa chỉ
-              </button>
+                );
+              })}
             </div>
 
-            {customer?.addresses?.length ? customer.addresses
-              .slice()
-              .sort((a, b) => Number(b.isMain) - Number(a.isMain))
-              .map(addr => (
-                <div
-                  key={addr.id}
-                  className={`bg-gray-100 rounded-lg py-4 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:shadow-md transition-shadow`}
-                >
-                  <div className="flex items-start sm:items-center gap-3 w-full sm:w-auto">
+            <div className="flex flex-col gap-6">
+              {orders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <img
+                    src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1761657389/emptyOrder_xt8frf.webp"
+                    alt="Empty Orders"
+                    className="w-64 h-64 mb-6 opacity-80"
+                  />
+                  <h2 className="text-2xl font-semibold text-gray-700">
+                    Danh sách đơn hàng trống
+                  </h2>
+                </div>
+              ) : (
+                orders.map(order => (
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow flex flex-col gap-4"
+                  >
+                    {/* Header: Status & Time */}
+                    <div className="flex px-3 justify-between items-center">
 
-                    <div className="ml-2 space-y-2">
-                      <div className="flex gap-3 items-center">
-                        <FiUser className="text-xl flex-shrink-0" />
-                        <p className="text-lg font-semibold text-black">{addr.name}</p>
+                      {/* Status */}
+                      <div className="flex items-center gap-2 text-lg font-semibold">
+                        {order.statusName === "PENDING" && (
+                          <>
+                            <FaClock className="text-yellow-500" />
+                            <span className="text-yellow-500">Đang chờ</span>
+                          </>
+                        )}
+                        {order.statusName === "CONFIRMED" && (
+                          <>
+                            <FaCheckCircle className="text-blue-500" />
+                            <span className="text-blue-500">Đã xác nhận</span>
+                          </>
+                        )}
+                        {order.statusName === "PROCESSING" && (
+                          <>
+                            <FaSpinner className="text-orange-500 animate-spin" />
+                            <span className="text-orange-500">Đang xử lý</span>
+                          </>
+                        )}
+                        {order.statusName === "SHIPPED" && (
+                          <>
+                            <FaTruck className="text-purple-500" />
+                            <span className="text-purple-500">Đang giao</span>
+                          </>
+                        )}
+                        {order.statusName === "DELIVERED" && (
+                          <>
+                            <FaCheck className="text-green-500" />
+                            <span className="text-green-500">Đã giao</span>
+                          </>
+                        )}
+                        {order.statusName === "CANCELLED" && (
+                          <>
+                            <FaTimes className="text-red-500" />
+                            <span className="text-red-500 flex items-center gap-2">
+                              Đã hủy
+                              {order.notes && (
+                                <div className="relative group items-center">
+                                  <FaQuestionCircle className="text-red-500 text-lg font-bold cursor-help mb-0.5" />
+                                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs bg-black text-white text-sm rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-pre-wrap pointer-events-none">
+                                    {order.notes}
+                                  </div>
+                                </div>
+                              )}
+                            </span>
+                          </>
+                        )}
+
+                        {order.statusName === "RETURNED" && (
+                          <>
+                            <FaUndo className="text-gray-500" />
+                            <span className="text-gray-500">Trả lại</span>
+                          </>
+                        )}
                       </div>
 
-                      <div className="flex gap-3 items-center">
-                        <FiMapPin className="text-xl flex-shrink-0" />
-                        <p className="text-gray-700 line-clamp-1" title={`${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`}>
-                          {addr.street}, {addr.ward}, {addr.district}, {addr.city}
-                        </p>
-                      </div>
-
-                      <div className="flex gap-3 items-center">
-                        <FiPhone className="text-xl flex-shrink-0" />
-                        <p className="text-gray-700">{addr.phone}</p>
-                      </div>
+                      {/* Order Time */}
+                      <p className="text-gray-600 text-sm font-medium">
+                        {order.deliveredDate
+                          ? `${new Date(order.deliveredDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.deliveredDate).toLocaleDateString("vi-VN")}`
+                          : order.cancelledDate
+                            ? `${new Date(order.cancelledDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.cancelledDate).toLocaleDateString("vi-VN")}`
+                            : `${new Date(order.orderDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.orderDate).toLocaleDateString("vi-VN")}`
+                        }
+                      </p>
                     </div>
 
-                  </div>
+                    {/* Items list */}
+                    <div className="flex flex-col gap-3 pt-2 px-3">
 
-                  <div className="flex gap-5 mt-2 sm:mt-0 text-xl items-center">
-                    <span
-                      title={addr.isMain ? "Địa chỉ mặc định" : "Đặt làm địa chỉ mặc định"}
-                      onClick={() => handleSetMainAddress(addr.id)}
-                      className="hover:cursor-pointer transition-transform duration-150 hover:scale-125"
-                    >
-                      {addr.isMain ? (
-                        <FaStar className="text-yellow-400" />
-                      ) : (
-                        <FiStar className="text-gray-400" />
+                      {order.items.map(item => (
+                        <div
+                          key={item.id}
+                          className="flex p-3 bg-gray-100 rounded-xl items-center hover:shadow-sm transition-shadow"
+                        >
+                          {/* Product Image */}
+                          <img
+                            src={item.imageUrl}
+                            alt={item.variantName}
+                            className="w-20 h-20 object-cover rounded mr-4 hover:cursor-pointer"
+                            onClick={() => navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
+                          />
+
+                          {/* Product Name */}
+                          <div
+                            className="min-h-[2.5rem] w-72 flex items-center hover:cursor-pointer"
+                            onClick={() => navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
+                          >
+                            <p className="text-lg font-medium line-clamp-2 leading-tight text-gray-800">{item.variantName}</p>
+                          </div>
+
+                          {/* Quantity & Total Price */}
+                          <div className="flex-1 flex justify-end items-center space-x-3">
+                            {order.statusName === "DELIVERED" && (
+                              <button
+                                className="ml-2 hover:scale-110 flex items-center justify-center"
+                                onClick={() => {
+                                  if (!reviewList.some(review => review.variantId === item.variantId)) {
+                                    setIsReviewModalOpen(true);
+                                    setReviewingProduct({ variantName: item.variantName, variantId: item.variantId, orderId: order.id })
+                                  }
+                                  else
+                                    navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)
+                                }}
+                                title="Đánh giá sản phẩm này"
+                                style={{ lineHeight: 0 }}
+                              >
+                                <FiEdit />
+                              </button>
+                            )}
+
+                            <span className="rounded flex justify-center items-center font-medium">
+                              x{item.quantity}
+                            </span>
+
+                            <span className="text-gray-800 font-semibold">{item.totalPrice.toLocaleString("vi-VN")}₫</span>
+                          </div>
+
+                        </div>
+                      ))}
+
+                      <div className="flex flex-col gap-4 w-full">
+                        <div className="flex justify-between items-start gap-6 w-full mt-2">
+
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center max-w-140 gap-4">
+                              <FiMapPin className="text-black text-xl " />
+                              <p className="text-gray-800 break-words">{order.shippingAddress}</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <FiUser className="text-black text-xl" />
+                              <p className="text-gray-800">{order.shippingName}</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <FiPhone className="text-black text-xl" />
+                              <p className="text-gray-800">{order.shippingPhone}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-[0.35rem] w-60 text-right items-center">
+                            <span className=" text-gray-600">Tạm tính:</span>
+                            <span className="text-gray-800 font-semibold">{order.subtotal.toLocaleString()}₫</span>
+
+                            {order.fee > 0 && (
+                              <>
+                                <span className="text-gray-600">Phí vận chuyển:</span>
+                                <span className="text-gray-800 font-semibold">{order.fee.toLocaleString()}₫</span>
+                              </>
+                            )}
+                            {order.discountAmount > 0 && (
+                              <>
+                                <span className="text-red-500">Giảm giá:</span>
+                                <span className="text-red-500">{order.discountAmount.toLocaleString()}₫</span>
+                              </>
+                            )}
+                            <span className="font-semibold text-gray-800">Tổng:</span>
+                            <span className="font-semibold text-red-500 text-lg">{order.totalAmount.toLocaleString()}₫</span>
+                          </div>
+                        </div>
+                      </div>
+
+
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 justify-end mr-3">
+                      {order.statusName !== "DELIVERED" && order.statusName !== "CANCELLED" && (
+                        <>
+                          {getPaymentButton(order)}
+                          <button
+                            onClick={() =>
+                              setConfirmPanel({
+                                visible: true,
+                                message: "Bạn có chắc chắn muốn hủy đơn hàng này?",
+                                onConfirm: () => handleCancelOrder(order.id)
+                              })
+                            }
+                            className="flex gap-2 items-center px-6 py-3 bg-rose-600 text-white rounded hover:bg-rose-700 hover:cursor-pointer font-medium"
+                          >
+                            <FaCircleXmark /> Hủy đơn
+                          </button>
+                        </>
                       )}
-                    </span>
-                    <FiEdit
-                      className="hover:cursor-pointer transition-transform duration-150 hover:scale-125"
-                      onClick={() => openAddressForm(addr)}
-                    />
-                    <FiTrash2
-                      className="hover:cursor-pointer transition-transform duration-150 hover:scale-125"
-                      onClick={() =>
-                        setConfirmPanel({
-                          visible: true,
-                          message: "Xóa địa chỉ?",
-                          onConfirm: () => handleDeleteAddress(addr.id),
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              ))
-              : <p className="text-gray-500 italic">Chưa có địa chỉ nào</p>}
+                      {/* {order.statusName === "DELIVERED" &&
+                        new Date() - new Date(order.deliveredDate) <= 7 * 24 * 60 * 60 * 1000
+                        && !order.items.every(item => item.returnRequested)
+                        ? <button className="px-3 py-2 rounded border border cursor-pointer hover:bg-gray-100"
+                          onClick={() => setReturnOrderForm({ visible: true, order: order })}>
+                          Trả hàng/ hoàn tiền</button>
+                        : ""
+                      } */}
 
-
-            {showAddressForm && (
-              <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
-                <div className="bg-white rounded-xl shadow-lg p-6 w-[500px]">
-                  <h3 className="font-bold text-black text-xl mb-4">
-                    {editAddressForm.id ? "Sửa địa chỉ" : "Thêm địa chỉ"}
-                  </h3>
-                  <div className="grid grid-cols-1 gap-3">
-                    <input
-                      type="text"
-                      placeholder="Tên người nhận"
-                      value={editAddressForm.name}
-                      onChange={e => setEditAddressForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                    <input
-                      type="text"
-                      placeholder="SĐT"
-                      value={editAddressForm.phone}
-                      onChange={e => setEditAddressForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Số nhà & đường"
-                      value={editAddressForm.street}
-                      onChange={e => setEditAddressForm(prev => ({ ...prev, street: e.target.value }))}
-                      className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Phường"
-                      value={editAddressForm.ward}
-                      onChange={e => setEditAddressForm(prev => ({ ...prev, ward: e.target.value }))}
-                      className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Quận/Huyện"
-                      value={editAddressForm.district}
-                      onChange={e => setEditAddressForm(prev => ({ ...prev, district: e.target.value }))}
-                      className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Thành phố/Tỉnh"
-                      value={editAddressForm.city}
-                      onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
-                      className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-
-                    <div className="flex gap-3 mt-2">
-                      <button
-                        onClick={() => setShowAddressForm(false)}
-                        className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer"
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        onClick={handleSaveAddress}
-                        className="px-4 py-3 bg-black text-white rounded hover:bg-gray-900 flex-1 hover:cursor-pointer"
-                      >
-                        {editAddressForm.id ? "Cập nhật" : "Thêm"}
-                      </button>
                     </div>
                   </div>
-                </div>
+                )))}
+            </div>
+
+
+            {totalPage > 0 && (
+              <div className="flex justify-center items-center gap-3 mt-10">
+                <button
+                  onClick={() => page > 0 && loadOrders(page - 1)}
+                  disabled={page === 0}
+                  className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                >
+                  <FaChevronLeft />
+                </button>
+
+                {getPageNumbers().map((num, i) =>
+                  num === "..." ? (
+                    <span key={i} className="px-2 text-gray-500">...</span>
+                  ) : (
+                    <button
+                      key={i}
+                      onClick={() => loadOrders(num)}
+                      className={`w-8 h-8 flex items-center justify-center rounded border transition-all
+                                              ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+                    >
+                      {num + 1}
+                    </button>
+                  )
+                )}
+
+                <button
+                  onClick={() => page < totalPage - 1 && loadOrders(page + 1)}
+                  disabled={page === totalPage - 1}
+                  className={`p-3 rounded ${page === totalPage - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                >
+                  <FaChevronRight />
+                </button>
               </div>
             )}
+
+          </div>
+
+
+          {/* Right Panel: Customer Info + Password */}
+          <div className="flex flex-3 flex-col gap-4">
+            <div className="flex justify-between bg-white rounded-xl shadow p-6 ">
+              <div className="flex-1 flex flex-col gap-4 ">
+                <h2 className="font-bold text-black text-lg">Thông tin cá nhân</h2>
+                <p className="flex text-gray-700 items-center">
+                  <strong>Họ và tên:</strong>
+                  <span
+                    className="ml-1 max-w-[300px] inline-block overflow-hidden text-ellipsis whitespace-nowrap"
+                    title={customer?.fullName}
+                  >
+                    {customer?.fullName}
+                  </span>
+                </p>
+
+                <p className="flex text-gray-700 items-center">
+                  <strong>Email:</strong>
+                  <span
+                    className="ml-1 max-w-[300px] inline-block overflow-hidden text-ellipsis whitespace-nowrap"
+                    title={customer?.email}
+                  >
+                    {customer?.email}
+                  </span>
+                </p>
+                <p className="text-gray-700"><strong>SĐT:</strong> {customer?.phone}</p>
+                <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender}</p>
+                <p className="text-gray-700"><strong>Ngày sinh:</strong> {customer?.dateOfBirth}</p>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => { setEditForm(customer); setShowEditForm(true); }} className="px-5 py-2 bg-black text-white rounded hover:bg-gray-900 flex items-center gap-2 hover:cursor-pointer"><FiEdit /> Chỉnh sửa</button>
+                  <button onClick={() => setShowPasswordForm(true)} className="px-3 py-2 border border-black text-black rounded hover:bg-gray-100 flex items-center gap-2 hover:cursor-pointer">
+                    <FiPenTool></FiPenTool> Đổi mật khẩu</button>
+                </div>
+              </div>
+              <div className="w-1 bg-gradient-to-b from-gray-300 via-gray-200 to-gray-300 rounded mx-6"></div>
+              <div className="w-1/3 flex flex-col gap-4">
+                <h2 className="font-bold text-black text-lg">Thống kê</h2>
+
+                <div className="grid grid-cols-1 gap-4">
+
+                  {/* Total Orders */}
+                  <div className="p-3 bg-white border border-gray-300 rounded-xl shadow-sm flex items-center gap-2 hover:shadow-md transition">
+                    <div className="p-3 bg-blue-100 text-blue-600 rounded-full text">
+                      <FiShoppingCart />
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Tổng đơn</p>
+                      <p className="text-lg font-bold">{orderStats?.totalOrders}</p>
+                    </div>
+                  </div>
+
+                  {/* Total Spent */}
+                  <div className="p-3 bg-white border border-gray-300 rounded-xl shadow-sm flex items-center gap-2 hover:shadow-md transition">
+                    <div className="p-3 bg-green-100 text-green-600 rounded-full text">
+                      <FiDollarSign />
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Tổng chi tiêu</p>
+                      <p className="text-lg font-bold">{orderStats?.totalSpent?.toLocaleString()} ₫</p>
+                    </div>
+                  </div>
+
+                  {/* Average Order */}
+                  <div className="p-3 bg-white border border-gray-300 rounded-xl shadow-sm flex items-center gap-2 hover:shadow-md transition">
+                    <div className="p-3 bg-purple-100 text-purple-600 rounded-full text">
+                      <FiTrendingUp />
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Giá trị TB/đơn</p>
+                      <p className="text-lg font-bold">
+                        {Math.floor(orderStats?.averageOrderValue).toLocaleString("vi-VN")} ₫
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+
+            </div>
+
+            <div className="p-6 flex flex-col gap-4 border border-gray-200 rounded-lg shadow bg-white">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold text-black">Địa chỉ nhận hàng</h2>
+
+                <button
+                  onClick={() => openAddressForm()}
+                  className="flex gap-2 items-center px-4 py-2.5 bg-black text-white rounded hover:bg-gray-900 hover:cursor-pointer"
+                ><FaPlusCircle></FaPlusCircle>
+                  Thêm địa chỉ
+                </button>
+              </div>
+
+              {customer?.addresses?.length ? customer.addresses
+                .slice()
+                .sort((a, b) => Number(b.isMain) - Number(a.isMain))
+                .map(addr => (
+                  <div
+                    key={addr.id}
+                    className={`bg-gray-100 rounded-lg py-4 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:shadow-md transition-shadow`}
+                  >
+                    <div className="flex items-start sm:items-center gap-3 w-full sm:w-auto">
+
+                      <div className="ml-2 space-y-2">
+                        <div className="flex gap-3 items-center">
+                          <FiUser className="text-xl flex-shrink-0" />
+                          <p className="text-lg font-semibold text-black">{addr.name}</p>
+                        </div>
+
+                        <div className="flex gap-3 items-center">
+                          <FiMapPin className="text-xl flex-shrink-0" />
+                          <p className="text-gray-700 line-clamp-1" title={`${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`}>
+                            {addr.street}, {addr.ward}, {addr.district}, {addr.city}
+                          </p>
+                        </div>
+
+                        <div className="flex gap-3 items-center">
+                          <FiPhone className="text-xl flex-shrink-0" />
+                          <p className="text-gray-700">{addr.phone}</p>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    <div className="flex gap-5 mt-2 sm:mt-0 text-xl items-center">
+                      <span
+                        title={addr.isMain ? "Địa chỉ mặc định" : "Đặt làm địa chỉ mặc định"}
+                        onClick={() => handleSetMainAddress(addr.id)}
+                        className="hover:cursor-pointer transition-transform duration-150 hover:scale-125"
+                      >
+                        {addr.isMain ? (
+                          <FaStar className="text-yellow-400" />
+                        ) : (
+                          <FiStar className="text-gray-400" />
+                        )}
+                      </span>
+                      <FiEdit
+                        className="hover:cursor-pointer transition-transform duration-150 hover:scale-125"
+                        onClick={() => openAddressForm(addr)}
+                      />
+                      <FiTrash2
+                        className="hover:cursor-pointer transition-transform duration-150 hover:scale-125"
+                        onClick={() =>
+                          setConfirmPanel({
+                            visible: true,
+                            message: "Xóa địa chỉ?",
+                            onConfirm: () => handleDeleteAddress(addr.id),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                ))
+                : <p className="text-gray-500 italic">Chưa có địa chỉ nào</p>}
+
+
+              {showAddressForm && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
+                  <div className="bg-white rounded-xl shadow-lg p-6 w-[500px]">
+                    <h3 className="font-bold text-black text-xl mb-4">
+                      {editAddressForm.id ? "Sửa địa chỉ" : "Thêm địa chỉ"}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      <input
+                        type="text"
+                        placeholder="Tên người nhận"
+                        value={editAddressForm.name}
+                        onChange={e => setEditAddressForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+                      <input
+                        type="text"
+                        placeholder="SĐT"
+                        value={editAddressForm.phone}
+                        onChange={e => setEditAddressForm(prev => ({ ...prev, phone: e.target.value }))}
+                        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Số nhà & đường"
+                        value={editAddressForm.street}
+                        onChange={e => setEditAddressForm(prev => ({ ...prev, street: e.target.value }))}
+                        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Phường"
+                        value={editAddressForm.ward}
+                        onChange={e => setEditAddressForm(prev => ({ ...prev, ward: e.target.value }))}
+                        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Quận/Huyện"
+                        value={editAddressForm.district}
+                        onChange={e => setEditAddressForm(prev => ({ ...prev, district: e.target.value }))}
+                        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Thành phố/Tỉnh"
+                        value={editAddressForm.city}
+                        onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
+                        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+
+                      <div className="flex gap-3 mt-2">
+                        <button
+                          onClick={() => setShowAddressForm(false)}
+                          className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer"
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          onClick={handleSaveAddress}
+                          className="px-4 py-3 bg-black text-white rounded hover:bg-gray-900 flex-1 hover:cursor-pointer"
+                        >
+                          {editAddressForm.id ? "Cập nhật" : "Thêm"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* ------------------- MODALS ------------------- */}
+        {showEditForm && <Modal title="Cập nhật thông tin" >
+          <CustomerEditForm editForm={formattedEditForm} setEditForm={setEditForm} onSave={handleUpdateCustomer} onClose={() => setShowEditForm(false)} />
+        </Modal>}
+
+        {showAddressForm && <Modal title={editAddressForm.id ? "Sửa địa chỉ" : "Thêm địa chỉ"} >
+          <AddressForm editAddressForm={editAddressForm} setEditAddressForm={setEditAddressForm} onSave={handleSaveAddress} onClose={() => setShowAddressForm(false)} />
+        </Modal>}
+
+        {showPasswordForm && <Modal title="Đổi mật khẩu" >
+          <ChangePasswordForm passwordForm={passwordForm} setPasswordForm={setPasswordForm} onSave={handleChangePassword} onClose={() => setShowPasswordForm(false)} />
+        </Modal>}
+
+        {forceLogout && <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-black/50"></div>
+          <div className="relative bg-white p-6 rounded-xl shadow-2xl w-96 max-w-sm text-center">
+            <p className="text-xl mt-5 mb-5 ">Thay đổi mật khẩu thành công!<br />Vui lòng đăng nhập lại!</p>
+            <button onClick={() => navigate("/logout")} className="px-6 py-3 mt-2 bg-black text-white rounded font-semibold hover:bg-gray-800 transition">Xác nhận</button>
+          </div>
+        </div>}
+
+        <ConfirmPanel
+          visible={confirmPanel.visible}
+          message={confirmPanel.message}
+          onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); setConfirmPanel({ visible: false, message: "", onConfirm: null }); }}
+          onCancel={() => setConfirmPanel({ visible: false, message: "", onConfirm: null })}
+        />
+        {showVerifyPanel && (
+          <VerificationSection
+            email={editForm.email}
+            setEmail={(value) => setEditForm((prev) => ({ ...prev, email: value }))}
+            showPopup={showPopup}
+            onVerified={updateCustomerAPI}
+            onClose={() => setShowVerifyPanel(false)}
+            secure={true}
+          />
+        )}
+        <CreateReviewModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          onSuccess={() => { loadCustomerReviews(); setIsReviewModalOpen(false) }}
+          reviewingProduct={reviewingProduct}
+          showPopup={showPopup}
+        />
+        {/* <ReturnOrderModal
+          order={returnOrderForm.order}
+          show={returnOrderForm.visible}
+          onClose={() => setReturnOrderForm({ visible: false, order: null })}
+          onSubmit={(selectedItems) => {
+            setReturnOrderForm({ visible: false, order: null });
+            setOrders(prevOrders =>
+              prevOrders.map(order => {
+                if (order.id !== returnOrderForm.order.id) return order;
+                return {
+                  ...order,
+                  items: order.items.map(item => {
+                    const selected = selectedItems.find(si => si.variantId === item.variantId);
+                    return {
+                      ...item,
+                      returnRequested: selected ? true : item.returnRequested
+                    };
+                  })
+                };
+              })
+            );
+          }}
+          showPopup={showPopup}
+        /> */}
       </div>
-
-      {/* ------------------- MODALS ------------------- */}
-      {showEditForm && <Modal title="Chỉnh sửa khách hàng" >
-        <CustomerEditForm editForm={formattedEditForm} setEditForm={setEditForm} onSave={handleUpdateCustomer} onClose={() => setShowEditForm(false)} />
-      </Modal>}
-
-      {showAddressForm && <Modal title={editAddressForm.id ? "Sửa địa chỉ" : "Thêm địa chỉ"} >
-        <AddressForm editAddressForm={editAddressForm} setEditAddressForm={setEditAddressForm} onSave={handleSaveAddress} onClose={() => setShowAddressForm(false)} />
-      </Modal>}
-
-      {showPasswordForm && <Modal title="Đổi mật khẩu" >
-        <ChangePasswordForm passwordForm={passwordForm} setPasswordForm={setPasswordForm} onSave={handleChangePassword} onClose={() => setShowPasswordForm(false)} />
-      </Modal>}
-
-      {forceLogout && <div className="fixed inset-0 flex items-center justify-center z-50">
-        <div className="absolute inset-0 bg-black/50"></div>
-        <div className="relative bg-white p-6 rounded-xl shadow-2xl w-96 max-w-sm text-center">
-          <p className="text-xl mt-5 mb-5 ">Thay đổi mật khẩu thành công!<br />Vui lòng đăng nhập lại!</p>
-          <button onClick={() => navigate("/logout")} className="px-6 py-3 mt-2 bg-black text-white rounded font-semibold hover:bg-gray-800 transition">Xác nhận</button>
-        </div>
-      </div>}
-
-      <ConfirmPanel
-        visible={confirmPanel.visible}
-        message={confirmPanel.message}
-        onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); setConfirmPanel({ visible: false, message: "", onConfirm: null }); }}
-        onCancel={() => setConfirmPanel({ visible: false, message: "", onConfirm: null })}
-      />
-    </div>
+    </>
   );
 }
 

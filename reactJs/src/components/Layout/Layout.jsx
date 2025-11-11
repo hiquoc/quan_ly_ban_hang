@@ -6,7 +6,7 @@ import { FaSearch, FaShoppingCart, FaUserCircle, FaSignOutAlt, FaTimes } from "r
 import { FiCreditCard } from "react-icons/fi";
 
 export default function Layout({ children }) {
-  const { username } = useContext(AuthContext);
+  const { username,role } = useContext(AuthContext);
   const { cart, updateCart, removeFromCart } = useContext(CartContext);
   // console.log(cart)
   const [cartOpen, setCartOpen] = useState(false);
@@ -25,11 +25,12 @@ export default function Layout({ children }) {
   });
 
   const navItems = [
-    { name: "Trang chủ", path: "/" },
-    { name: "Đang giảm giá", path: "/sale" },
-    { name: "Mua nhiều", path: "/popular" },
-    { name: "Danh mục", path: "/categories" },
+    { name: "Trang chủ", pathname: "/", search: "" },
+    { name: "Đang giảm giá", pathname: "/search", search: "?discount=true" },
+    { name: "Mua nhiều", pathname: "/search", search: "?sort=sold" },
   ];
+
+
   useEffect(() => {
     localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
   }, [selectedItems]);
@@ -69,8 +70,8 @@ export default function Layout({ children }) {
     }
   };
   return (
-    <div className="h-screen bg-white">
-      <nav className="bg-white border border-gray-300 border-b sticky top-0 z-50">
+    <div className=" bg-white">
+      <nav className="sticky top-0 z-40 bg-white border-b border-gray-300">
         <div className="max-w-8xl mx-auto px-40 py-3 flex items-center justify-between">
           <Link to="/" className="text-3xl font-bold text-black">Elec</Link>
           <div className="flex-1 max-w-80 mx-4 relative">
@@ -89,20 +90,24 @@ export default function Layout({ children }) {
           </div>
 
           <nav className="hidden md:flex space-x-10">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === "/"} // Only exact match for home
-                className={({ isActive }) =>
-                  isActive
+            {navItems.map((item) => {
+              const matchPath = location.pathname === item.pathname;
+              const matchSearch = location.search === item.search;
+              const isActive = matchPath && matchSearch;
+
+              return (
+                <NavLink
+                  key={item.name}
+                  to={{ pathname: item.pathname, search: item.search }}
+                  className={isActive
                     ? "text-gray-800 font-bold"
                     : "text-gray-500 hover:text-black hover:font-bold transition"
-                }
-              >
-                {item.name}
-              </NavLink>
-            ))}
+                  }
+                >
+                  {item.name}
+                </NavLink>
+              );
+            })}
           </nav>
 
           <div className="flex items-center space-x-4">
@@ -112,7 +117,7 @@ export default function Layout({ children }) {
                   <button
                     disabled={isCheckoutPage}
                     onClick={toggleCart}
-                    className={`relative p-2 rounded-full hover:bg-gray-200 transition ${isCheckoutPage ? "opacity-50 cursor-not-allowed" : "hover:cursor-pointer"}`}                  >
+                    className={`bg-gray-100 relative p-2 rounded-full hover:bg-gray-200 transition ${isCheckoutPage ? "opacity-50 cursor-not-allowed" : "hover:cursor-pointer"}`}                  >
                     <FaShoppingCart className="text-gray-700 text-lg" />
                     {cart?.totalItems > 0 && (
                       <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white rounded-full px-1">
@@ -239,14 +244,35 @@ export default function Layout({ children }) {
 
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <button onClick={() => navigate(`/customer`)}
-                    className="flex gap-2 px-3 py-2 rounded-full text-gray-800 hover:bg-gray-200 hover:cursor-pointer font-medium">
-                    {username} <FaUserCircle className="text-gray-700 text-2xl" />
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      if(role!=="CUSTOMER")
+                        navigate(`/admin/orders`)
+                      else
+                        navigate(`/customer`)
+                    }}
+                    className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 "
+                  >
+
+                    <span className="text-gray-800 max-w-[120px] truncate">{username}</span>
+
+                    <FaUserCircle className="text-gray-700 text-2xl" />
+
+                    {username?.length > 12 && (
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 whitespace-nowrap 
+                      bg-black text-white text-sm px-2 py-1 rounded shadow-lg opacity-0 
+                      group-hover:opacity-100 transition-opacity z-50 pointer-events-none"
+                      >
+                        {username}
+                      </div>
+                    )}
                   </button>
+
+
                   <button
                     onClick={handleLogout}
-                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 hover:cursor-pointer transition text-red-500"
+                    className="p-2 rounded-full bg-gray-100 hover:bg-red-200 hover:cursor-pointer transition text-red-500"
                   >
                     <FaSignOutAlt />
                   </button>

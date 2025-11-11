@@ -1,21 +1,23 @@
-import { useEffect, useState } from "react";
-import { changeBrandActive, createBrand, getAllBrands, updateBrand, deleteBrand } from "../../../apis/productApi";
-import Popup from "../../../components/Popup";
+import { useContext, useEffect, useState } from "react";
+import { changeBrandActive, createBrand, getAllBrands, updateBrand, deleteBrand, changeBrandFeatured } from "../../../apis/productApi";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import { FiRefreshCw, FiChevronLeft, FiChevronRight } from "react-icons/fi";
-
+import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye, FiTrash2 } from "react-icons/fi";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { PopupContext } from "../../../contexts/PopupContext"
 export default function BrandManager() {
+    const { showPopup } = useContext(PopupContext)
     const [brands, setBrands] = useState([]);
     const [status, setStatus] = useState(null);
+    const [featured, setFeatured] = useState(null);
     const [page, setPage] = useState(0);
-    const [totalPage, setTotalPage] = useState(0)
+    const [totalPages, setTotalPages] = useState(0)
     const [showForm, setShowForm] = useState(false);
-    const [form, setForm] = useState({ name: "", slug: "", imageUrl: "", isActive: false });
+    const [form, setForm] = useState({ name: "", slug: "", description: "", imageUrl: "", isActive: false });
     const [imageFile, setImageFile] = useState(null);
     const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
-    const [popup, setPopup] = useState({ message: "" });
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
     const [editingBrandId, setEditingBrandId] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false)
 
     const [searchText, setSearchText] = useState("");
 
@@ -30,58 +32,81 @@ export default function BrandManager() {
         if (form.name === "") setIsSlugManuallyEdited(false);
     }, [form.name]);
 
-    const handleLoadBrands = async (currentPage = page, newStatus = status) => {
-        const res = await getAllBrands(currentPage, 20, searchText, newStatus);
+    const handleLoadBrands = async (currentPage = page, newStatus = status, newFeatured = featured) => {
+        const res = await getAllBrands(currentPage, 10, searchText, newStatus, newFeatured);
         if (res.error) {
             console.error(res.error);
             setBrands([]);
-            setPopup({ message: "Có lỗi khi lấy dữ liệu thương hiệu!", type: "error" });
+            showPopup("Có lỗi khi lấy dữ liệu thương hiệu!");
+            return;
         }
         setBrands(res.data.content);
-        setTotalPage(res.data.totalPages)
+        setPage(currentPage);
+        setTotalPages(res.data.totalPages);
     };
 
     const handleCreateBrand = async () => {
-        const response = await createBrand(form.name, form.slug, imageFile || undefined);
-        if (response?.error) {
-            setPopup({ message: response.error, type: "error" });
-            return;
+        if (isProcessing) return;
+        try {
+            setIsProcessing(true)
+            const response = await createBrand(form.name, form.slug, form.description, imageFile || undefined);
+            if (response?.error) {
+                showPopup(response.error);
+                return;
+            }
+            showPopup(response.message || "Tạo thương hiệu thành công!", "success");
+            closeAndResetForm();
+            setImageFile(null);
+            handleLoadBrands();
+        } finally {
+            setIsProcessing(false)
         }
-        setPopup({ message: response.message || "Tạo thương hiệu thành công!", type: "success" });
-        closeAndResetForm();
-        setImageFile(null);
-        handleLoadBrands();
     };
 
     const handleUpdateBrand = async () => {
-        const response = await updateBrand(editingBrandId, form.name, form.slug, imageFile || undefined );
-        if (response?.error) {
-            setPopup({ message: response.error, type: "error" });
-            return;
+        if (isProcessing) return;
+        try {
+            setIsProcessing(true)
+            const response = await updateBrand(editingBrandId, form.name, form.slug, form.description, imageFile || undefined);
+            if (response?.error) {
+                showPopup(response.error);
+                return;
+            }
+            showPopup(response.message || "Cập nhật thương hiệu thành công!", "success");
+            closeAndResetForm();
+            setEditingBrandId(null);
+            setImageFile(null);
+            handleLoadBrands();
+        } finally {
+            setIsProcessing(false)
         }
-        setPopup({ message: response.message || "Cập nhật thương hiệu thành công!", type: "success" });
-        closeAndResetForm();
-        setEditingBrandId(null);
-        setImageFile(null);
-        handleLoadBrands();
     };
 
     const handleChangeBrandActive = async (id) => {
         const response = await changeBrandActive(id);
         if (response?.error) {
-            setPopup({ message: response.error, type: "error" });
+            showPopup(response.erro);
             return;
         }
-        setPopup({ message: response.message || "Cập nhật trạng thái thành công!", type: "success" });
+        showPopup(response.message || "Cập nhật trạng thái thành công!", "success");
         setBrands(prev => prev.map(b => b.id === id ? { ...b, isActive: !b.isActive } : b));
+    };
+    const handleChangeBrandFeatured = async (id) => {
+        const response = await changeBrandFeatured(id);
+        if (response?.error) {
+            showPopup(response.error);
+            return;
+        }
+        showPopup(response.message || "Cập nhật nổi bật thành công!", "success");
+        setBrands(prev => prev.map(b => b.id === id ? { ...b, isFeatured: !b.isFeatured } : b));
     };
     const handleDeleteBrand = async (id) => {
         const response = await deleteBrand(id);
         if (response?.error) {
-            setPopup({ message: response.error, type: "error" });
+            showPopup(response.error);
             return;
         }
-        setPopup({ message: response.message || "Xóa thương hiệu thành công!", type: "success" });
+        showPopup(response.message || "Xóa thương hiệu thành công!", "success");
         setBrands(prev => prev.filter(b => b.id !== id));
     };
 
@@ -95,8 +120,18 @@ export default function BrandManager() {
         setStatus(newStatus);
         handleLoadBrands(page, newStatus);
     }
+    function hanldeSortByFeatured() {
+        let newFeatured;
+        if (featured === null) newFeatured = true;
+        else if (featured) newFeatured = false;
+        else newFeatured = null;
+
+        setFeatured(newFeatured);
+        handleLoadBrands(page, status, newFeatured);
+    }
+
     const closeAndResetForm = () => {
-        setForm({ name: "", slug: "", imageUrl: "", isActive: false });
+        setForm({ name: "", slug: "", description: "", imageUrl: "", isActive: false });
         setShowForm(false);
         setImageFile(null);
         setIsSlugManuallyEdited(false);
@@ -110,6 +145,13 @@ export default function BrandManager() {
             onConfirm: () => handleChangeBrandActive(id),
         });
     };
+    const toggleBrandFeatured = (id, isFeatured, name) => {
+        setConfirmPanel({
+            visible: true,
+            message: `Bạn có chắc chắn muốn ${isFeatured ? "hủy nổi bật" : "nổi bật"} thương hiệu "${name}"?`,
+            onConfirm: () => handleChangeBrandFeatured(id),
+        });
+    };
     const toggleBrandDelete = (id, name) => {
         setConfirmPanel({
             visible: true,
@@ -119,7 +161,6 @@ export default function BrandManager() {
     };
 
     const closeConfirmPanel = () => setConfirmPanel({ visible: false, message: "", onConfirm: null });
-
 
     const generateSlug = text => text
         .toLowerCase()
@@ -131,16 +172,33 @@ export default function BrandManager() {
         .replace(/[^\w-]+/g, "")
         .replace(/--+/g, "-");
 
+    function getPageNumbers() {
+        const pages = [];
+        const maxVisible = 4;
+        if (totalPages <= maxVisible + 2) {
+            for (let i = 0; i < totalPages; i++) pages.push(i);
+        } else {
+            if (page <= 2) {
+                pages.push(0, 1, 2, 3, "...", totalPages - 1);
+            } else if (page >= totalPages - 3) {
+                pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
+            } else {
+                pages.push(0, "...", page - 1, page, page + 1, "...", totalPages - 1);
+            }
+        }
+        return pages;
+    }
+
     return (
-        <div className="p-6 bg-gray-50 rounded shadow">
+        <div className="p-6 bg-white rounded shadow">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h2 className="text-2xl font-semibold text-gray-800">Thương hiệu</h2>
                 <div className="flex gap-2">
-                    <button onClick={() => handleLoadBrands(0)} className="flex items-center px-4 py-2 border border-gray-300 text-gray-800 rounded hover:bg-gray-300 transition">
-                        <FiRefreshCw className="h-5 w-5 mr-2" /> Reload
+                    <button onClick={() => handleLoadBrands(0)} className="flex items-center px-4 py-2 border  text-gray-800 rounded hover:bg-gray-300 transition">
+                        <FiRefreshCw className="h-5 w-5 mr-2" /> Làm mới
                     </button>
-                    <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                    <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition">
                         Thêm thương hiệu
                     </button>
                 </div>
@@ -156,7 +214,7 @@ export default function BrandManager() {
                 />
                 <button
                     onClick={() => { handleLoadBrands(0) }}
-                    className="w-full sm:w-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+                    className="w-full sm:w-auto bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
                 >
                     Tìm
                 </button>
@@ -167,55 +225,77 @@ export default function BrandManager() {
                 <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
                     <thead className="bg-gray-200 text-gray-700 font-medium">
                         <tr>
-                            <th className="p-3 text-center border-b border-gray-300">ID</th>
                             <th className="p-3 text-center border-b border-gray-300">Hình ảnh</th>
                             <th className="p-3 text-center border-b border-gray-300 cursor-pointer select-none">
                                 Tên
                             </th>
 
                             <th className="p-3 text-center border-b border-gray-300">Slug</th>
+                            <th className="p-3 text-center border-b border-gray-300">Mô tả</th>
                             <th
-                                className={`p-4 text-center border-b border-gray-300 hover:cursor-pointer ${status !== null && status !== undefined ? "underline font-semibold text-blue-600" : "text-gray-700"
-                                    }`} onClick={hanldeSortByStatus}
+                                className={`p-4 text-center border-b border-gray-300 hover:cursor-pointer ${status !== null ? " font-semibold text-blue-600" : "text-gray-700"}`}
+                                onClick={hanldeSortByStatus}
                             >
-                                Trạng thái
+                                {status === true ? "Hoạt động" : status === false ? "Đã khóa" : "Trạng thái"}
                             </th>
-                            <th className="p-3 text-center border-b border-gray-300">Ngày tạo</th>
+
+                            <th
+                                className={`p-4 text-center border-b border-gray-300 hover:cursor-pointer ${featured !== null ? " font-semibold text-blue-600" : "text-gray-700"}`}
+                                onClick={hanldeSortByFeatured}
+                            >
+                                {featured === true ? "Nổi bật" : featured === false ? "Không" : "Nổi bật"}
+                            </th>
                             <th className="p-3 text-center border-b border-gray-300">Hành động</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white">
                         {brands.map(b => (
                             <tr key={b.id} className="hover:bg-gray-50 transition">
-                                <td className="p-3 border-b border-gray-200 text-center">{b.id}</td>
                                 <td className="p-3 border-b border-gray-200 text-center">{b.imageUrl ? <img src={b.imageUrl} alt={b.name} className="w-16 h-16 object-cover mx-auto rounded" /> : "-"}</td>
                                 <td className="p-3 border-b border-gray-200 text-center">{b.name}</td>
                                 <td className="p-3 border-b border-gray-200 text-center">{b.slug}</td>
+
+                                <td className="p-3 border-b border-gray-200 text-center max-w-50 truncate" title={b.description}>
+                                    {b.description}
+                                </td>
                                 <td className="p-3 border-b border-gray-200 text-center">
                                     <button
-                                        className={`px-3 py-1 rounded transition ${b.isActive ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-400 text-white hover:bg-gray-500"}`}
-                                        onClick={() => toggleBrandActive(b.id, b.isActive, b.name)}
+                                        className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                                            ${b.isActive ? "bg-green-500 text-white hover:bg-green-400"
+                                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                            }`} onClick={() => toggleBrandActive(b.id, b.isActive, b.name)}
                                     >
                                         {b.isActive ? "Hoạt động" : "Đã khóa"}
                                     </button>
                                 </td>
-                                <td className="p-3 border-b border-gray-200 text-center">{new Date(b.createdAt).toLocaleDateString("vi-VN")}</td>
+
+                                <td className="p-3 border-b border-gray-200 text-center">
+                                    <button
+                                        className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                                            ${b.isFeatured ? "bg-green-500 text-white hover:bg-green-400"
+                                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                            }`} onClick={() => toggleBrandFeatured(b.id, b.isFeatured, b.name)}
+                                    >
+                                        {b.isFeatured ? "Nổi bật" : "Không"}
+                                    </button>
+                                </td>
                                 <td className="p-3 border-b border-gray-200 text-center">
                                     <div className="inline-flex gap-2">
                                         <button
-                                            className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                                            onClick={() => { setForm({ name: b.name, slug: b.slug, imageUrl: b.imageUrl || "", isActive: b.isActive }); setEditingBrandId(b.id); setShowForm(true); }}
+                                            className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
+                                            onClick={() => { setForm({ name: b.name, slug: b.slug, description: b.description, imageUrl: b.imageUrl || "", isActive: b.isActive }); setEditingBrandId(b.id); setShowForm(true); }}
                                         >
-                                            Chỉnh sửa
+                                            <FiEye></FiEye>
                                         </button>
                                         <button
-                                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                            className="p-2 text-red-600 hover:bg-red-100 rounded transition"
                                             onClick={() => toggleBrandDelete(b.id, b.name)}
                                         >
-                                            Xóa
+                                            <FiTrash2></FiTrash2>
                                         </button>
                                     </div>
                                 </td>
+
                             </tr>
                         ))}
                         {brands.length === 0 && (
@@ -226,61 +306,124 @@ export default function BrandManager() {
                     </tbody>
                 </table>
             </div>
-            <div className="flex justify-center items-center gap-4 mt-4">
-                <button
-                    disabled={page === 0}
-                    onClick={() => handleLoadBrands(page - 1)}
-                    className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
-                >
-                    <FiChevronLeft className="w-5 h-5" />
-                    <span className="ml-1">Trước</span>
-                </button>
-                <span className="text-gray-700 font-medium text-center">Trang {page + 1} / {totalPage}</span>
-                <button
-                    disabled={page >= totalPage - 1}
-                    onClick={() => handleLoadBrands(page + 1)}
-                    className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
-                >
-                    <span className="mr-1">Sau</span>
-                    <FiChevronRight className="w-5 h-5" />
-                </button>
-            </div>
+            {totalPages > 0 && (
+                <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+                    <button
+                        onClick={() => page > 0 && handleLoadBrands(page - 1)}
+                        disabled={page === 0}
+                        className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronLeft />
+                    </button>
+
+                    {getPageNumbers().map((num, i) =>
+                        num === "..." ? (
+                            <span key={i} className="px-2 text-gray-500">...</span>
+                        ) : (
+                            <button
+                                key={i}
+                                onClick={() => handleLoadBrands(num)}
+                                className={`w-8 h-8 flex items-center justify-center rounded border transition-all
+                                            ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+                            >
+                                {num + 1}
+                            </button>
+                        )
+                    )}
+
+                    <button
+                        onClick={() => page < totalPages - 1 && handleLoadBrands(page + 1)}
+                        disabled={page === totalPages - 1}
+                        className={`p-3 rounded ${page === totalPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronRight />
+                    </button>
+                </div>
+            )}
             {/* Add/Edit Brand Form */}
             {showForm && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
-                        <h3 className="text-lg font-semibold mb-4">{editingBrandId ? "Cập nhật thương hiệu" : "Thêm thương hiệu"}</h3>
-                        <div className="grid grid-cols-1 gap-3">
-                            <input type="text" placeholder="Tên" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="border p-2 rounded" />
-                            <input type="text" placeholder="Slug" value={form.slug} onChange={e => { setForm({ ...form, slug: e.target.value }); setIsSlugManuallyEdited(true); }} className="border p-2 rounded" />
-                            <label className="block">
-                                <span className="block text-sm font-medium mb-1">Hình ảnh sản phẩm</span>
+                <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 overflow-y-auto p-4">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-[600px] my-10 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-3xl font-bold mb-5 text-black">
+                            {editingBrandId ? "Cập nhật thương hiệu" : "Thêm thương hiệu"}
+                        </h3>
+
+                        <div className="space-y-3">
+                            {/* Tên */}
+                            <label className="flex flex-col">
+                                <span className="text-gray-700 font-semibold mb-2 text-black">Tên thương hiệu</span>
+                                <input
+                                    type="text"
+                                    placeholder="Nhập tên thương hiệu"
+                                    value={form.name}
+                                    onChange={e => setForm({ ...form, name: e.target.value })}
+                                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                                />
+                            </label>
+
+                            {/* Slug */}
+                            <label className="flex flex-col">
+                                <span className="text-gray-700 font-semibold mb-2 text-black">Slug</span>
+                                <input
+                                    type="text"
+                                    placeholder="Nhập slug"
+                                    value={form.slug}
+                                    onChange={e => {
+                                        setForm({ ...form, slug: e.target.value });
+                                        setIsSlugManuallyEdited(true);
+                                    }}
+                                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                                />
+                            </label>
+                            <label className="flex flex-col">
+                                <span className="text-gray-700 font-semibold mb-2 text-black">Mô tả ngắn</span>
+                                <textarea
+                                    placeholder="Nhập mô tả ngắn"
+                                    value={form.description}
+                                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-700 transition-all h-35 resize-none"
+                                />
+                            </label>
+
+                            {/* Hình ảnh */}
+                            <label className="flex flex-col">
+                                <span className="text-gray-700 font-semibold mb-2 text-black">Hình ảnh thương hiệu</span>
                                 <input
                                     type="file"
                                     accept="image/*"
                                     onChange={(e) => setImageFile(e.target.files[0])}
-                                    className="block w-full text-sm text-gray-700 border border-gray-300 rounded cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                                    className="block w-full text-black bg-white border rounded cursor-pointer file:mr-4 file:py-3 file:px-6 file:rounded file:border-0 file:bg-black file:text-white hover:file:bg-gray-800 file:cursor-pointer transition-all"
                                 />
                                 {(imageFile || form.imageUrl) && (
-                                    <img
-                                        src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
-                                        alt="Preview"
-                                        className="w-32 h-32 object-cover rounded mt-2 mx-auto border"
-                                    />
+                                    <div className="mt-4 flex justify-center">
+                                        <img
+                                            src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
+                                            alt="Preview"
+                                            className="w-35 h-35 object-cover rounded border shadow-lg"
+                                        />
+                                    </div>
                                 )}
                             </label>
                         </div>
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={closeAndResetForm} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Hủy</button>
-                            <button onClick={editingBrandId ? handleUpdateBrand : handleCreateBrand} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+
+                        {/* Buttons */}
+                        <div className="flex justify-end gap-4 mt-8 pt-6 border-t-2 border-gray-200">
+                            <button
+                                onClick={closeAndResetForm}
+                                className="px-8 py-3 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={editingBrandId ? handleUpdateBrand : handleCreateBrand}
+                                className="px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold"
+                            >
                                 {editingBrandId ? "Cập nhật" : "Thêm"}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-
-            <Popup message={popup.message} type={popup.type} onClose={() => setPopup({ message: "", type: "" })} duration={3000} />
 
             <ConfirmPanel
                 visible={confirmPanel.visible}

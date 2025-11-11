@@ -9,6 +9,7 @@ import com.doan.inventory_service.services.SupplierService;
 import com.doan.inventory_service.services.WarehouseService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,9 +24,10 @@ import java.util.Map;
 @AllArgsConstructor
 public class WarehouseController {
     private final WarehouseService warehouseService;
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("")
-    public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request){
+    public ResponseEntity<?> createWarehouse(@Valid @RequestBody WarehouseRequest request,
+                                             @RequestHeader("X-User-Role")String role){
         try{
             Warehouse warehouse= warehouseService.createWarehouse(request);
             return  ResponseEntity.ok(new ApiResponse<>("Tạo kho thành công!",true,warehouse));
@@ -43,9 +45,10 @@ public class WarehouseController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateWarehouse(@PathVariable Long id,@Valid @RequestBody WarehouseRequest request){
+    public ResponseEntity<?> updateWarehouse(@PathVariable Long id,@Valid @RequestBody WarehouseRequest request,
+                                             @RequestHeader("X-User-Role")String role){
         try{
             Warehouse warehouse= warehouseService.updateWarehouse(id,request);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật kho thành công!",true,warehouse));
@@ -53,9 +56,10 @@ public class WarehouseController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteWarehouse(@PathVariable Long id){
+    public ResponseEntity<?> deleteWarehouse(@PathVariable Long id,
+                                             @RequestHeader("X-User-Role")String role){
         try{
             warehouseService.deleteWarehouse(id);
             return ResponseEntity.ok(new ApiResponse<>("Xóa kho thành công!",true,null));

@@ -8,8 +8,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PromotionDetailResponse extends PromotionResponse {
-    private List<Long> applicableProducts;
-    private List<Long> applicableCategories;
-    private List<Long> applicableBrands;
+    private List<ProductResponse> applicableProducts;
+    private List<CategoryResponse> applicableCategories;
+    private List<BrandResponse> applicableBrands;
     private Long createdByStaffId;
 }

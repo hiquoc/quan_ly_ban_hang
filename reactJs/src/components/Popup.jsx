@@ -2,7 +2,6 @@ import React from "react";
 
 export default function Popup({ message, onClose, type = "error" }) {
     if (!message) return null;
-
     const typeStyles = {
         success: "text-gray-800",
         error: "text-gray-800",
@@ -11,7 +10,7 @@ export default function Popup({ message, onClose, type = "error" }) {
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pb-20">
+        <div className="fixed inset-0 flex items-center justify-center z-52 pb-20">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -19,7 +18,7 @@ export default function Popup({ message, onClose, type = "error" }) {
             ></div>
 
             {/* Panel */}
-            <div className="relative bg-white p-6 rounded shadow-xl max-w-md w-full mx-4 text-left">
+            <div className="relative bg-white p-6 rounded shadow-xl max-w-130 w-full mx-4 text-left">
                 {/* Close button */}
                 <button
                     className="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-xl font-bold transition hover:cursor-pointer"
@@ -30,7 +29,7 @@ export default function Popup({ message, onClose, type = "error" }) {
                 <h2 className="text-2xl font-bold mb-4 text-gray-800">Thông báo</h2>
                 {/* Message */}
                 <p
-                    className={`px-5 text-gray-800 text-lg whitespace-pre-wrap break-words`}
+                    className={`px-5 ${(typeStyles[type]||typeStyles["error"])} text-lg whitespace-pre-wrap break-words `}
                 >
                     {message} 
                 </p>

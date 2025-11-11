@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.*;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +19,8 @@ import java.util.Map;
 @NoArgsConstructor
 @Entity
 @Table(name = "products")
+@SQLDelete(sql = "UPDATE products SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,6 +63,15 @@ public class Product {
     @Column(name = "total_sold")
     private Long totalSold = 0L;
 
+    @Column(name = "rating_sum", nullable = false)
+    private Integer ratingSum = 0;
+
+    @Column(name = "rating_count", nullable = false)
+    private Integer ratingCount = 0;
+
+    @Column(name = "rating_avg", precision = 3, scale = 2)
+    private BigDecimal ratingAvg = BigDecimal.ZERO;
+
     @Column(name = "created_at")
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
@@ -91,6 +104,33 @@ public class Product {
         this.technicalSpecs=technicalSpecs;
         this.imageUrl = imageUrl;
     }
+    private void recalcRating() {
+        if (ratingCount <= 0) {
+            ratingAvg = BigDecimal.ZERO;
+            return;
+        }
+        double avg = (double) ratingSum / ratingCount;
+        ratingAvg = BigDecimal.valueOf(avg).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public void addRating(int rating) {
+        ratingSum += rating;
+        ratingCount += 1;
+        recalcRating();
+    }
+
+    public void updateRating(int oldRating, int newRating) {
+        ratingSum = ratingSum - oldRating + newRating;
+        recalcRating();
+    }
+
+    public void removeRating(int rating) {
+        ratingSum -= rating;
+        ratingCount -= 1;
+        recalcRating();
+    }
+
+
 }
 
 

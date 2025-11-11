@@ -1,0 +1,5 @@
+# Dockerfile.init (in project root)
+FROM alpine:3.20
+RUN apk add --no-cache sudo
+WORKDIR /init
+CMD ["sh", "-c", "cp -r /docker-entrypoint-initdb.d/* /target/ 2>/dev/null || true && chown -R 999:999 /target && echo 'Init copy done'"]

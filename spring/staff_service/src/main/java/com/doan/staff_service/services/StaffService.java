@@ -1,6 +1,7 @@
 package com.doan.staff_service.services;
 
 import com.doan.staff_service.dtos.StaffRequest;
+import com.doan.staff_service.dtos.StaffResponse;
 import com.doan.staff_service.models.Staff;
 import com.doan.staff_service.repositories.StaffRepository;
 import jakarta.transaction.Transactional;
@@ -102,4 +103,10 @@ public class StaffService {
         }
     }
 
+    public List<StaffResponse> getStaffByIdLike(Long id) {
+        String idPart = String.valueOf(id);
+        List<Staff> staffList = staffRepository.findByIdLike(idPart);
+        return staffList.stream().map(staff ->
+                new StaffResponse(staff.getId(),staff.getFullName(),staff.getEmail(),staff.getPhone(),staff.getCreatedAt())).toList();
+    }
 }

@@ -11,13 +11,14 @@ import { getAllProducts, getAllVariants, getProductVariantByProductId, getVarian
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import SearchableSelect from "../../../components/SearchableSelect";
-import { FiRefreshCw, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye } from "react-icons/fi";
+import { FaChevronLeft } from "react-icons/fa";
+import { FaChevronRight } from "react-icons/fa6";
 
 export default function PurchaseOrderManager() {
     const [orders, setOrders] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
-    const [productSearchKeyword, setProductSearchKeyword] = useState("");
     const [variants, setVariants] = useState([]);
     const [warehouses, setWarehouses] = useState([]);
     const [showForm, setShowForm] = useState(false);
@@ -25,23 +26,28 @@ export default function PurchaseOrderManager() {
     const [editingOrderId, setEditingOrderId] = useState(null);
     const [popup, setPopup] = useState({ message: "", type: "" });
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
+    const [isProcessing, setIsProcessing] = useState(false)
 
     const [page, setPage] = useState(0)
-    const [ordersPage, setOrdersPage] = useState({ content: [], totalElements: 0, pageable: {} });
+    const [totalPages, setTotalPages] = useState(1);
     const [size, setSize] = useState(10);
     const [status, setStatus] = useState(null);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
-    useEffect(() => { loadOrders(); loadData(); }, []);
+    useEffect(() => { loadData(); }, []);
+    useEffect(() => {
+        loadOrders(0, size, status, startDate, endDate);
+    }, [startDate, endDate])
 
-    const loadOrders = async (page, size, status, startDate, endDate) => {
-        const ordersRes = await getAllPurchaseOrders(page, size, status || null, startDate || null, endDate || null)
+    const loadOrders = async (currentPage = page, pageSize = size, orderStatus = status, start = startDate, end = endDate) => {
+        const ordersRes = await getAllPurchaseOrders(currentPage, pageSize, orderStatus || null, start || null, end || null)
         if (ordersRes.error) {
             setPopup({ message: "Không thể tải danh sách đơn nhập!" });
             return;
         }
-        setOrdersPage(ordersRes.data);
+        setPage(currentPage)
+        setTotalPages(ordersRes.data.totalPages);
         setOrders(ordersRes.data.content || []);
     }
     const loadData = async () => {
@@ -159,20 +165,25 @@ export default function PurchaseOrderManager() {
                 return;
             }
         }
+        if (isProcessing) return;
+        try {
+            setIsProcessing(true)
+            let res;
+            if (editingOrderId) res = await updatePurchaseOrder(editingOrderId, form.supplierId, form.warehouseId, form.items);
+            else res = await createPurchaseOrder(form.supplierId, form.warehouseId, form.items);
 
-        let res;
-        if (editingOrderId) res = await updatePurchaseOrder(editingOrderId, form.supplierId, form.warehouseId, form.items);
-        else res = await createPurchaseOrder(form.supplierId, form.warehouseId, form.items);
+            if (res.error) {
+                setPopup({ message: res.error, type: "error" });
+                return;
+            }
 
-        if (res.error) {
-            setPopup({ message: res.error, type: "error" });
-            return;
+            loadOrders(0);
+            // setOrders(prev => editingOrderId ? prev.map(o => (o.id === editingOrderId ? res.data : o)) : [...prev, res.data]);
+            setPopup({ message: res.message || (editingOrderId ? "Cập nhật đơn mua hàng thành công!" : "Tạo đơn mua hàng hàng thành công!"), type: "success" });
+            closeAndResetForm();
+        } finally {
+            setIsProcessing(false)
         }
-
-        loadOrders(0);
-        // setOrders(prev => editingOrderId ? prev.map(o => (o.id === editingOrderId ? res.data : o)) : [...prev, res.data]);
-        setPopup({ message: res.message || (editingOrderId ? "Cập nhật đơn mua hàng thành công!" : "Tạo đơn mua hàng hàng thành công!"), type: "success" });
-        closeAndResetForm();
     };
 
     const handleChangeStatusInForm = async (newStatus) => {
@@ -196,13 +207,27 @@ export default function PurchaseOrderManager() {
     };
     function hanldeSortByStatus() {
         let newStatus;
-        if (status === null) newStatus = "PENDING";
-        else if (status === "PENDING") newStatus = "COMPLETED";
-        else if (status === "COMPLETED") newStatus = "CANCELLED";
+        if (status === null) newStatus = "COMPLETED";
+        else if (status === "COMPLETED") newStatus = "PENDING";
+        else if (status === "PENDING") newStatus = "CANCELLED";
         else newStatus = null;
 
         setStatus(newStatus);
-        loadOrders(page, size, newStatus, startDate, endDate);
+        loadOrders(0, size, newStatus, startDate, endDate);
+    }
+    function statusMap() {
+        switch (status) {
+            case null:
+                return "Trạng thái"
+            case "COMPLETED":
+                return "Hoàn tất"
+            case "PENDING":
+                return "Đang chờ"
+            case "CANCELLED":
+                return "Đã hủy"
+            default:
+                return "Trạng thái"
+        }
     }
     const closeConfirmPanel = () => setConfirmPanel({ visible: false, message: "", onConfirm: null });
     const closeAndResetForm = () => {
@@ -230,9 +255,30 @@ export default function PurchaseOrderManager() {
     const subtotal = (item) => (item.quantity || 0) * (item.importPrice || 0);
     const total = form.items.reduce((acc, item) => acc + subtotal(item), 0);
 
+    function getPageNumbers() {
+        console.log(totalPages)
+        const pages = [];
+        const maxVisible = 4;
+
+        if (totalPages <= maxVisible + 2) {
+            for (let i = 0; i < totalPages; i++) {
+
+                pages.push(i);
+            }
+        } else {
+            if (page <= 2) {
+                pages.push(0, 1, 2, 3, "...", totalPages - 1);
+            } else if (page >= totalPages - 3) {
+                pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
+            } else {
+                pages.push(0, "...", page - 1, page, page + 1, "...", totalPages - 1);
+            }
+        }
+        return pages;
+    }
 
     return (
-        <div className="p-6 bg-gray-50 rounded shadow">
+        <div className="p-6 bg-white rounded shadow">
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold text-gray-800">Lịch sử mua hàng</h2>
@@ -265,7 +311,7 @@ export default function PurchaseOrderManager() {
                             setForm({ supplierId: "", items: [], status: "", createdBy: "", updatedBy: "" });
                             loadProducts();
                         }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
                     >
                         Tạo đơn
                     </button>
@@ -286,18 +332,18 @@ export default function PurchaseOrderManager() {
                                     }`}
                                 onClick={hanldeSortByStatus}
                             >
-                                Trạng thái
+                                {statusMap()}
                             </th>
                             <th className="p-4 text-center border-b border-gray-300">Ngày tạo</th>
                             <th className="p-4 text-center border-b border-gray-300">Hoạt động</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white text-gray-700">
-                        {ordersPage.content.length > 0 ? (
-                            ordersPage.content.map((o, idx) => (
+                        {orders.length > 0 ? (
+                            orders.map((o, idx) => (
                                 <tr
                                     key={o.id}
-                                    className={`transition hover:bg-gray-50 ${idx % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+                                    className={`transition hover:bg-gray-100 `}
                                 >
                                     <td className="p-4 text-center border-b border-gray-200">{o.code}</td>
                                     <td className="p-4 text-center border-b border-gray-200">{o.supplier ? `${o.supplier.code}` : "-"}</td>
@@ -305,17 +351,17 @@ export default function PurchaseOrderManager() {
                                     <td className="p-4 text-center border-b border-gray-200">{o.totalAmount?.toLocaleString() || "0"}₫</td>
                                     <td className="p-4 text-center border-b border-gray-200">
                                         {o.status === "PENDING" && (
-                                            <span className="px-4 py-2 bg-yellow-500 text-white rounded">
+                                            <span className="px-3 py-1 text-sm font-semibold rounded-full bg-yellow-500 text-white rounded">
                                                 Đang chờ
                                             </span>
                                         )}
                                         {o.status === "COMPLETED" && (
-                                            <span className="px-4 py-2 bg-green-500 text-white rounded">
+                                            <span className="px-3 py-1 font-semibold text-sm rounded-full bg-green-500 text-white rounded">
                                                 Hoàn tất
                                             </span>
                                         )}
                                         {o.status === "CANCELLED" && (
-                                            <span className="px-4 py-2 bg-red-500 text-white rounded">
+                                            <span className="px-3 py-1 font-semibold text-sm rounded-full bg-red-500 text-white rounded">
                                                 Đã hủy
                                             </span>
                                         )}
@@ -324,11 +370,12 @@ export default function PurchaseOrderManager() {
                                     <td className="p-4 text-center border-b border-gray-200">
                                         <button
                                             onClick={() => openDetailsForm(o)}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base"
+                                            className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
                                         >
-                                            Chi tiết
+                                            <FiEye></FiEye>
                                         </button>
                                     </td>
+
                                 </tr>
                             ))
                         ) : (
@@ -342,50 +389,58 @@ export default function PurchaseOrderManager() {
                 </table>
             </div>
 
-            {/* Pagination */}
-            <div className="flex justify-center items-center gap-3 mt-7 text-gray-600">
-                <button
-                    disabled={page === 0}
-                    onClick={() => {
-                        const newPage = page - 1;
-                        setPage(newPage);
-                        loadOrders(newPage, size, status, startDate, endDate);
-                    }}
-                    className="flex items-center px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50 transition text-base"
-                >
-                    <FiChevronLeft className="w-5 h-5" />
-                    <span className="ml-2">Trước</span>
-                </button>
 
-                <span className="px-3 text-base font-medium">
-                    Trang {page + 1} / {ordersPage.totalPages || 1}
-                </span>
+            {totalPages > 0 && (
+                <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+                    <button
+                        onClick={() => {
+                            loadOrders(page - 1, size, status, startDate, endDate)
+                        }}
+                        disabled={page === 0}
+                        className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronLeft />
+                    </button>
 
-                <button
-                    disabled={page >= (ordersPage.totalPages || 1) - 1}
-                    onClick={() => {
-                        const newPage = page + 1;
-                        setPage(newPage);
-                        loadOrders(newPage, size, status, startDate, endDate);
-                    }}
-                    className="flex items-center px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50 transition text-base"
-                >
-                    <span className="mr-2">Sau</span>
-                    <FiChevronRight className="w-5 h-5" />
-                </button>
-            </div>
+                    {getPageNumbers().map((num, i) =>
+                        num === "..." ? (
+                            <span key={i} className="px-2 text-gray-500">...</span>
+                        ) : (
+                            <button
+                                key={i}
+                                onClick={() => {
+                                    loadOrders(num, size, status, startDate, endDate)
+                                }}
+                                className={`w-8 h-8 flex items-center justify-center rounded border transition-all
+                          ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+                            >
+                                {num + 1}
+                            </button>
+                        )
+                    )}
 
+                    <button
+                        onClick={() => {
+                            loadOrders(page + 1, size, status, startDate, endDate);
+                        }}
+                        disabled={page >= (totalPages || 1) - 1}
+                        className={`p-3 rounded ${page >= (totalPages || 1) - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronRight />
+                    </button>
+                </div>
+            )}
 
             {/* Form Modal */}
             {showForm && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-[750px] max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-semibold mb-4">
+                        <h3 className="text-2xl font-bold mb-4">
                             {editingOrderId ? "Chi tiết đơn mua hàng" : "Tạo đơn mua hàng"}
                         </h3>
 
                         {editingOrderId && (
-                            <div className="mb-4 grid grid-cols-2 gap-x-8 text-sm text-gray-500">
+                            <div className="mb-4 grid grid-cols-2 gap-x-8  text-gray-500">
                                 <div className="flex flex-col gap-1">
                                     <div className="flex gap-1">
                                         <span className="font-medium">Tạo bởi:</span>
@@ -432,7 +487,7 @@ export default function PurchaseOrderManager() {
 
                         {/* Supplier */}
                         <div className="mb-4">
-                            <h4 className="font-semibold mb-2">Nhà cung cấp</h4>
+                            <h4 className="text-gray-800 font-semibold mb-2">Nhà cung cấp</h4>
                             <SearchableSelect
                                 options={suppliers.map(s => ({ label: `${s.code} | ${s.name}`, value: s.id }))}
                                 value={form.supplierId}
@@ -442,7 +497,7 @@ export default function PurchaseOrderManager() {
                             />
                         </div>
                         <div className="mb-4">
-                            <h4 className="font-semibold mb-2">Kho nhập hàng</h4>
+                            <h4 className="text-gray-800 font-semibold mb-2">Kho nhập hàng</h4>
                             <SearchableSelect
                                 options={warehouses.map(w => ({
                                     label: `${w.code} | ${w.name}`,
@@ -456,7 +511,7 @@ export default function PurchaseOrderManager() {
                         </div>
                         {/* Items */}
                         <div className="mb-4">
-                            <h4 className="font-semibold mb-2">Danh sách sản phẩm</h4>
+                            <h4 className="text-gray-800 font-semibold mb-2">Danh sách sản phẩm</h4>
                             {form.items.map((item, idx) => (
                                 <div key={idx} className="mb-4 border p-2 rounded bg-white shadow-sm">
                                     {!editingOrderId &&
@@ -466,8 +521,8 @@ export default function PurchaseOrderManager() {
                                                 value={item.productId}
                                                 onChange={id => updateItem(idx, "productId", id)}
                                                 placeholder="Tìm hoặc chọn sản phẩm..."
-                                                onSearch={keyword => loadProducts(keyword)}
                                                 disabled={editingOrderId && form.status !== "PENDING"}
+                                                onInputChange={(keyword) => loadProducts(keyword)}
                                             />
                                         </div>)}
 
@@ -503,7 +558,7 @@ export default function PurchaseOrderManager() {
                                             className="border p-2 rounded w-32"
                                             disabled={editingOrderId && form.status !== "PENDING"}
                                         />
-                                        <div className="flex-1 text-right font-medium">{subtotal(item).toLocaleString()}₫</div>
+                                        <div className="flex-1 text-right font-medium">{item.quantity} x {item.importPrice.toLocaleString()}₫</div>
                                         {(!editingOrderId || form.status === "PENDING") && (
                                             <button
                                                 onClick={() => removeItem(idx)}
@@ -520,15 +575,16 @@ export default function PurchaseOrderManager() {
                             {(!editingOrderId || form.status === "PENDING") && (
                                 <button
                                     onClick={addItem}
-                                    className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mt-2"
+                                    className="px-3 py-2 border rounded hover:bg-gray-100 mt-1"
                                 >
                                     + Thêm sản phẩm
                                 </button>
                             )}
                         </div>
 
-                        <div className="text-right font-bold text-lg mb-4">
-                            Tổng: {total.toLocaleString()}₫
+                        <div className="flex justify-end gap-2 font-bold text-lg mb-4">
+                            <span>Tổng:</span>
+                            <span className="text-red-500">{total.toLocaleString()}₫</span>
                         </div>
 
                         {/* Status Change & Bottom Buttons */}
@@ -543,13 +599,13 @@ export default function PurchaseOrderManager() {
                                         <>
                                             <button
                                                 onClick={() => handleChangeStatusInForm("COMPLETED")}
-                                                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-700"
+                                                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-400"
                                             >
                                                 Hoàn tất
                                             </button>
                                             <button
                                                 onClick={() => handleChangeStatusInForm("CANCELLED")}
-                                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700"
+                                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-400"
                                             >
                                                 Hủy
                                             </button>
@@ -576,18 +632,42 @@ export default function PurchaseOrderManager() {
 
                             <div className="flex justify-end gap-2 mt-8">
                                 <button
+                                    disabled={isProcessing}
                                     onClick={closeAndResetForm}
-                                    className="px-4 py-2 h-10 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                    className={`px-4 py-2 h-10 border border-gray-700 rounded hover:bg-gray-100  ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
                                     Đóng
                                 </button>
                                 {(!editingOrderId || form.status === "PENDING") && (
                                     <button
+                                        disabled={isProcessing}
                                         onClick={handleSaveOrder}
-                                        className="px-4 py-2 h-10 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                    >
-                                        {editingOrderId ? "Cập nhật đơn" : "Tạo đơn"}
+                                        className={` flex items-center justify-center gap-1 px-4 py-2 h-10 bg-black text-white rounded hover:bg-gray-800 ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    > {isProcessing && (
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-white"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                            ></path>
+                                        </svg>
+                                    )}
+                                        {isProcessing ? "Đang xử lý..." : editingOrderId ? "Cập nhật đơn" : "Tạo đơn"}
                                     </button>
+
                                 )}
                             </div>
                         </div>

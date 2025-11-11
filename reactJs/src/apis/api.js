@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,35 +41,14 @@ api.interceptors.response.use(
     }
 );
 
-
-// export const safeApiCall = async (apiCall) => {
-//     try {
-//         const response = await apiCall();
-//         if (response?.data?.message) {
-//             return { success: response.data.success, message: response.data.message, data: response.data.data };
-//         }
-//         return response;
-//     } catch (err) {
-//         console.error("API call failed:", err);
-//         const message =
-//             err.response?.data?.message || // server-sent message
-//             err.response?.statusText ||     // fallback to status text
-//             err.message ||                  // network error
-//             "Unknown error";
-
-//         const status = err.response?.status || null;
-
-//         return { error: message, status };
-//     }
-// };
 export const safeApiCall = async (apiCall) => {
     try {
         const response = await apiCall();
         if (response?.data?.message) {
-            return { 
-                success: response.data.success, 
-                message: response.data.message, 
-                data: response.data.data 
+            return {
+                success: response.data.success,
+                message: response.data.message,
+                data: response.data.data
             };
         }
         return response;

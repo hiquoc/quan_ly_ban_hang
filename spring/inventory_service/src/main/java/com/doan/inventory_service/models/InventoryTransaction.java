@@ -33,7 +33,7 @@ public class InventoryTransaction {
     private String note;
     @Column(name = "reference_type", nullable = true)
     private String referenceType;   // e.g., ORDER, PURCHASE_ORDER
-    @Column(name = "reference_id", nullable = true)
+    @Column(name = "reference_code", nullable = true)
     private String referenceCode;       // Code of related order or purchase
 
     private Long createdBy;

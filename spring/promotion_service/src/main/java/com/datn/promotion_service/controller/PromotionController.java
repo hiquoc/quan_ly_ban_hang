@@ -18,12 +18,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/promotions")
+@RequestMapping("")
 @RequiredArgsConstructor
 public class PromotionController {
 
@@ -47,6 +47,13 @@ public class PromotionController {
             @PathVariable("id") Long id,
             @Valid @RequestBody UpdatePromotionRequest request) {
         PromotionResponse response = promotionService.updatePromotion(id, request);
+        return ResponseEntity.ok(new ApiResponse<>("Cập nhật khuyến mãi thành công!", true, response));
+    }
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PatchMapping("/{id}")
+    public ResponseEntity<ApiResponse<PromotionResponse>> updatePromotionActive(
+            @PathVariable("id") Long id) {
+        PromotionResponse response = promotionService.updatePromotionActive(id);
         return ResponseEntity.ok(new ApiResponse<>("Cập nhật khuyến mãi thành công!", true, response));
     }
 
@@ -106,9 +113,12 @@ public class PromotionController {
 
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse<PromotionValidationResponse>> validatePromotion(
-            @RequestHeader("X-Owner-Id") Long customerId,
+            @RequestHeader(value = "X-Owner-Id",required = false) Long customerId,
             @Valid @RequestBody ValidatePromotionRequest request) {
-        request.setCustomerId(customerId);
+        if(customerId!=null)
+            request.setCustomerId(customerId);
+        if(request.getCustomerId()==null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng đăng nhập!");
         PromotionValidationResponse response = validationService.validateAndCalculate(request);
         return ResponseEntity.ok(new ApiResponse<>("Kiểm tra mã khuyến mãi thành công!", true, response));
     }
@@ -119,13 +129,19 @@ public class PromotionController {
         return ResponseEntity.ok(new ApiResponse<>("Kiểm tra mã thành công!", true, isValid));
     }
 
-    @PostMapping("/{id}/usage/{orderId}")
+    @PostMapping("/internal/usage")
     public ResponseEntity<ApiResponse<Void>> recordPromotionUsage(
-            @PathVariable("id") Long id,
-            @RequestHeader("X-Account-Id") Long customerId,
-            @PathVariable("orderId") Long orderId) {
+            @RequestParam Long id,
+            @RequestParam Long customerId,
+            @RequestParam Long orderId) {
         promotionService.recordUsage(id, customerId, orderId);
         return ResponseEntity.ok(new ApiResponse<>("Ghi nhận sử dụng khuyến mãi thành công!", true, null));
+    }
+    @PostMapping("/internal/validate")
+    public ResponseEntity<ApiResponse<PromotionValidationResponse>> validatePromotionInternal(
+            @Valid @RequestBody ValidatePromotionRequest request) {
+        PromotionValidationResponse response = validationService.validateAndCalculate(request);
+        return ResponseEntity.ok(new ApiResponse<>("Kiểm tra mã khuyến mãi thành công!", true, response));
     }
 
     @GetMapping("/{id}/usage-history")

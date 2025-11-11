@@ -18,11 +18,13 @@
         <option value="$PROJECT_DIR$/spring/service_registry/pom.xml" />
         <option value="$PROJECT_DIR$/spring/order_service/pom.xml" />
         <option value="$PROJECT_DIR$/spring/cart_service/pom.xml" />
+        <option value="$PROJECT_DIR$/spring/dashboard_service/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">
       <set>
         <option value="$PROJECT_DIR$/spring/banhang-system/pom.xml" />
+        <option value="$PROJECT_DIR$/spring/dashboard_service/pom.xml" />
         <option value="$PROJECT_DIR$/spring/eureka_server/pom.xml" />
         <option value="$PROJECT_DIR$/spring/eureka_service/pom.xml" />
       </set>

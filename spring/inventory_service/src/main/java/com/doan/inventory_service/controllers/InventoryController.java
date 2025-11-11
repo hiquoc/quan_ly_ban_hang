@@ -2,12 +2,15 @@ package com.doan.inventory_service.controllers;
 
 
 import com.doan.inventory_service.dtos.ApiResponse;
-import com.doan.inventory_service.dtos.inventory.*;
+import com.doan.inventory_service.dtos.inventory.InventoryQuantityChangeResponse;
+import com.doan.inventory_service.dtos.inventory.InventoryResponse;
+import com.doan.inventory_service.dtos.inventory.InventoryResponseForVariant;
 import com.doan.inventory_service.dtos.transaction.*;
 import com.doan.inventory_service.services.InventoryService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,8 +18,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @AllArgsConstructor
 @RestController
@@ -26,11 +33,13 @@ public class InventoryController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/inventories")
-    public ResponseEntity<?> searchInventories(@RequestParam(required = false) String keyword,
-                                          @RequestParam(required = false) Integer page,
-                                          @RequestParam(required = false) Integer size) {
+    public ResponseEntity<?> searchInventories(@RequestParam(required = false) Integer page,
+                                               @RequestParam(required = false) Integer size,
+                                               @RequestParam(required = false) String keyword,
+                                               @RequestParam(required = false) Long warehouseId,
+                                               @RequestParam(required = false) Boolean active) {
         try {
-            Page<InventoryResponse> inventories = inventoryService.searchInventories(keyword,page, size);
+            Page<InventoryResponse> inventories = inventoryService.searchInventories(page, size, keyword, warehouseId, active);
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu kho hàng thành công!", true, inventories));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -58,14 +67,15 @@ public class InventoryController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String keywordType
+            @RequestParam(required = false) String keywordType,
+            @RequestParam(required = false) Boolean ignoreReserveRelease
     ) {
         try {
             LocalDate start = (startDate != null && !startDate.isBlank()) ? LocalDate.parse(startDate) : null;
             LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : null;
 
             Page<InventoryTransactionResponse> transactions = inventoryService.getTransactions(
-                    page, size, status, type, start, end, keyword, keywordType);
+                    page, size, status, type, start, end, keyword, keywordType, ignoreReserveRelease);
 
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu phiếu thành công!", true, transactions));
         } catch (ResponseStatusException ex) {
@@ -112,8 +122,8 @@ public class InventoryController {
     public ResponseEntity<?> createTransactions(@Valid @RequestBody InventoryTransactionRequest request,
                                                 @RequestHeader("X-Owner-Id") Long staffId) {
         try {
-            inventoryService.createTransactions(Collections.singletonList(request), staffId);
-            return ResponseEntity.ok(new ApiResponse<>("Tạo phiếu phiếu thành công!", true, null));
+            InventoryTransactionResponse response= inventoryService.createTransactions(Collections.singletonList(request), staffId);
+            return ResponseEntity.ok(new ApiResponse<>("Tạo phiếu phiếu thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -121,10 +131,10 @@ public class InventoryController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PatchMapping("/secure/transactions/{id}")
-    public ResponseEntity<?> updateTransactionStatus(@PathVariable Long id, @RequestBody String status,
+    public ResponseEntity<?> updateTransactionStatus(@PathVariable Long id, @RequestBody UpdateTransactionStatusRequest request,
                                                      @RequestHeader("X-Owner-Id") Long staffId) {
         try {
-            inventoryService.updateTransactionStatus(id, status.replace("\"", "").trim(), staffId);
+            inventoryService.updateTransactionStatus(id, request.getStatus().replace("\"", "").trim(), request.getNote(), staffId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái phiếu thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -140,6 +150,27 @@ public class InventoryController {
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
+    }
+
+    @GetMapping("/secure/inventories/warning")
+    public ResponseEntity<?> getInventoriesOrderByAvailableStock(@RequestParam(required = false) Integer page,
+                                                                 @RequestParam(required = false) Integer size) {
+        try {
+            Page<InventoryResponse> inventories = inventoryService.getInventoriesOrderByAvailableStock(page, size);
+            return ResponseEntity.ok(inventories);
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/secure/inventory-quantity/{id}")
+    public ResponseEntity<InventoryQuantityChangeResponse> getInventoryQuantityChanges(
+            @PathVariable Long id,
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+
+        InventoryQuantityChangeResponse response = inventoryService.calculateNumOfItemWithDailyChanges(id, from, to);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/internal/transactions")
@@ -161,11 +192,12 @@ public class InventoryController {
             return errorResponse(ex);
         }
     }
+
     @PostMapping("/internal/transactions/reserve/{orderNumber}")
     public ResponseEntity<?> releaseStock(@PathVariable String orderNumber,
-                                                     @RequestBody ReleaseStockRequest request) {
+                                          @RequestBody ReleaseStockRequest request) {
         try {
-            inventoryService.releaseStock(orderNumber,request.getReason());
+            inventoryService.releaseStock(orderNumber, request.getReason(), true);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật số lượng sản phẩm khả dụng thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -178,20 +210,22 @@ public class InventoryController {
         try {
             List<InventoryResponseForVariant> inventories = inventoryService.getInventoriesByVariantIds(variantIds);
             return ResponseEntity.ok(inventories);
-        }catch (ResponseStatusException ex) {
+        } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
+
     @GetMapping("/internal/{variantId}/availableQuantity")
     public ResponseEntity<?> getAvailableQuantity(
             @PathVariable Long variantId) {
         try {
             Integer quantity = inventoryService.getAvailableQuantity(variantId);
             return ResponseEntity.ok(quantity);
-        }catch (ResponseStatusException ex) {
+        } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
+
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();

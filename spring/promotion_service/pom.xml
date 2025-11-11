@@ -89,5 +89,16 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.datn.promotion_service.PromotionServiceApplication</mainClass>
+                    <finalName>app</finalName>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

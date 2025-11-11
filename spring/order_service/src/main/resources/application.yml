@@ -3,11 +3,25 @@ server:
 spring:
   application:
     name: order-service
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 50MB
+  redis:
+    host: ${SPRING_REDIS_HOST}
+    port: ${SPRING_REDIS_PORT:6379}
+    connect-timeout: 15000ms
+    lettuce:
+      retry:
+        enabled: true
+        max-attempts: 10
+        initial-backoff: 500ms
+        max-backoff: 3000ms
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/sales_db
-    username: postgres
-    password: 123456
+    url: ${SUPABASE_ORDER_URL}
+    username: ${SUPABASE_ORDER_USER}
+    password: ${SUPABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   
   jpa:
@@ -17,7 +31,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-    show-sql: true
+    show-sql: false
 order:
   shipping:
     fixed-cost: 30000
@@ -25,7 +39,7 @@ order:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
     register-with-eureka: true
     fetch-registry: true
   instance:
@@ -40,12 +54,26 @@ feign:
         readTimeout: 5000
 
 vnpay:
+  url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
   tmn-code: 6REDFSH2
   hash-secret: LOG7LAEJEE11L6SKETHT8HBT0R6XODDA
-  pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
   return-url: http://localhost:8080/payments/vnpay-callback
+  version: 2.1.0
 
 logging:
   level:
     com.datn.order_service: DEBUG
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.security.web.FilterChainProxy: DEBUG
+
+web:
+  url: "http://localhost:5173"
+
+cloudinary:
+  cloud_name: dtvs3rgbw
+  api_key: "624517127684593"
+  api_secret: "fm7VXb2cPfELubipKJ8wsNjmOBU"
+
+
+

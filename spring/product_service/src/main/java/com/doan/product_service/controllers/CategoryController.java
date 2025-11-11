@@ -12,12 +12,14 @@ import com.doan.product_service.services.ProductVariantService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,19 +31,22 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @GetMapping("/public/categories")
-    public ResponseEntity<?> getAllActiveProducts(@RequestParam(required = false) Integer page,
+    public ResponseEntity<?> getAllActiveCategories(@RequestParam(required = false) Integer page,
                                             @RequestParam(required = false) Integer size,
                                             @RequestParam(required = false) String keyword){
         try{
-            Page<Category> categoryList=categoryService.getAllCategories(page,size,keyword,true);
-            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách danh mục thành công!",true,categoryList));
+            Page<Category> categoryPage = categoryService.getAllCategories(page, size, keyword, true);
+            List<Category> safeContent = new ArrayList<>(categoryPage.getContent());
+            Page<Category> safePage = new PageImpl<>(safeContent, categoryPage.getPageable(), categoryPage.getTotalElements());
+
+            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách danh mục thành công!", true, safePage));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/categories")
-    public ResponseEntity<?> getAllProducts(@RequestParam(required = false) Integer page,
+    public ResponseEntity<?> getAllCategories(@RequestParam(required = false) Integer page,
                                             @RequestParam(required = false) Integer size,
                                             @RequestParam(required = false) String keyword,
                                             @RequestParam(required = false) Boolean active){
@@ -93,6 +98,10 @@ public class CategoryController {
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
+    }
+    @GetMapping("/internal/categories")
+    public List<Category> getCategoriesByIds(@RequestParam List<Long> ids){
+        return categoryService.getCategoriesByIds(ids);
     }
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();

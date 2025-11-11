@@ -22,7 +22,10 @@ public interface ProductVariantRepository {
     void changeProductVariantStatus(@PathVariable("id") Long id,@RequestParam(name = "status") String status);
 
     @PostMapping("/{id}/importPrice")
-    void updateVariantImportPrice(@PathVariable Long id, @RequestParam BigDecimal importPrice);
+    void updateVariantImportPrice(@PathVariable Long id,
+                                  @RequestParam int currentStock,
+                                  @RequestParam int newStock,
+                                  @RequestParam BigDecimal importPrice);
 
     @GetMapping("/search")
     List<Long> searchVariantIds(@RequestParam("code") String code);

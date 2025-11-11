@@ -21,7 +21,7 @@ public class VariantRequest {
 
     private BigDecimal basePrice;
     private Integer discountPercent;
-
+    private BigDecimal importPrice;
     private Map<String, String> attributes;
 
 }

@@ -12,7 +12,9 @@ import com.doan.auth_service.dtos.Staff.OwnerIdResponse;
 import com.doan.auth_service.models.Account;
 import com.doan.auth_service.models.PendingAction;
 import com.doan.auth_service.models.Role;
+import com.doan.auth_service.models.VerificationCode;
 import com.doan.auth_service.repositories.PendingActionRepository;
+import com.doan.auth_service.repositories.VerificationCodeRepository;
 import com.doan.auth_service.services.AccountService;
 import com.doan.auth_service.services.CustomerServiceClient;
 import com.doan.auth_service.services.RoleService;
@@ -27,7 +29,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 @RestController
@@ -39,11 +40,12 @@ public class AuthController {
     private final PendingActionRepository pendingActionRepository;
     private final StaffServiceClient staffServiceClient;
     private final CustomerServiceClient customerServiceClient;
+    private final VerificationCodeRepository verificationCodeRepository;
 
     @PostMapping("/public/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest){
         try{
-            LoginResponse loginResponse = accountService.login(loginRequest.getUsername(), loginRequest.getPassword());
+            LoginResponse loginResponse = accountService.login(loginRequest.getUsername().trim(), loginRequest.getPassword().trim());
             return ResponseEntity.ok(loginResponse);
         }catch (ResponseStatusException ex) {
             Map<String, Object> error = new HashMap<>();
@@ -58,12 +60,19 @@ public class AuthController {
             @Valid @RequestBody RegisterRequest registerRequest) {
 
         accountService.checkRegisterRequest(registerRequest);
-
         CustomerRequest body = new CustomerRequest(
-                registerRequest.getFullName(),
-                registerRequest.getPhone(),
-                registerRequest.getEmail()
+                registerRequest.getFullName().trim(),
+                registerRequest.getPhone().trim(),
+                null
         );
+        boolean emailVerified = false;
+        if(registerRequest.getEmail() != null && !registerRequest.getEmail().isBlank()) {
+            if(!verificationCodeRepository.existsByEmailAndIsVerified(registerRequest.getEmail(), true)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email chưa được xác thực!");
+            }
+            body.setEmail(registerRequest.getEmail().trim());
+            emailVerified = true;
+        }
 
         OwnerIdResponse response = null;
         Long ownerId = null;
@@ -74,10 +83,11 @@ public class AuthController {
 
             Role role = roleService.getRoleById(4L);
             accountService.createAccount(
-                    registerRequest.getUsername(),
-                    registerRequest.getPassword(),
+                    registerRequest.getUsername().trim(),
+                    registerRequest.getPassword().trim(),
                     ownerId,
-                    role
+                    role,
+                    emailVerified
             );
 
             Map<String, Object> responseBody = new HashMap<>();
@@ -118,11 +128,18 @@ public class AuthController {
         accountService.checkRegisterRequest(registerRequest);
 
         StaffRequest body = new StaffRequest(
-                registerRequest.getFullName(),
-                registerRequest.getPhone(),
-                registerRequest.getEmail()
+                registerRequest.getFullName().trim(),
+                registerRequest.getPhone().trim(),
+                null
         );
-
+        boolean emailVerified = false;
+        if(registerRequest.getEmail() != null && !registerRequest.getEmail().isBlank()) {
+            if(!verificationCodeRepository.existsByEmailAndIsVerified(registerRequest.getEmail(), true)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email chưa được xác thực!");
+            }
+            body.setEmail(registerRequest.getEmail().trim());
+            emailVerified = true;
+        }
         OwnerIdResponse response = null;
         Long ownerId = null;
 
@@ -132,10 +149,11 @@ public class AuthController {
 
             Role role = roleService.getRoleById(3L);
             accountService.createAccount(
-                    registerRequest.getUsername(),
-                    registerRequest.getPassword(),
+                    registerRequest.getUsername().trim(),
+                    registerRequest.getPassword().trim(),
                     ownerId,
-                    role
+                    role,
+                    emailVerified
             );
 
             Map<String, Object> responseBody = new HashMap<>();
@@ -215,6 +233,7 @@ public class AuthController {
         accountService.changeAccountRole(accountId, role);
         return new ApiResponse<>("Cập nhật quyền thành công!", true, null);
     }
+
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/accounts/active/{id}")
     public ApiResponse<Void> changeAccountActive(
@@ -258,14 +277,19 @@ public class AuthController {
                     .body(Map.of("message", "Xóa tài khoản thất bại: " + e.getMessage(), "success", false));
         }
 
-        PendingAction pending = new PendingAction();
-        pending.setService(account.getRole().getId() != 4L ? "STAFF_SERVICE" : "CUSTOMER_SERVICE");
-        pending.setEntityId(account.getOwnerId());
-        pending.setActionType("DELETE");
-        pendingActionRepository.save(pending);
-
         return ResponseEntity.ok(Map.of("message", "Xóa tài khoản thành công!", "success", true));
     }
+
+    @GetMapping("/internal/accounts/{id}/isVerified")
+    public ResponseEntity<?> checkAccountIsVerified(@PathVariable Long id){
+        try {
+            return ResponseEntity.ok(accountService.checkAccountIsVerified(id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Kiểm tra thất bại: " + e.getMessage(), "success", false));
+        }
+    }
+
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();

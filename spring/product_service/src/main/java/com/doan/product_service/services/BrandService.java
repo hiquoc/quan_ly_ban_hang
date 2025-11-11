@@ -2,6 +2,7 @@ package com.doan.product_service.services;
 
 import com.doan.product_service.dtos.brand.BrandRequest;
 import com.doan.product_service.models.Brand;
+import com.doan.product_service.models.Product;
 import com.doan.product_service.repositories.BrandRepository;
 import com.doan.product_service.repositories.ProductRepository;
 import com.doan.product_service.services.cloud.CloudinaryService;
@@ -47,6 +48,7 @@ public class BrandService {
         Brand brand = new Brand(
                 brandRequest.getName(),
                 brandRequest.getSlug(),
+                brandRequest.getDescription(),
                 imgUrl
         );
         brandRepository.save(brand);
@@ -72,6 +74,10 @@ public class BrandService {
                 && !brandRequest.getSlug().equals(brand.getSlug())) {
             brand.setSlug(brandRequest.getSlug());
         }
+        if (brandRequest.getDescription() != null
+                && !brandRequest.getDescription().isEmpty()) {
+            brand.setDescription(brandRequest.getDescription());
+        }
         try {
             if (image != null && !image.isEmpty()) {
                 if (brand.getImageUrl() != null)
@@ -86,7 +92,7 @@ public class BrandService {
         }
     }
 
-    public Page<Brand> getAllBrands(Integer page, Integer size, String keyword, Boolean active) {
+    public Page<Brand> getAllBrands(Integer page, Integer size, String keyword, Boolean active,Boolean featured) {
         Pageable pageable;
         if (page == null || size == null) {
             pageable = Pageable.unpaged();
@@ -113,6 +119,9 @@ public class BrandService {
             if (active != null) {
                 predicates.add(cb.equal(root.get("isActive"), active));
             }
+            if (featured != null) {
+                predicates.add(cb.equal(root.get("isFeatured"), featured));
+            }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -129,6 +138,13 @@ public class BrandService {
         brand.setIsActive(!brand.getIsActive());
         brandRepository.save(brand);
     }
+    public void changeBrandFeatured(Long id) {
+        Brand brand = brandRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Brand not found with id: " + id));
+
+        brand.setIsFeatured(!brand.getIsFeatured());
+        brandRepository.save(brand);
+    }
 
     public void deleteBrand(Long id) {
         if (productRepository.existsByBrandIdAndIsActiveIsTrue(id)) {
@@ -137,5 +153,9 @@ public class BrandService {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Brand not found with id: " + id));
         brandRepository.delete(brand);
+    }
+
+    public List<Brand> getBrandsByIds(List<Long> ids) {
+        return brandRepository.findAllById(ids);
     }
 }

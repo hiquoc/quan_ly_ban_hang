@@ -1,0 +1,186 @@
+
+services:
+  redis:
+    image: redis:7.2
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  service_registry:
+    build:
+      context: ./service_registry
+      dockerfile: Dockerfile
+    container_name: service-registry
+    ports:
+      - "${EUREKA_PORT:-8761}:8761"
+    env_file:
+      - .env
+    environment:
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+      - SERVER_PORT=8761
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # ==================== GATEWAY ====================
+  gateway-service:
+    build:
+      context: ./gateway_service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      - service_registry
+    restart: unless-stopped
+
+  # ==================== AUTH ====================
+
+  auth-service:
+    build:
+      context: ./auth_service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "${AUTH_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      - service_registry
+    restart: unless-stopped
+
+  # ==================== STAFF ====================
+
+  staff-service:
+    build:
+      context: ./staff_service
+      dockerfile: Dockerfile
+    container_name: staff-service
+    ports:
+      - "${STAFF_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+
+    depends_on:
+      - service_registry
+    restart: unless-stopped
+
+  # ==================== CUSTOMER ====================
+
+  customer-service:
+    build:
+      context: ./customer_service
+      dockerfile: Dockerfile
+    container_name: customer-service
+    ports:
+      - "${CUSTOMER_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      - service_registry
+    restart: unless-stopped
+
+  # ==================== PRODUCT ====================
+
+  product-service:
+    build:
+      context: ./product_service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "${PRODUCT_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      service_registry:
+        condition: service_started
+    restart: unless-stopped
+
+  #  # ==================== INVENTORY ====================
+
+  inventory-service:
+    build:
+      context: ./inventory_service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "${INVENTORY_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      - service_registry
+    restart: unless-stopped
+
+  #  # ==================== CART ====================
+
+  cart-service:
+    build:
+      context: ./cart_service
+      dockerfile: Dockerfile
+    container_name: cart-service
+    ports:
+      - "${CART_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      service_registry:
+        condition: service_started
+    restart: unless-stopped
+
+  #  # ==================== ORDER ====================
+  order-service:
+    build:
+      context: ./order_service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "${ORDER_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      service_registry:
+        condition: service_started
+    restart: unless-stopped
+
+  #  # ==================== PROMOTION ====================
+
+  promotion-service:
+    build:
+      context: ./promotion_service
+      dockerfile: Dockerfile
+    container_name: promotion-service
+    ports:
+      - "${PROMOTION_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      - service_registry
+    restart: unless-stopped
+
+# ==================== VOLUMES (ONLY INIT SCRIPTS) ====================
+volumes:
+  auth-init-scripts:
+  staff-init-scripts:
+  customer-init-scripts:
+  product-init-scripts:
+  inventory-init-scripts:
+  cart-init-scripts:
+  order-init-scripts:
+  promotion-init-scripts:

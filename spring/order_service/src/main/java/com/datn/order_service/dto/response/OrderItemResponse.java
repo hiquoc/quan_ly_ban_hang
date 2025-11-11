@@ -5,20 +5,23 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderItemResponse {
+public class OrderItemResponse implements Serializable {
     private Long id;
     private Long variantId;
     private String variantName;
     private String variantSku;
+    private Long productId;
     private String productSlug;
     private Integer quantity;
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
     private String imageUrl;
+    private boolean returnRequested;
 }

@@ -1,6 +1,5 @@
 package com.datn.promotion_service.dto.response;
 
-import com.datn.promotion_service.enums.DiscountType;
 import com.datn.promotion_service.enums.PromotionType;
 import lombok.*;
 
@@ -17,7 +16,6 @@ public class PromotionResponse {
     private String name;
     private String description;
     private PromotionType promotionType;
-    private DiscountType discountType;
     private BigDecimal discountValue;
     private BigDecimal minOrderAmount;
     private BigDecimal maxDiscountAmount;

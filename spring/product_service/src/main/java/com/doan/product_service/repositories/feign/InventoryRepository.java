@@ -17,5 +17,5 @@ public interface InventoryRepository {
     ResponseEntity<List<InventoryResponseForVariant>> getInventoriesFromVariantIds(@RequestParam List<Long> variantIds);
 
     @GetMapping("/orders/{id}")
-    public ResponseEntity<Boolean> checkPurchaseOrderByVariantId(@PathVariable Long id);
+    ResponseEntity<Boolean> checkPurchaseOrderByVariantId(@PathVariable Long id);
 }

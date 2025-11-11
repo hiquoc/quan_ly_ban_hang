@@ -7,13 +7,14 @@ export const createOrder = async ({ items,
     paymentMethod,
     promotionCode,
     notes,
-    clearCart
+    clearCart,
+    platform = "web"
 }) =>
     safeApiCall(() => api.post(
         `orders/checkout`, {
         items, shippingName, shippingAddress,
         shippingPhone, paymentMethod,
-        promotionCode, notes, clearCart
+        promotionCode, notes, clearCart, platform
     }))
 
 export const cancelOrder = async (orderId, reason) => {
@@ -51,3 +52,47 @@ export const updateOrderStatus = async (orderId, statusId, notes = "") => {
     const request = { statusId, notes };
     return safeApiCall(() => api.patch(`/orders/${orderId}/status`, request));
 };
+
+export const getCustomerOrderStats = async () =>
+    safeApiCall(() => api.get(`/orders/customer/statistics`))
+
+export const rePayPayment = async (id) =>
+    safeApiCall(() => api.post(`/payments/re-pay/order/${id}/platform/web`))
+
+export const getOrderDashboard = async (from, to) => {
+    const params = new URLSearchParams();
+    const fromLocal = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0);
+    const toLocal = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59);
+
+    params.append("from", formatLocalDate(fromLocal));
+    params.append("to", formatLocalDate(toLocal));
+
+    return safeApiCall(() => api.get(`/orders/secure/dashboard?${params.toString()}`))
+}
+
+function formatLocalDate(date) {
+    const pad = (n) => n.toString().padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+export const createReturnOrder = async (orderId, reason, items, images) => {
+    const formData = new FormData();
+    const returnOrderData = { orderId, reason, items };
+
+    formData.append(
+        "return",
+        new Blob([JSON.stringify(returnOrderData)], { type: "application/json" })
+    );
+
+    images.forEach(img => {
+        formData.append("images", img);
+    });
+
+    return safeApiCall(() =>
+        api.post(`orders/return`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            }
+        })
+    );
+}

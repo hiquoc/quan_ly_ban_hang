@@ -14,6 +14,10 @@ import com.datn.cart_service.exception.ProductNotAvailableException;
 import com.datn.cart_service.repository.CartRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,6 +94,7 @@ public class CartService {
         }
 
         if (request.getQuantity() > availableQuantity) {
+            cart.setQuantity(availableQuantity);
             throw new RuntimeException("Số lượng sản phẩm khả dụng có hạn!");
         } else {
             cart.setQuantity(request.getQuantity());
@@ -292,4 +297,5 @@ public class CartService {
             throw new ProductNotFoundException("Không thể lấy thông tin sản phẩm");
         }
     }
+
 }

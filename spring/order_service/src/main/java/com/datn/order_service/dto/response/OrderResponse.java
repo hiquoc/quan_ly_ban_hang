@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -19,8 +20,11 @@ public class OrderResponse {
     private BigDecimal fee;
     private BigDecimal discountAmount;
     private BigDecimal totalAmount;
+    private BigDecimal revenue;
     private String statusName;
+    private String paymentMethod;
     private PaymentStatus paymentStatus;
-    private LocalDateTime orderDate;
-    private LocalDateTime createdAt;
+    private OffsetDateTime orderDate;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

@@ -1,6 +1,5 @@
 package com.datn.promotion_service.entity;
 
-import com.datn.promotion_service.enums.DiscountType;
 import com.datn.promotion_service.enums.PromotionType;
 import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
@@ -38,10 +37,6 @@ public class Promotion {
     @Enumerated(EnumType.STRING)
     @Column(name = "promotion_type", nullable = false, length = 20)
     private PromotionType promotionType;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "discount_type", length = 20)
-    private DiscountType discountType;
 
     @Column(name = "discount_value", precision = 15, scale = 2)
     private BigDecimal discountValue;

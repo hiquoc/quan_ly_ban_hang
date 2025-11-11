@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { changeCategoryActive, createCategory, getAllCategories, updateCategory, deleteCategory } from "../../../apis/productApi";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import { FiRefreshCw, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye, FiTrash2 } from "react-icons/fi";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 export default function CategoryManager() {
   const [categories, setCategories] = useState([]);
@@ -21,8 +22,9 @@ export default function CategoryManager() {
 
   const [status, setStatus] = useState(null);
   const [page, setPage] = useState(0);
-  const [totalPage, setTotalPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
   const [searchText, setSearchText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     handleLoadCategories(0);
@@ -38,47 +40,60 @@ export default function CategoryManager() {
   }, [form.name]);
 
   const handleLoadCategories = async (currentPage = page, newStatus = status) => {
-    const res = await getAllCategories(currentPage, 20, searchText, newStatus);
+    const res = await getAllCategories(currentPage, 10, searchText, newStatus);
     if (res.error) {
       console.error(res.error);
       setCategories([]);
       setPopup({ message: "Có lỗi khi lấy dữ liệu danh mục!", type: "error" });
       return;
     }
+    setPage(currentPage);
     setCategories(res.data.content);
-    setTotalPage(res.data.totalPages)
+    setTotalPages(res.data.totalPages)
   }
 
   const handleCreateCategory = async () => {
-    const response = await createCategory(form.name, form.slug, imageFile || undefined);
+    if (isProcessing) return;
+    try {
+      setIsProcessing(true)
+      const response = await createCategory(form.name, form.slug, imageFile || undefined);
 
-    if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
-      return;
+      if (response?.error) {
+        setPopup({ message: response.error, type: "error" });
+        return;
+      }
+
+      // Success
+      setPopup({ message: response.message || "Tạo danh mục thành công!", type: "success" });
+      setShowForm(false);
+      setForm({ name: "", slug: "", imageUrl: "", isActive: false });
+      setImageFile(null);
+      handleLoadCategories();
+    } finally {
+      setIsProcessing(false)
     }
-
-    // Success
-    setPopup({ message: response.message || "Tạo danh mục thành công!", type: "success" });
-    setShowForm(false);
-    setForm({ name: "", slug: "", imageUrl: "", isActive: false });
-    setImageFile(null);
-    handleLoadCategories();
   };
   const handleUpdateCategory = async () => {
-    const response = await updateCategory(editingCategoryId, form.name, form.slug, imageFile || undefined);
+    if (isProcessing) return;
+    try {
+      setIsProcessing(true)
+      const response = await updateCategory(editingCategoryId, form.name, form.slug, imageFile || undefined);
 
-    if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
-      return;
+      if (response?.error) {
+        setPopup({ message: response.error, type: "error" });
+        return;
+      }
+
+      // Success
+      setPopup({ message: response.message || "Cập nhật danh mục thành công!", type: "success" });
+      setShowForm(false);
+      setForm({ name: "", slug: "", imageUrl: "", isActive: false });
+      setEditingCategoryId(null);
+      setImageFile(null);
+      handleLoadCategories();
+    } finally {
+      setIsProcessing(false)
     }
-
-    // Success
-    setPopup({ message: response.message || "Cập nhật danh mục thành công!", type: "success" });
-    setShowForm(false);
-    setForm({ name: "", slug: "", imageUrl: "", isActive: false });
-    setEditingCategoryId(null);
-    setImageFile(null);
-    handleLoadCategories();
   };
 
   const handleChangeCategoryActive = async (id) => {
@@ -159,24 +174,40 @@ export default function CategoryManager() {
       .replace(/[^\w-]+/g, "")     // remove non-word characters
       .replace(/--+/g, "-");       // collapse multiple -
   };
+  function getPageNumbers() {
+    const pages = [];
+    const maxVisible = 4;
+    if (totalPages <= maxVisible + 2) {
+      for (let i = 0; i < totalPages; i++) pages.push(i);
+    } else {
+      if (page <= 2) {
+        pages.push(0, 1, 2, 3, "...", totalPages - 1);
+      } else if (page >= totalPages - 3) {
+        pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
+      } else {
+        pages.push(0, "...", page - 1, page, page + 1, "...", totalPages - 1);
+      }
+    }
+    return pages;
+  }
 
   return (
-    <div className="p-6 bg-gray-50 rounded shadow">
+    <div className="p-6 bg-white rounded shadow">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h2 className="text-2xl font-semibold text-gray-800">Danh mục</h2>
         <div className="flex gap-2">
           <button
             onClick={() => handleLoadCategories(0)}
-            className="flex items-center px-4 py-2 border border-gray-300 text-gray-800 rounded hover:bg-gray-300 transition"
+            className="flex items-center px-4 py-2 border text-gray-800 rounded hover:bg-gray-300 transition"
             title="Reload Categories"
           >
             <FiRefreshCw className="h-5 w-5 mr-2" />
-            Reload
+            Làm mới
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
           >
             Thêm danh mục
           </button>
@@ -193,7 +224,7 @@ export default function CategoryManager() {
         />
         <button
           onClick={() => { handleLoadCategories(0) }}
-          className="w-full sm:w-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+          className="w-full sm:w-auto bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
         >
           Tìm
         </button>
@@ -204,7 +235,6 @@ export default function CategoryManager() {
         <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
           <thead className="bg-gray-200 text-gray-700 text-left">
             <tr>
-              <th className="p-3 text-center border-b border-gray-300">ID</th>
               <th className="p-3 text-center border-b border-gray-300">Hình ảnh</th>
               <th
                 className="p-3 text-center border-b border-gray-300 cursor-pointer select-none"
@@ -213,19 +243,17 @@ export default function CategoryManager() {
 
               <th className="p-3 text-center border-b border-gray-300">Slug</th>
               <th
-                className={`p-4 text-center border-b border-gray-300 hover:cursor-pointer ${status !== null && status !== undefined ? "underline font-semibold text-blue-600" : "text-gray-700"
+                className={`p-4 text-center border-b border-gray-300 hover:cursor-pointer ${status !== null && status !== undefined ? "font-semibold text-blue-600" : "text-gray-700"
                   }`} onClick={hanldeSortByStatus}
               >
-                Trạng thái
+                {status === true ? "Hoạt động" : status === false ? "Đã khóa" : "Trạng thái"}
               </th>
-              <th className="p-3 text-center border-b border-gray-300">Ngày tạo</th>
               <th className="p-3 text-center border-b border-gray-300">Hành động</th>
             </tr>
           </thead>
           <tbody className="bg-white">
             {categories.map((c) => (
               <tr key={c.id} className="hover:bg-gray-50 transition">
-                <td className="p-3 border-b border-gray-200 text-center">{c.id}</td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   {c.imageUrl ? (
                     <img src={c.imageUrl} alt={c.name} className="w-16 h-16 object-cover mx-auto rounded" />
@@ -235,33 +263,35 @@ export default function CategoryManager() {
                 <td className="p-3 border-b border-gray-200 text-center">{c.slug}</td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   <button
-                    className={`px-3 py-1 rounded transition ${c.isActive ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-400 text-white hover:bg-gray-500"}`}
-                    onClick={() => toggleCategoryActive(c.id, c.isActive, c.name)}
+                    className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                        ${c.isActive ? "bg-green-500 text-white hover:bg-green-400"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`} onClick={() => toggleCategoryActive(c.id, c.isActive, c.name)}
                   >
                     {c.isActive ? "Hoạt động" : "Đã khóa"}
                   </button>
                 </td>
-                <td className="p-3 border-b border-gray-200 text-center">{new Date(c.createdAt).toLocaleDateString("vi-VN")}</td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   <div className="inline-flex gap-2">
                     <button
-                      className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
                       onClick={() => {
                         setForm({ name: c.name, slug: c.slug, imageUrl: c.imageUrl || "", isActive: c.isActive });
                         setEditingCategoryId(c.id);
                         setShowForm(true);
                       }}
                     >
-                      Chỉnh sửa
+                      <FiEye></FiEye>
                     </button>
                     <button
-                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      className="p-2 text-red-600 hover:bg-red-100 rounded transition"
                       onClick={() => toggleCategoryDelete(c.id, c.name)}
                     >
-                      Xóa
+                      <FiTrash2></FiTrash2>
                     </button>
                   </div>
                 </td>
+
               </tr>
             ))}
             {categories.length === 0 && (
@@ -272,76 +302,109 @@ export default function CategoryManager() {
           </tbody>
         </table>
       </div>
-      <div className="flex justify-center items-center gap-4 mt-4">
-        <button
-          disabled={page === 0}
-          onClick={() => handleLoadCategories(page - 1)}
-          className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
-        >
-          <FiChevronLeft className="w-5 h-5" />
-          <span className="ml-1">Trước</span>
-        </button>
-        <span className="text-gray-700 font-medium text-center">Trang {page + 1} / {totalPage}</span>
-        <button
-          disabled={page >= totalPage - 1}
-          onClick={() => handleLoadCategories(page + 1)}
-          className="flex items-center px-3 py-2 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
-        >
-          <span className="mr-1">Sau</span>
-          <FiChevronRight className="w-5 h-5" />
-        </button>
-      </div>
+
+      {totalPages > 0 && (
+        <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+          <button
+            onClick={() => page > 0 && handleLoadCategories(page - 1)}
+            disabled={page === 0}
+            className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+          >
+            <FaChevronLeft />
+          </button>
+
+          {getPageNumbers().map((num, i) =>
+            num === "..." ? (
+              <span key={i} className="px-2 text-gray-500">...</span>
+            ) : (
+              <button
+                key={i}
+                onClick={() => handleLoadCategories(num)}
+                className={`w-8 h-8 flex items-center justify-center rounded border transition-all
+                                                  ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+              >
+                {num + 1}
+              </button>
+            )
+          )}
+
+          <button
+            onClick={() => page < totalPages - 1 && handleLoadCategories(page + 1)}
+            disabled={page === totalPages - 1}
+            className={`p-3 rounded ${page === totalPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+          >
+            <FaChevronRight />
+          </button>
+        </div>
+      )}
       {/* Add Category Form Popup */}
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
-            <h3 className="text-lg font-semibold mb-4">Thêm danh mục</h3>
-            <div className="grid grid-cols-1 gap-3">
-              <input
-                type="text"
-                placeholder="Name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="border p-2 rounded"
-              />
-              <input
-                type="text"
-                placeholder="Slug"
-                value={form.slug}
-                onChange={(e) => {
-                  setForm((prev) => ({ ...prev, slug: e.target.value }));
-                  setIsSlugManuallyEdited(true);
-                }}
-                className="border p-2 rounded"
-              />
-              <label className="block">
-                <span className="block text-sm font-medium mb-1">Hình ảnh sản phẩm</span>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 overflow-y-auto p-4">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-[600px] my-10 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-3xl font-bold mb-5 text-black">
+              {editingCategoryId ? "Cập nhật danh mục" : "Thêm danh mục"}
+            </h3>
+
+            <div className="space-y-3">
+              {/* Tên */}
+              <label className="flex flex-col">
+                <span className="text-gray-700 font-semibold mb-2 text-black">Tên danh mục</span>
+                <input
+                  type="text"
+                  placeholder="Nhập tên danh mục"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                />
+              </label>
+
+              {/* Slug */}
+              <label className="flex flex-col">
+                <span className="text-gray-700 font-semibold mb-2 text-black">Slug</span>
+                <input
+                  type="text"
+                  placeholder="Nhập slug"
+                  value={form.slug}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, slug: e.target.value }));
+                    setIsSlugManuallyEdited(true);
+                  }}
+                  className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                />
+              </label>
+
+              {/* Hình ảnh */}
+              <label className="flex flex-col">
+                <span className="text-gray-700 font-semibold mb-2 text-black">Hình ảnh danh mục</span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setImageFile(e.target.files[0])}
-                  className="block w-full text-sm text-gray-700 border border-gray-300 rounded cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                  className="block w-full text-black bg-white border rounded cursor-pointer file:mr-4 file:py-3 file:px-6 file:rounded file:border-0 file:bg-black file:text-white hover:file:bg-gray-800 file:cursor-pointer transition-all"
                 />
                 {(imageFile || form.imageUrl) && (
-                  <img
-                    src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
-                    alt="Preview"
-                    className="w-32 h-32 object-cover rounded mt-2 mx-auto border"
-                  />
+                  <div className="mt-4 flex justify-center">
+                    <img
+                      src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
+                      alt="Preview"
+                      className="w-48 h-48 object-cover rounded border shadow-lg"
+                    />
+                  </div>
                 )}
               </label>
-
             </div>
-            <div className="flex justify-end gap-2 mt-4">
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-4 mt-8 pt-6 border-t-2 border-gray-200">
               <button
                 onClick={() => closeAndResetForm()}
-                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                className="px-8 py-3 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold"
               >
                 Hủy
               </button>
               <button
                 onClick={editingCategoryId ? handleUpdateCategory : handleCreateCategory}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold"
               >
                 {editingCategoryId ? "Cập nhật" : "Thêm"}
               </button>

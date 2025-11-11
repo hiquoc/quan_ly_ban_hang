@@ -21,6 +21,7 @@ public class InventoryResponse {
 
     private int quantity;
     private int reservedQuantity;
+    private boolean isActive;
 
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;

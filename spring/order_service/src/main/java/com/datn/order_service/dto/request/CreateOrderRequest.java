@@ -29,6 +29,9 @@ public class    CreateOrderRequest {
     @Pattern(regexp = "COD|VNPAY", message = "Payment method must be either COD or VNPAY")
     private String paymentMethod;
 
+    @NotBlank(message = "Platform is required")
+    private String platform;
+
     private String promotionCode;
 
     private String notes;

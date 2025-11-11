@@ -1,84 +1,162 @@
 import React, { useState } from "react";
-import Popup from "../../../components/Popup";
+import { FiX, FiUser, FiLock, FiUserPlus, FiPhone, FiMail } from "react-icons/fi";
 import { staffRegister } from "../../../apis/authApi";
+import VerificationSection from "../../../components/VerificationSection";
 
-function AddAccountForm({ onClose, onSuccess }) {
+function AddAccountForm({ onClose, onSuccess,showPopup }) {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [rePassword, setRePassword] = useState("");
     const [fullName, setFullName] = useState("");
     const [phone, setPhone] = useState("");
     const [email, setEmail] = useState("");
-    const [popup, setPopup] = useState({ message: "", type: "error" });
+    const [isVerified, setIsVerified] = useState(false);
+    const [showVerifyPanel, setShowVerifyPanel] = useState(false);
+    const [errors, setErrors] = useState({});
 
-    async function handleSubmit(e) {
-        e.preventDefault();
-        if (!username || !password || !rePassword) {
-            setPopup({ message: "Vui lòng điền đầy đủ thông tin!" });
-            return;
-        }
-        if (password !== rePassword) {
-            setPopup({ message: "Mật khẩu không khớp!" });
-            return;
-        }
-        if (email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                setPopup({ message: "Email không đúng định dạng!", type: "error" });
-                return;
-            }
-        }
-        if (phone) {
-            const phoneRegex = /^[0-9]{9,12}$/;
-            if (!phoneRegex.test(phone)) {
-                setPopup({ message: "Số điện thoại không hợp lệ!", type: "error" });
-                return;
-            }
-        }
+    const inputBaseClass = "w-full pl-9 pr-3 py-2.5 border rounded focus:outline-none focus:ring-2 focus:ring-gray-800";
 
-        const response = await staffRegister(username, password, fullName, phone, email);
-        if (response?.error) {
-            setPopup({ message: response.error, type: "error" });
-            return;
+    const validateInputs = () => {
+        const newErrors = {};
+        if (!username.trim()) newErrors.username = "Tên tài khoản không được để trống.";
+        if (username.length < 3) newErrors.username = "Tên tài khoản cần ít nhất 3 kí tự.";
+        if (!password) newErrors.password = "Vui lòng nhập mật khẩu.";
+        else if (password.length < 6) newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự.";
+        if (rePassword !== password) newErrors.rePassword = "Mật khẩu nhập lại không khớp.";
+        if (email && !/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) newErrors.email = "Địa chỉ email không hợp lệ.";
+        if (phone && !/^(0|\+84)[0-9]{9,10}$/.test(phone)) newErrors.phone = "Số điện thoại không hợp lệ.";
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e, options = {}) => {
+        if (e?.preventDefault) e.preventDefault();
+        const verified = options.verified ?? isVerified;
+
+        if (!validateInputs()) return;
+
+        if (email && email.trim() !== "" && !verified) {
+            return setShowVerifyPanel(true);
         }
 
-        setPopup({ message: response.message || "Tạo tài khoản thành công!", type: "success" });
-        onSuccess && onSuccess(response.data);
-    }
+        const res = await staffRegister(username, password, fullName, phone, email);
+        if (res?.error) return showPopup(res.error);
 
-    const inputClass = "border rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-700";
-    
+        showPopup("Tạo tài khoản thành công!");
+        onSuccess && onSuccess(res.data);
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
+        <div className="fixed inset-0 z-38 flex items-center justify-center bg-black/60">
+            <div className="bg-white p-10 rounded-lg shadow w-[400px] relative transition-all duration-300 hover:shadow-xl">
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-xl">
+                    <FiX />
+                </button>
 
-            {/* Modal */}
-            <div className="relative bg-white rounded shadow-xl w-full max-w-md p-6 z-10" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-2xl font-bold mb-6 text-black">Thêm tài khoản mới</h3>
+                <h2 className="text-3xl font-semibold text-center mb-8 text-gray-800">Thêm tài khoản</h2>
+
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <input value={username} onChange={e => setUsername(e.target.value)} type="text" placeholder="Tài khoản" className={inputClass} />
-                    <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Mật khẩu" className={inputClass} />
-                    <input value={rePassword} onChange={e => setRePassword(e.target.value)} type="password" placeholder="Nhập lại mật khẩu" className={inputClass} />
-                    <input value={fullName} onChange={e => setFullName(e.target.value)} type="text" placeholder="Họ và tên" className={inputClass} />
-                    <input value={email} onChange={e => setEmail(e.target.value)} type="text" placeholder="Email" className={inputClass} />
-                    <input value={phone} onChange={e => setPhone(e.target.value)} type="text" placeholder="Số điện thoại" className={inputClass} />
-
-                    <div className="flex justify-end gap-3 mt-4">
-                        <button type="button" onClick={onClose} className="px-5 py-2 bg-gray-300 text-black rounded hover:bg-gray-400 transition">Hủy</button>
-                        <button type="submit" className="px-5 py-2 bg-black text-white rounded hover:bg-gray-800 transition">Tạo</button>
+                    {/* Username */}
+                    <div className="relative flex items-center">
+                        <FiUser className="absolute left-3 text-gray-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Tên tài khoản"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className={`${inputBaseClass} border-gray-300 ${errors.username ? "border-red-500" : ""}`}
+                        />
                     </div>
+                    {errors.username && <p className="text-red-500 text-sm">{errors.username}</p>}
+
+                    {/* Password */}
+                    <div className="relative flex items-center">
+                        <FiLock className="absolute left-3 text-gray-400 pointer-events-none" />
+                        <input
+                            type="password"
+                            placeholder="Mật khẩu"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={`${inputBaseClass} border-gray-300 ${errors.password ? "border-red-500" : ""}`}
+                        />
+                    </div>
+                    {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+
+                    {/* Confirm Password */}
+                    <div className="relative flex items-center">
+                        <FiLock className="absolute left-3 text-gray-400 pointer-events-none" />
+                        <input
+                            type="password"
+                            placeholder="Nhập lại mật khẩu"
+                            value={rePassword}
+                            onChange={(e) => setRePassword(e.target.value)}
+                            className={`${inputBaseClass} border-gray-300 ${errors.rePassword ? "border-red-500" : ""}`}
+                        />
+                    </div>
+                    {errors.rePassword && <p className="text-red-500 text-sm">{errors.rePassword}</p>}
+
+                    {/* Full Name */}
+                    <div className="relative flex items-center">
+                        <FiUserPlus className="absolute left-3 text-gray-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Họ và tên"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            className={`${inputBaseClass} border-gray-300`}
+                        />
+                    </div>
+
+                    {/* Email */}
+                    <div className="relative flex items-center">
+                        <FiMail className="absolute left-3 text-gray-400 pointer-events-none" />
+                        <input
+                            type="email"
+                            placeholder="Email (tuỳ chọn)"
+                            value={email}
+                            onChange={(e) => {
+                                setEmail(e.target.value);
+                                setIsVerified(false);
+                            }}
+                            className={`${inputBaseClass} border-gray-300 ${errors.email ? "border-red-500" : ""}`}
+                            autoComplete="off"
+                            spellCheck={false}
+                        />
+                    </div>
+                    {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+
+                    {/* Phone */}
+                    <div className="relative flex items-center">
+                        <FiPhone className="absolute left-3 text-gray-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Số điện thoại (tuỳ chọn)"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className={`${inputBaseClass} border-gray-300 ${errors.phone ? "border-red-500" : ""}`}
+                        />
+                    </div>
+                    {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
+
+                    <button type="submit" className="w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200">
+                        Tạo tài khoản
+                    </button>
                 </form>
 
-                <Popup
-                    message={popup.message}
-                    type={popup.type}
-                    onClose={() => {
-                        setPopup({ message: "" });
-                        if (popup.type === "success") onClose();
-                    }}
-                    duration={3000}
-                />
+                {/* Verification Modal */}
+                {showVerifyPanel && (
+                    <VerificationSection
+                        email={email}
+                        setEmail={setEmail}
+                        showPopup={showPopup}
+                        onVerified={(val) => {
+                            setIsVerified(val);
+                            handleSubmit(null, { verified: val });
+                        }}
+                        onClose={() => setShowVerifyPanel(false)}
+                        secure={true}
+                    />
+                )}
             </div>
         </div>
     );

@@ -5,15 +5,18 @@ import com.doan.customer_service.models.Address;
 import com.doan.customer_service.models.Customer;
 import com.doan.customer_service.services.AddressService;
 import com.doan.customer_service.services.CustomerService;
-import com.doan.customer_service.utils.JwtUtil;
+import com.doan.customer_service.services.DashboardService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +30,7 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final AddressService addressService;
-    private final JwtUtil jwtUtil;
+    private final DashboardService dashboardService;
 
     @PostMapping("/internal/customers")
     public ResponseEntity<?> createCustomer(@RequestBody CustomerRequest customerRequest) {
@@ -128,6 +131,15 @@ public class CustomerController {
             return errorResponse(ex);
         }
     }
+    @GetMapping("/internal/customers/{id}")
+    public ResponseEntity<?> getCustomerByIdLike(@PathVariable Long id) {
+        try {
+            List <CustomerResponse> list = customerService.getCustomerByIdLike(id);
+            return ResponseEntity.ok(list);
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
 
     @PutMapping("/secure/customers")
     public ResponseEntity<?> updateCustomer(@RequestBody CustomerRequest request,
@@ -221,6 +233,17 @@ public class CustomerController {
         }
     }
 
+    @GetMapping("/secure/dashboard")
+    public ResponseEntity<CustomerDashboardResponse> getDashboard(
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+    ) {
+        from = from.with(LocalTime.MIN);
+        to = to.with(LocalTime.MAX);
+
+        CustomerDashboardResponse response=dashboardService.getDashboard(from, to);
+        return ResponseEntity.ok(response);
+    }
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();

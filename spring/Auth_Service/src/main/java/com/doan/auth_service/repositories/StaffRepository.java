@@ -24,6 +24,9 @@ public interface StaffRepository {
     @DeleteMapping("/{id}")
     ResponseEntity<Void> deleteStaff(@PathVariable("id") Long id);
 
+    @GetMapping("/{id}")
+    ResponseEntity<List<StaffResponse>> getStaffByIdLike(@PathVariable Long id);
+
     @GetMapping("/ids")
     ResponseEntity<List<StaffResponse>> getStaffByIds(@RequestParam List<Long> ids);
 

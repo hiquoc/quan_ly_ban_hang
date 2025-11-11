@@ -66,7 +66,7 @@ public class StaffController {
     }
 
     @PutMapping("/secure/staffs/{id}")
-    public ResponseEntity<?> udpateStaffInfo(@PathVariable Long id,
+    public ResponseEntity<?> updateStaffInfo(@PathVariable Long id,
                                           @RequestBody StaffRequest request,
                                           @RequestHeader("X-Owner-Id") Long staffId){
         try{
@@ -76,6 +76,15 @@ public class StaffController {
             staffService.updateStaff(id,request);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật thông tin staff thành công!",true,null));
         }catch (ResponseStatusException ex){
+            return errorResponse(ex);
+        }
+    }
+    @GetMapping("/internal/staffs/{id}")
+    public ResponseEntity<?> getStaffByIdLike(@PathVariable Long id) {
+        try {
+            List <StaffResponse> list = staffService.getStaffByIdLike(id);
+            return ResponseEntity.ok(list);
+        } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
