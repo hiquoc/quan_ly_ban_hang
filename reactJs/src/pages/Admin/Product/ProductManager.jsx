@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import { FiRefreshCw, FiFilter, FiChevronRight, FiChevronLeft, FiEye, FiTrash2 } from "react-icons/fi";
+import { FiRefreshCw, FiFilter, FiChevronRight, FiChevronLeft, FiEye, FiTrash2, FiStar } from "react-icons/fi";
 import {
   getAllCategories, getAllProducts, getAllBrands, createProduct, updateProduct,
   changeProductActive, changeProductFeatured, deleteProduct,
   getProductVariantByProductId
 } from "../../../apis/productApi";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaStar } from "react-icons/fa";
 import { FaX } from "react-icons/fa6";
 
 export default function ProductManager() {
@@ -166,7 +166,7 @@ export default function ProductManager() {
         categoryId: "", brandId: "", technicalSpecs: ""
       });
       setImageFile(null);
-      handleLoadProducts();
+      setProducts(prev=>[res.data,...prev])
     } finally {
       setIsProcessing(false)
     }
@@ -238,7 +238,7 @@ export default function ProductManager() {
           return acc;
         }, {}),
       };
-      
+
       const response = await updateProduct(editingProductId,
         payload.name,
         payload.productCode,
@@ -634,7 +634,11 @@ export default function ProductManager() {
                 <td className="p-3 border-b border-gray-200 text-center">{p.categoryName || "-"}</td>
                 <td className="p-3 border-b border-gray-200 text-center">{p.brandName || "-"}</td>
                 <td className="p-3 border-b border-gray-200 text-center">{p.totalSold}</td>
-                <td className="p-3 border-b border-gray-200 text-center">{p.ratingAvg}</td>
+                <td className="p-3 border-b border-gray-200 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    {p.ratingAvg} <FaStar className="text-yellow-400 -mt-1"></FaStar>
+                  </div>
+                </td>
                 <td className="p-3 border-b border-gray-200 text-center">
                   <button
                     className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition

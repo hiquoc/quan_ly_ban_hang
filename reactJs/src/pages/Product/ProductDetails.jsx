@@ -1,9 +1,11 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate, NavLink } from "react-router-dom";
 import { createProductReview, deleteProductReview, getActiveProductDetails, getProductDetails, getProductReviews, getRandomActiveProductByCategory, updateProductReview } from "../../apis/productApi";
-import {
-    FiCpu, FiHardDrive, FiBox, FiDroplet, FiSettings, FiShoppingCart, FiCreditCard,
-    FiChevronDown, FiChevronUp, FiCamera, FiX, FiEdit
+import { FiSettings, FiShoppingCart, FiCreditCard,
+    FiChevronDown, FiChevronUp, FiX, FiEdit, FiCpu, FiHardDrive, FiDroplet, FiBox,
+    FiMonitor, FiBattery, FiZap, FiWifi, FiCamera,
+    FiPackage, FiShield, FiTrendingUp, FiLayers,
+    FiActivity, FiAperture, FiDisc
 } from "react-icons/fi";
 import ColorMap from "../../components/ColorMap";
 import { PopupContext } from "../../contexts/PopupContext";
@@ -40,6 +42,7 @@ export default function ProductDetails() {
     const [detailsExpanded, setDetailsExpanded] = useState(false);
     const isOutOfStock = variant.status === "OUT_OF_STOCK";
     const hasDiscount = variant.discountPercent > 0 && variant.basePrice > variant.sellingPrice;
+    const [specsExpanded, setSpecsExpanded] = useState(false);
 
     const [reviews, setReviews] = useState([]);
     const [page, setPage] = useState(0);
@@ -135,12 +138,69 @@ export default function ProductDetails() {
 
     function getSpecIcon(name) {
         const key = name.toLowerCase();
-        if (key.includes("cpu") || key.includes("chip")) return <FiCpu className="text-lg" />;
-        if (key.includes("ổ") || key.includes("disk") || key.includes("drive"))
-            return <FiHardDrive className="text-lg" />;
-        if (key.includes("màu") || key.includes("color")) return <FiDroplet className="text-lg" />;
-        if (key.includes("kích") || key.includes("size")) return <FiBox className="text-lg" />;
-        return <FiSettings className="text-lg" />;
+
+        // CPU/Processor
+        if (key.includes("cpu") || key.includes("chip") || key.includes("processor") || key.includes("bộ xử lý"))
+            return <FiCpu className="text-lg text-purple-600" />;
+
+        // Storage/Disk
+        if (key.includes("ổ") || key.includes("disk") || key.includes("drive") || key.includes("ssd") || key.includes("hdd") || key.includes("lưu trữ"))
+            return <FiHardDrive className="text-lg text-orange-600" />;
+
+        // RAM/Memory
+        if (key.includes("ram") || key.includes("memory") || key.includes("bộ nhớ"))
+            return <FiLayers className="text-lg text-green-600" />;
+
+        // Display/Screen
+        if (key.includes("màn") || key.includes("screen") || key.includes("display") || key.includes("inch"))
+            return <FiMonitor className="text-lg text-blue-600" />;
+
+        // Battery
+        if (key.includes("pin") || key.includes("battery") || key.includes("mah") || key.includes("wh"))
+            return <FiBattery className="text-lg text-yellow-600" />;
+
+        // Graphics/GPU
+        if (key.includes("card") || key.includes("gpu") || key.includes("đồ họa") || key.includes("graphics"))
+            return <FiActivity className="text-lg text-red-600" />;
+
+        // Camera
+        if (key.includes("camera") || key.includes("máy ảnh") || key.includes("mp") || key.includes("megapixel"))
+            return <FiCamera className="text-lg text-pink-600" />;
+
+        // Weight
+        if (key.includes("trọng") || key.includes("weight") || key.includes("kg") || key.includes("gram"))
+            return <FiPackage className="text-lg text-gray-600" />;
+
+        // Connectivity/Wifi
+        if (key.includes("wifi") || key.includes("bluetooth") || key.includes("kết nối") || key.includes("5g") || key.includes("4g"))
+            return <FiWifi className="text-lg text-indigo-600" />;
+
+        // Performance/Speed
+        if (key.includes("ghz") || key.includes("tốc độ") || key.includes("speed") || key.includes("performance"))
+            return <FiZap className="text-lg text-amber-600" />;
+
+        // OS/Software
+        if (key.includes("hệ điều hành") || key.includes("os") || key.includes("windows") || key.includes("android") || key.includes("ios"))
+            return <FiDisc className="text-lg text-teal-600" />;
+
+        // Warranty
+        if (key.includes("bảo hành") || key.includes("warranty") || key.includes("guarantee"))
+            return <FiShield className="text-lg text-cyan-600" />;
+
+        // Resolution/Quality
+        if (key.includes("độ phân giải") || key.includes("resolution") || key.includes("hd") || key.includes("4k") || key.includes("fhd"))
+            return <FiAperture className="text-lg text-violet-600" />;
+
+        // Size/Dimensions
+        if (key.includes("kích") || key.includes("size") || key.includes("dimension") || key.includes("thước"))
+            return <FiBox className="text-lg text-slate-600" />;
+
+        // Color
+        if (key.includes("màu") || key.includes("color"))
+            return <FiDroplet className="text-lg text-rose-600" />;
+
+        // Default
+        return <FiSettings className="text-lg text-gray-500" />;
     }
 
     const fetchReviews = async (currentPage = page) => {
@@ -326,7 +386,7 @@ export default function ProductDetails() {
 
                 <div className="flex flex-wrap gap-15 px-40 justify-center pt-4">
                     {/* LEFT SIDE */}
-                    <div className="flex w-full flex-1 gap-6 justify-center items-center pb-30">
+                    <div className="flex w-full flex-1 gap-6 justify-center items-center pb-0">
                         {/* Thumbnails */}
                         <div className="flex flex-col justify-center items-center gap-3 max-h-[500px] pr-1">
                             {imageEntries.map(([key, url]) => (
@@ -445,22 +505,61 @@ export default function ProductDetails() {
 
                         {/* TECHNICAL SPECS */}
                         <div className="mt-3">
-                            <div className="grid grid-cols-4 gap-3">
-                                {Object.entries(combinedSpecs).map(([key, value]) => (
-                                    <div
-                                        key={key}
-                                        className="flex items-center gap-2 bg-gray-50 px-5 py-3 rounded-lg shadow-sm border border-gray-100"
-                                    >
-                                        {getSpecIcon(key)}
-                                        <div>
-                                            <p className="text-sm font-semibold">{key}</p>
-                                            <p className="text-gray-600 text-sm">{value}</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {Object.entries(combinedSpecs)
+                                    .slice(0, specsExpanded ? Object.keys(combinedSpecs).length : 4)
+                                    .map(([key, value]) => (
+                                        <div
+                                            key={key}
+                                            className="flex items-center gap-2 bg-gray-50 px-4 py-3 rounded-lg shadow-sm border border-gray-100"
+                                            title={`${key}: ${value}`}
+                                        >
+                                            {getSpecIcon(key)}
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-gray-700" title={key}>
+                                                    {key}
+                                                </p>
+                                                <p className="text-gray-600 text-sm truncate" title={value}>
+                                                    {value}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
-                        </div>
 
+                            {Object.keys(combinedSpecs).length > 4 && (
+                                <button
+                                    onClick={() => setSpecsExpanded(!specsExpanded)}
+                                    className="mt-3 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+                                >
+                                    {specsExpanded ? (
+                                        <>
+                                            Thu gọn
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                            </svg>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Xem thêm {Object.keys(combinedSpecs).length - 4} thông số khác
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                         <div className="text-gray-700 text-base whitespace-pre-line">
                             <p className={`${!expanded ? "line-clamp-3" : ""}`}>
                                 {product.shortDescription}
@@ -548,7 +647,6 @@ export default function ProductDetails() {
 
                     </div>
                 </div >
-
 
 
                 <div className="px-40 py-12">
@@ -744,7 +842,7 @@ export default function ProductDetails() {
                                     <div className="flex justify-end gap-2">
                                         <button
                                             disabled={creatingReview}
-                                            className={`px-4 py-2 rounded border border-gray-400 hover:bg-gray-100 text-gray-700  ${creatingReview?"opacity-50 cursor-not-allowed":""}` }
+                                            className={`px-4 py-2 rounded border border-gray-400 hover:bg-gray-100 text-gray-700  ${creatingReview ? "opacity-50 cursor-not-allowed" : ""}`}
                                             onClick={() => {
                                                 setEditingReview(null);
                                                 setRating(null);
@@ -755,7 +853,7 @@ export default function ProductDetails() {
                                             Hủy
                                         </button>
                                         <button
-                                            className={`px-4 py-2 rounded bg-black text-white hover:bg-gray-900 flex items-center gap-2 ${creatingReview?"opacity-50 cursor-not-allowed":""}`}
+                                            className={`px-4 py-2 rounded bg-black text-white hover:bg-gray-900 flex items-center gap-2 ${creatingReview ? "opacity-50 cursor-not-allowed" : ""}`}
                                             onClick={() => handleUpdateReview(editingReview.id)}
                                             disabled={creatingReview}
                                         >
