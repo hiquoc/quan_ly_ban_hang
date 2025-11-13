@@ -100,7 +100,7 @@ public class BrandService {
             if (page < 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số trang phải lớn hơn 0");
             if (size < 0)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số lượng dữ liệu mỗi trang phải lớn hơn 0");
-            pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+            pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
         }
 
         Specification<Brand> spec = (root, query, cb) -> {

@@ -18,6 +18,9 @@ public interface ProductVariantRepository {
     @GetMapping("/{id}")
     ResponseEntity<ApiResponse<VariantResponse>> getProductVariantFromInternal(@PathVariable("id") Long id);
 
+    @GetMapping("")
+    List<VariantResponse> getVariantByIds(@RequestParam List<Long> ids);
+
     @PostMapping("/status/{id}")
     void changeProductVariantStatus(@PathVariable("id") Long id,@RequestParam(name = "status") String status);
 

@@ -1,6 +1,15 @@
 import React from "react";
 
 export default function ConfirmPanel({ message, onConfirm, onCancel }) {
+  const [isProcessing, setIsProcessing] = React.useState(false);
+  async function handleConfirm() {
+    setIsProcessing(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsProcessing(false);
+    }
+  }
   if (!message) return null;
 
   return (
@@ -23,6 +32,33 @@ export default function ConfirmPanel({ message, onConfirm, onCancel }) {
 
         {/* Header */}
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Xác nhận</h2>
+        {isProcessing && (
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded pointer-events-auto">
+            <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+              <svg
+                className="animate-spin h-5 w-5 text-gray-700"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+              <span className="text-gray-700 font-medium">Đang xử lý...</span>
+            </div>
+          </div>
+        )}
 
         {/* Message */}
         <p className="text-gray-700 text-left mb-6 whitespace-pre-wrap break-words">
@@ -38,7 +74,7 @@ export default function ConfirmPanel({ message, onConfirm, onCancel }) {
             Hủy
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => handleConfirm()}
             className="px-5 py-2 bg-black text-white rounded font-semibold hover:bg-gray-800 transition hover:cursor-pointer"
           >
             Xác nhận

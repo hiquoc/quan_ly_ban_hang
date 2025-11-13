@@ -6,7 +6,7 @@ import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 
 export default function InventoryManager() {
-  const [inventories, setInventories] = useState(null);
+  const [inventories, setInventories] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -16,6 +16,7 @@ export default function InventoryManager() {
   const [warehouse, setWarehouse] = useState(null)
   const [sortWarehouseId, setSortWarehouseId] = useState(null)
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingTrans, setIsLoadingTrans] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -56,6 +57,7 @@ export default function InventoryManager() {
   }, [selectedInventory, from, to])
 
   async function loadData(searchPage = page) {
+    setPage(searchPage);
     setIsLoading(true);
     const [inventoryRes] = await Promise.all([
       getAllInventories(searchPage, size, searchText, sortWarehouseId, showOnlyActive)
@@ -66,8 +68,8 @@ export default function InventoryManager() {
       setIsLoading(false);
       return;
     }
+    // console.log(inventoryRes.data)
     setInventories(inventoryRes.data.content);
-    setPage(searchPage);
     setTotalPages(inventoryRes.data.totalPages);
     setIsLoading(false);
   }
@@ -81,6 +83,8 @@ export default function InventoryManager() {
   }
 
   async function loadTransaction(item, page = 0, start = startDate, end = endDate) {
+    setTransactionPage(page);
+    setIsLoadingTrans(true);
     const res = await getInventoryTransaction(
       item.id,
       page,
@@ -92,11 +96,13 @@ export default function InventoryManager() {
     if (res.error) {
       console.error(res.error);
       setPopup({ message: res.error || "Lỗi khi tải lịch sử phiếu!" });
+      setIsLoadingTrans(false);
       return
     }
+    // console.log(res.data)
     setTransactions(res.data.content);
-    setTransactionPage(page);
     setTransactionTotalPages(res.data.totalPages);
+    setIsLoadingTrans(false);
   }
 
   function handleViewTransactions(item) {
@@ -115,7 +121,7 @@ export default function InventoryManager() {
     if (res.error)
       return setPopup({ message: res.error });
     setPopup({ message: "Cập nhật trạng thái thành công!" });
-    loadData();
+    setInventories(prev=>prev.map(t=>t.id===id?{...t,active:!t.active}:t))
   }
 
   async function handleGetInventoryQuantityChanges(selectedInventory) {
@@ -130,18 +136,18 @@ export default function InventoryManager() {
   }
   const closeConfirmPanel = () => setConfirmPanel({ visible: false, message: "", onConfirm: null });
 
-  function getPageNumbers() {
+  function getPageNumbers(tPages = totalPages) {
     const pages = [];
     const maxVisible = 4;
-    if (totalPages <= maxVisible + 2) {
-      for (let i = 0; i < totalPages; i++) pages.push(i);
+    if (tPages <= maxVisible + 2) {
+      for (let i = 0; i < tPages; i++) pages.push(i);
     } else {
       if (page <= 2) {
-        pages.push(0, 1, 2, 3, "...", totalPages - 1);
-      } else if (page >= totalPages - 3) {
-        pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
+        pages.push(0, 1, 2, 3, "...", tPages - 1);
+      } else if (page >= tPages - 3) {
+        pages.push(0, "...", tPages - 4, tPages - 3, tPages - 2, tPages - 1);
       } else {
-        pages.push(0, "...", page - 1, page, page + 1, "...", totalPages - 1);
+        pages.push(0, "...", page - 1, page, page + 1, "...", tPages - 1);
       }
     }
     return pages;
@@ -289,50 +295,55 @@ export default function InventoryManager() {
 
 
       </div>
-
-
-      {isLoading ? (
-        <div className="flex items-center justify-center gap-2">
-          <svg
-            className="animate-spin h-5 w-5 text-black"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            ></path>
-          </svg>
-          Đang tải dữ liệu...
-        </div>
-      ) : (
-        < div className="overflow-x-auto shadow-md rounded-lg">
-          <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
-            <thead className="bg-gray-200 text-gray-700 font-medium">
+      < div className="overflow-x-auto shadow-md rounded-lg">
+        <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
+          <thead className="bg-gray-200 text-gray-700 font-medium">
+            <tr>
+              <th className="p-3 text-center border-b border-gray-300">Mã SKU</th>
+              <th className="p-3 text-center border-b border-gray-300">Mã kho</th>
+              <th className="p-3 text-center border-b border-gray-300">Số lượng</th>
+              <th className="p-3 text-center border-b border-gray-300">Đang giữ</th>
+              <th className="p-3 text-center border-b border-gray-300">Trạng thái</th>
+              <th className="p-3 text-center border-b border-gray-300 w-40">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white text-gray-700">
+            {isLoading ? (
               <tr>
-                <th className="p-3 text-center border-b border-gray-300">ID</th>
-                <th className="p-3 text-center border-b border-gray-300">Mã SKU</th>
-                <th className="p-3 text-center border-b border-gray-300">Mã kho</th>
-                <th className="p-3 text-center border-b border-gray-300">Số lượng</th>
-                <th className="p-3 text-center border-b border-gray-300">Đang giữ</th>
-                <th className="p-3 text-center border-b border-gray-300">Trạng thái</th>
-                <th className="p-3 text-center border-b border-gray-300 w-40">Thao tác</th>
+                <td colSpan={6} className="p-4 text-gray-500 text-center align-middle">
+                  <div className="inline-flex gap-2 items-center justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                    Đang tải dữ liệu...
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white text-gray-700">
-              {inventories && inventories.map(item => (
+            ) : (inventories.length === 0 ? (
+              <tr className="hover:bg-gray-50 transition">
+                <td colSpan={6} className="text-center p-3">
+                  Không có kết quả
+                </td>
+              </tr>) : (
+              inventories.map(item => (
                 <tr key={item.id} className="hover:bg-gray-50 transition">
-                  <td className="p-3 border-b border-gray-200 text-center">{item.id}</td>
                   <td className="p-3 border-b border-gray-200 text-center">{item.variant?.sku}</td>
                   <td className="p-3 border-b border-gray-200 text-center">{item.warehouse?.code}</td>
                   <td className="p-3 border-b border-gray-200 text-center">{item.quantity}</td>
@@ -374,11 +385,10 @@ export default function InventoryManager() {
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              ))))}
+          </tbody>
+        </table>
+      </div>
       {/* Pagination */}
       {
         totalPages > 0 && (
@@ -456,7 +466,31 @@ export default function InventoryManager() {
 
               {/* Transactions List */}
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {transactions.length === 0 ? (
+                {isLoadingTrans ? (
+                  <div className="gap-2 items-center justify-center flex">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                    Đang tải dữ liệu...
+                  </div>
+                ) : (transactions.length === 0 ? (
                   <p className="text-center text-gray-500">Không có phiếu nào.</p>
                 ) : (
                   transactions.map(t => (
@@ -546,7 +580,7 @@ export default function InventoryManager() {
 
 
                     </div>
-                  ))
+                  )))
                 )}
               </div>
 
@@ -561,7 +595,7 @@ export default function InventoryManager() {
                     <FaChevronLeft />
                   </button>
 
-                  {getPageNumbers().map((num, i) =>
+                  {getPageNumbers(transactionTotalPages).map((num, i) =>
                     num === "..." ? (
                       <span key={i} className="px-2 text-gray-500">...</span>
                     ) : (
@@ -588,12 +622,11 @@ export default function InventoryManager() {
           </div>
         )
       }
-      {
-        showChange && (
+      { showChange && (
           <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-2xl p-6 relative">
               <button
-                onClick={() => setShowChange(false)}
+                onClick={() => {setShowChange(false); setSelectedInventory(null); setQuantityData(null);}}
                 className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
               >
                 ✕
@@ -694,8 +727,13 @@ export default function InventoryManager() {
                         <tr className="text-center">
                           <td className="px-5 py-3">Tổng</td>
                           <td className="px-5 py-3">
-                            {quantityData.dailyChanges.reduce((sum, d) => sum + d.quantity, 0)}
+                            {(() => {
+                              const total = quantityData.dailyChanges.reduce((sum, d) => sum + d.quantity, 0);
+                              const color = total < 0 ? "text-red-600" : total > 0 ? "text-green-600" : "text-gray-500";
+                              return <span className={color}>{total}</span>;
+                            })()}
                           </td>
+
                           <td className="px-5 py-3">
                             {quantityData.to}
                           </td>
@@ -880,10 +918,16 @@ export default function InventoryManager() {
         onClose={() => setPopup({ message: "", type: "" })}
         duration={3000}
       />
-      <ConfirmPanel
+    
+       <ConfirmPanel
         visible={confirmPanel.visible}
         message={confirmPanel.message}
-        onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); closeConfirmPanel(); }}
+        onConfirm={async () => {
+            if (confirmPanel.onConfirm) {
+              await confirmPanel.onConfirm();
+            }
+            closeConfirmPanel();
+          }}
         onCancel={closeConfirmPanel}
       />
     </div >

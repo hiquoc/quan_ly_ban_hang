@@ -531,7 +531,7 @@ export default function CheckoutPage() {
                         <h2 className="text-3xl font-bold mb-6">Thông tin giao hàng</h2>
                         {customer?.addresses?.length ? customer.addresses
                             .map(addr => (
-                                <div key={addr.id} className={`bg-gray-100 rounded-lg py-4 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:shadow-md transition-shadow ${selectedAddressId === addr.id ? "ring-2 ring-black" : ""}`}>
+                                <div key={addr.id} className={`bg-gray-50 rounded-lg py-4 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:shadow-md transition-shadow ${selectedAddressId === addr.id ? "ring-2 ring-black" : ""}`}>
                                     <div className="flex items-start sm:items-center gap-3 w-full sm:w-auto">
                                         <input
                                             type="radio"
@@ -746,7 +746,7 @@ export default function CheckoutPage() {
                                     <button
                                         disabled={isCreatingOrder}
                                         className={`px-10 py-4 rounded border border-gray-300 transition
-                                            ${!isCreatingOrder ? 'hover:bg-gray-100 hover:cursor-pointer' : 'cursor-not-allowed'}`}
+                                            ${!isCreatingOrder ? 'hover:bg-gray-100 hover:cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                                         onClick={() => setStep(1)}
                                     >
                                         Quay lại
@@ -756,7 +756,7 @@ export default function CheckoutPage() {
                                     <button
                                         disabled={isCreatingOrder}
                                         className={`bg-black text-white px-10 py-4 rounded text-lg font-medium flex items-center justify-center gap-2 shadow transition
-                                            ${!isCreatingOrder ? 'hover:bg-gray-900 hover:cursor-pointer' : 'cursor-not-allowed'}`}
+                                            ${!isCreatingOrder ? 'hover:bg-gray-900 hover:cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                                         onClick={handleCheckout}
                                     >
                                         {isCreatingOrder && (

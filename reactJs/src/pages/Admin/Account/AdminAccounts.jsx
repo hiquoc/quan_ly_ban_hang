@@ -33,7 +33,7 @@ function AdminAccounts() {
   const [itemsPerPage] = useState(20);
   const [sortBy, setSortBy] = useState("KH");
   const [sortRole, setSortRole] = useState("");
-  const [sortActive, setSortActive] = useState(null);
+  const [sortActive, setSortActive] = useState(true);
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
@@ -46,14 +46,20 @@ function AdminAccounts() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
   const [forceLogout, setForceLogout] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Fetch accounts
   const getData = async (page = currentPage) => {
+    setIsLoading(true);
     const res = await getAllAccounts(page, itemsPerPage, keyword, sortBy, sortActive, sortRole);
-    if (res.error) return showPopup(res.error);
+    if (res.error) {
+      setIsLoading(false);
+      return showPopup(res.error);
+    }
     // console.log(res.data)
     setAccounts(res.data.content || []);
     setTotalPages(res.data.totalPages || 1);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -157,7 +163,7 @@ function AdminAccounts() {
           <div className="flex gap-2 flex-wrap">
             <input type="text" placeholder="Từ khóa..." value={keyword} onChange={e => setKeyword(e.target.value)}
               className="p-2 flex-1 border border-gray-700 rounded focus:outline-none focus:ring-1 focus:ring-gray-700" />
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="p-2 border border-gray-700 rounded hover:cursor-pointer">
+            <select value={sortBy || "KH"} onChange={e => setSortBy(e.target.value)} className="p-2 border border-gray-700 rounded hover:cursor-pointer">
               <option value="KH">Mã khách hàng</option>
               <option value="NV">Mã nhân viên</option>
               <option value="account">Mã tài khoản</option>
@@ -172,12 +178,12 @@ function AdminAccounts() {
             <button onClick={() => getData()} className="flex items-center px-4 py-2 border border-gray-700 rounded hover:bg-gray-200 hover:cursor-pointer">
               <FiRefreshCw className="h-5 w-5 mr-2" /> Làm mới
             </button>
-            <select value={sortActive} onChange={e => setSortActive(e.target.value)} className="w-40 p-2 border border-gray-700 rounded hover:cursor-pointer">
+            <select value={sortActive||true} onChange={e => setSortActive(e.target.value)} className="w-40 p-2 border border-gray-700 rounded hover:cursor-pointer">
               <option value="">Tất cả trạng thái</option>
               <option value={true}>Đang hoạt động</option>
               <option value={false}>Đang bị khóa</option>
             </select>
-            <select value={sortRole} onChange={e => setSortRole(e.target.value)} className="w-40 p-2 border border-gray-700 rounded hover:cursor-pointer">
+            <select value={sortRole||""} onChange={e => setSortRole(e.target.value)} className="w-40 p-2 border border-gray-700 rounded hover:cursor-pointer">
               <option value="">Tất cả quyền</option>
               <option value={4}>Customer</option>
               <option value={3}>Staff</option>
@@ -198,7 +204,41 @@ function AdminAccounts() {
               </tr>
             </thead>
             <tbody className="bg-white">
-              {accounts.length > 0 && accounts.map(acc => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="p-4 text-gray-500 text-center align-middle">
+                    <div className="inline-flex gap-2 items-center justify-center">
+                      <svg
+                        className="animate-spin h-5 w-5 text-black"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        ></path>
+                      </svg>
+                      Đang tải dữ liệu...
+                    </div>
+                  </td>
+                </tr>
+              ) : (accounts.length === 0 ? (
+                <tr className="hover:bg-gray-50 transition">
+                  <td colSpan={9} className="text-center p-3">
+                    Không có kết quả
+                  </td>
+                </tr>
+              ) : (accounts.length > 0 && accounts.map(acc => (
                 <tr key={acc.id} className="hover:bg-gray-50 transition">
                   <td className="p-3 border-b border-gray-200 text-center">{`TK${acc.id}`}</td>
                   <td className="p-3 border-b border-gray-200 text-center">{acc.role !== "CUSTOMER" ? `NV${acc.ownerId}` : `KH${acc.ownerId}`}</td>
@@ -242,13 +282,7 @@ function AdminAccounts() {
                     </div>
                   </td>
                 </tr>
-              ))}
-              {accounts.length === 0 && (
-                <tr className="hover:bg-gray-50 transition">
-                  <td colSpan={9} className="text-center p-3">
-                    Không có kết quả
-                  </td>
-                </tr>
+              )))
               )}
 
             </tbody>
@@ -331,7 +365,18 @@ function AdminAccounts() {
           </div>
         )}
 
-        {confirmPanel.visible && <ConfirmPanel visible={confirmPanel.visible} message={confirmPanel.message} onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); closeConfirmPanel(); }} onCancel={closeConfirmPanel} />}
+        {confirmPanel.visible && (
+          <ConfirmPanel
+            message={confirmPanel.message}
+            onConfirm={async () => {
+              if (confirmPanel.onConfirm) {
+                await confirmPanel.onConfirm();
+              }
+              closeConfirmPanel();
+            }}
+            onCancel={closeConfirmPanel}
+          />
+        )}
         {selectedCustomer != null && <CustomerDetails visible={true} customerId={selectedCustomer} onClose={() => setSelectedCustomer(null)} />}
 
         {forceLogout && (

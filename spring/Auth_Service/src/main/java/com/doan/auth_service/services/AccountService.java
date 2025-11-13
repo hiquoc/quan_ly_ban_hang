@@ -11,10 +11,7 @@ import com.doan.auth_service.models.Role;
 import com.doan.auth_service.repositories.AccountRepository;
 import com.doan.auth_service.utils.JwtUtil;
 import lombok.AllArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -99,7 +96,7 @@ public class AccountService {
     ) {
         int currentPage = page != null ? page : 0;
         int pageSize = size != null ? size : 10;
-        Pageable pageable = PageRequest.of(currentPage, pageSize);
+        Pageable pageable = PageRequest.of(currentPage, pageSize, Sort.by("createdAt").descending());
 
         List<Account> accountsList = new ArrayList<>();
 

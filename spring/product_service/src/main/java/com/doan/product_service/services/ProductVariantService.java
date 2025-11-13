@@ -1,5 +1,6 @@
 package com.doan.product_service.services;
 
+import com.doan.product_service.dtos.product.ProductResponse;
 import com.doan.product_service.dtos.product_variant.VariantRequest;
 import com.doan.product_service.dtos.product_variant.VariantResponse;
 import com.doan.product_service.models.Product;
@@ -74,7 +75,7 @@ public class ProductVariantService {
                 imageUrls
         );
         productVariantRepository.save(productVariant);
-        WebhookUtils.postToWebhook(product.getId(),"update");
+        WebhookUtils.postToWebhook(product.getId(), "update");
         return toVariantResponse(productVariant);
     }
 
@@ -131,24 +132,20 @@ public class ProductVariantService {
                 predicates.add(cb.greaterThan(root.get("discountPercent"), 0));
             }
 
-            if (minPrice != null) {
-                Expression<Number> discountedPriceExpr = cb.prod(
+            Expression<Number> discountedPriceExpr = null;
+            if (minPrice != null || maxPrice != null) {
+                discountedPriceExpr = cb.prod(
                         root.get("sellingPrice"),
                         cb.quot(
-                                cb.diff(cb.literal(100), root.get("discountPercent")),
-                                cb.literal(100)
+                                cb.diff(cb.literal(100.0), root.get("discountPercent")),
+                                cb.literal(100.0)
                         )
                 );
+            }
+            if (minPrice != null) {
                 predicates.add(cb.greaterThanOrEqualTo(cb.toBigDecimal(discountedPriceExpr), minPrice));
             }
             if (maxPrice != null) {
-                Expression<Number> discountedPriceExpr = cb.prod(
-                        root.get("sellingPrice"),
-                        cb.quot(
-                                cb.diff(cb.literal(100), root.get("discountPercent")),
-                                cb.literal(100)
-                        )
-                );
                 predicates.add(cb.lessThanOrEqualTo(cb.toBigDecimal(discountedPriceExpr), maxPrice));
             }
 
@@ -162,6 +159,7 @@ public class ProductVariantService {
         return toVariantResponse(productVariantRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id)));
     }
+
     public VariantResponse getProductExcludingInactive(Long id) {
         return toVariantResponse(productVariantRepository.findByIdAndIsActiveIsTrue(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id)));
@@ -177,7 +175,7 @@ public class ProductVariantService {
     }
 
     @Transactional
-    public void updateVariantInfo(Long id, VariantRequest request) {
+    public VariantResponse updateVariantInfo(Long id, VariantRequest request) {
         ProductVariant variant = productVariantRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy biến thể với id: " + id));
@@ -186,8 +184,8 @@ public class ProductVariantService {
                 productVariantRepository.existsBySkuAndIdNot(request.getSku(), id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SKU biến thể đã tồn tại!");
         }
-        if(request.getProductId()!=null && !Objects.equals(variant.getProduct().getId(), request.getProductId())){
-            Product product=productRepository.findById(request.getProductId())
+        if (request.getProductId() != null && !Objects.equals(variant.getProduct().getId(), request.getProductId())) {
+            Product product = productRepository.findById(request.getProductId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                             "Không tìm thấy sản  với id: " + request.getProductId()));
             variant.setProduct(product);
@@ -196,7 +194,7 @@ public class ProductVariantService {
         variant.setSku(request.getSku());
         variant.setAttributes(request.getAttributes());
         variant.setBasePrice(request.getBasePrice());
-        if(request.getImportPrice()!=null && request.getImportPrice().compareTo(BigDecimal.ZERO)>0)
+        if (request.getImportPrice() != null && request.getImportPrice().compareTo(BigDecimal.ZERO) > 0)
             variant.setImportPrice(request.getImportPrice());
         if (request.getDiscountPercent() != null && !request.getDiscountPercent().equals(variant.getDiscountPercent())) {
             BigDecimal basePrice = variant.getBasePrice();
@@ -210,57 +208,61 @@ public class ProductVariantService {
         }
 
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(),"update");
-
+        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        return toVariantResponse(variant);
     }
 
     @Transactional
-    public void updateVariantImages(Long id, List<MultipartFile> newImages, List<String> deletedKeys, String newMainKey) {
+    public VariantResponse updateVariantImages(Long id, List<MultipartFile> newImages, List<String> deletedKeys, String newMainKey) {
         ProductVariant variant = productVariantRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy biến thể với id: " + id));
 
         Map<String, String> currentImages = new HashMap<>(variant.getImageUrls());
 
-        try {
-            if (deletedKeys != null) {
-                for (String key : deletedKeys) {
-                    String url = currentImages.get(key);
-                    if (url != null) {
+        if (deletedKeys != null) {
+            deletedKeys.forEach(key -> {
+                String url = currentImages.remove(key);
+                if (url != null) {
+                    try {
                         cloudinaryService.deleteFile(url);
-                        currentImages.remove(key);
+                    } catch (IOException e) {
+                        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi xóa hình ảnh!");
                     }
                 }
-            }
+            });
+        }
 
-            if (newImages != null) {
-                for (int i = 0; i < newImages.size(); i++) {
-                    String key = "side" + System.currentTimeMillis() + "_" + i;
-                    String url = cloudinaryService.uploadFile(newImages.get(i));
+        if (newImages != null) {
+            for (int i = 0; i < newImages.size(); i++) {
+                MultipartFile file = newImages.get(i);
+                String key = "side_" + System.nanoTime() + "_" + i;
+                try {
+                    String url = cloudinaryService.uploadFile(file);
                     currentImages.put(key, url);
+                } catch (IOException e) {
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi upload hình ảnh!");
                 }
             }
-
-            if (newMainKey != null && !newMainKey.isBlank() && currentImages.containsKey(newMainKey) &&
-                    !Objects.equals(newMainKey, "main")) {
-                String oldMainUrl = currentImages.get("main");
-                currentImages.put("main", currentImages.get(newMainKey));
-                currentImages.put(newMainKey, oldMainUrl);
-            }
-
-            if (!currentImages.containsKey("main") && !currentImages.isEmpty()) {
-                String firstKey = currentImages.keySet().iterator().next();
-                currentImages.put("main", currentImages.get(firstKey));
-                currentImages.remove(firstKey);
-            }
-
-            variant.setImageUrls(currentImages);
-            productVariantRepository.save(variant);
-            WebhookUtils.postToWebhook(variant.getProduct().getId(),"update");
-
-        } catch (IOException io) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi upload/xóa hình ảnh!");
         }
+
+        if (newMainKey != null && !newMainKey.isBlank() && currentImages.containsKey(newMainKey) && !"main".equals(newMainKey)) {
+            String oldMainUrl = currentImages.get("main");
+            currentImages.put("main", currentImages.get(newMainKey));
+            currentImages.put(newMainKey, oldMainUrl);
+        }
+        currentImages.computeIfAbsent("main", k -> {
+            if (!currentImages.isEmpty()) {
+                String firstKey = currentImages.keySet().iterator().next();
+                return currentImages.remove(firstKey);
+            }
+            return null;
+        });
+        variant.setImageUrls(currentImages);
+        productVariantRepository.save(variant);
+
+        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        return toVariantResponse(variant);
     }
 
 
@@ -273,7 +275,7 @@ public class ProductVariantService {
                 throw new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE, "Sản phẩm đang có giá bán là 0đ!");
         }
         variant.setIsActive(!variant.getIsActive());
-        WebhookUtils.postToWebhook(variant.getProduct().getId(),"update");
+        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
 
     }
 
@@ -282,7 +284,7 @@ public class ProductVariantService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id));
         variant.setStatus(status);
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(),"update");
+        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
     }
 
     public void deleteProductVariant(Long id) {
@@ -291,7 +293,7 @@ public class ProductVariantService {
         if (inventoryServiceClient.checkPurchaseOrderByVariantId(id))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể xóa biến thể này!");
         productVariantRepository.delete(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(),"update");
+        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
 
     }
 
@@ -309,19 +311,20 @@ public class ProductVariantService {
 
         variant.setImportPrice(weightedAveragePrice);
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(),"update");
+        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
 
     }
+
     @Transactional
     public void updateVariantSoldCount(Long variantId, int num) {
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy biến thể với id: " + variantId));
 
-        variant.setSoldCount(variant.getSoldCount()+num);
-        variant.getProduct().setTotalSold(variant.getProduct().getTotalSold()+num);
+        variant.setSoldCount(variant.getSoldCount() + num);
+        variant.getProduct().setTotalSold(variant.getProduct().getTotalSold() + num);
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(),"update");
+        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
 
     }
 
@@ -352,4 +355,7 @@ public class ProductVariantService {
         );
     }
 
+    public List<VariantResponse> getVariantByIds(List<Long> ids) {
+        return productVariantRepository.findAllById(ids).stream().map(this::toVariantResponse).toList();
+    }
 }

@@ -228,7 +228,6 @@ export const updateVariant = async (
 };
 
 
-
 export const changeVariantActive = (id) =>
   safeApiCall(() => api.patch(`product/secure/variants/active/${id}`));
 
@@ -253,6 +252,9 @@ export const getAllVariants = ({ page, size, productId, keyword, active, status,
     if (maxPrice != null) params.maxPrice = maxPrice;
     return api.get("product/secure/variants", { params });
   });
+
+export const getVariantsByIds=async(ids)=>
+  safeApiCall(()=>api.get(`product/secure/variants/by-ids`, {params: { ids } }))
 
 //////////////
 export const createCategory = (name, slug, imageFile) => {

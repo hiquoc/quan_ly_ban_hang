@@ -171,7 +171,7 @@ export default function RegisterPage() {
 
                     <button disabled={isProcessing}
                         type="submit"
-                        className={`flex gap-1 items-center w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer  ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}>
+                        className={`flex gap-1 items-center justify-center w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer  ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}>
                         {isProcessing && (
                             <svg
                                 className="animate-spin h-5 w-5 text-white"

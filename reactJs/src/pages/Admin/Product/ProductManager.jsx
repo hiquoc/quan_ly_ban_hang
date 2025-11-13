@@ -24,6 +24,7 @@ export default function ProductManager() {
     technicalSpecs: "",
   });
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
+  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
   const [popup, setPopup] = useState({ message: "" });
   const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
   const [editingProductId, setEditingProductId] = useState(null);
@@ -46,6 +47,7 @@ export default function ProductManager() {
   const [sortBy, setSortBy] = useState("")
   const [discountedOnly, setDiscountedOnly] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     handleLoadProducts();
@@ -57,34 +59,46 @@ export default function ProductManager() {
     if (!isSlugManuallyEdited) {
       setForm((prev) => ({ ...prev, slug: generateSlug(prev.name) }));
     }
-    if (form.name === "") setIsSlugManuallyEdited(false);
+    if (!isCodeManuallyEdited) {
+      setForm((prev) => ({ ...prev, productCode: generateCode(prev.name) }));
+    }
+    if (form.name === ""){
+      setIsCodeManuallyEdited(false);
+       setIsSlugManuallyEdited(false);
+    }
   }, [form.name]);
 
   const handleLoadProducts = async (searchPage = page) => {
-    const res = await getAllProducts(
-      searchPage,
-      size,
-      searchText,
-      selectedCategory ? [selectedCategory] : [],
-      selectedBrand ? [selectedBrand] : [],
-      selectedActive,
-      selectedFeatured,
-      true,
-      sortBy,
-      discountedOnly !== null ? discountedOnly : undefined
-    );
+    try {
+      setIsLoading(true);
+      const res = await getAllProducts(
+        searchPage,
+        size,
+        searchText,
+        selectedCategory ? [selectedCategory] : [],
+        selectedBrand ? [selectedBrand] : [],
+        selectedActive,
+        selectedFeatured,
+        true,
+        sortBy,
+        discountedOnly !== null ? discountedOnly : undefined
+      );
 
-    if (res.error) {
-      console.error(res.error);
-      setProducts([]);
-      setPage(0)
-      setPopup({ message: "Có lỗi khi lấy dữ liệu sản phẩm!", type: "error" });
-      return;
+      if (res.error) {
+        console.error(res.error);
+        setProducts([]);
+        setPage(0)
+        setPopup({ message: "Có lỗi khi lấy dữ liệu sản phẩm!", type: "error" });
+        return;
+      }
+      // console.log(res.data.content)
+      setProducts(res.data.content);
+      setPage(searchPage);
+      setTotalPages(res.data.totalPages)
+    } finally {
+      setIsLoading(false);
     }
-    // console.log(res.data.content)
-    setProducts(res.data.content);
-    setPage(searchPage);
-    setTotalPages(res.data.totalPages)
+
   };
 
 
@@ -166,7 +180,7 @@ export default function ProductManager() {
         categoryId: "", brandId: "", technicalSpecs: ""
       });
       setImageFile(null);
-      setProducts(prev=>[res.data,...prev])
+      setProducts(prev => [response.data, ...prev])
     } finally {
       setIsProcessing(false)
     }
@@ -372,11 +386,20 @@ export default function ProductManager() {
     }));
   };
 
-
-
   const generateSlug = (text) => {
     return text
       .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/\s+/g, "-")
+      .replace(/[^\w-]+/g, "")
+      .replace(/--+/g, "-");
+  };
+  const generateCode = (text) => {
+    return text
+      .toUpperCase()
       .trim()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -622,68 +645,98 @@ export default function ProductManager() {
             </tr>
           </thead>
           <tbody className="bg-white">
-            {products.length > 0 ? products.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50 transition">
-                <td className="p-3 border-b border-gray-200 text-center">
-                  {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-16 h-16 object-cover mx-auto rounded" /> : "-"}
-                </td>
-                <td className="p-3 border-b border-gray-200 text-center">{p.productCode}</td>
-                <td className="p-3 border-b border-gray-200 text-center">
-                  <div className="truncate max-w-[150px] mx-auto">{p.name}</div>
-                </td>
-                <td className="p-3 border-b border-gray-200 text-center">{p.categoryName || "-"}</td>
-                <td className="p-3 border-b border-gray-200 text-center">{p.brandName || "-"}</td>
-                <td className="p-3 border-b border-gray-200 text-center">{p.totalSold}</td>
-                <td className="p-3 border-b border-gray-200 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    {p.ratingAvg} <FaStar className="text-yellow-400 -mt-1"></FaStar>
+            {isLoading ? (
+              <tr>
+                <td colSpan={10} className="p-4 text-gray-500 text-center align-middle">
+                  <div className="inline-flex gap-2 items-center justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                    Đang tải dữ liệu...
                   </div>
                 </td>
-                <td className="p-3 border-b border-gray-200 text-center">
-                  <button
-                    className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
-                       ${p.isActive ? "bg-green-500 text-white hover:bg-green-400"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
-                    onClick={() => toggleProductActive(p.id, p.isActive, p.name)}
-                  >
-                    {p.isActive ? "Hoạt động" : "Đã khóa"}
-                  </button>
-                </td>
-                <td className="p-3 border-b border-gray-200 text-center">
-                  <button
-                    className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
-                       ${p.isFeatured ? "bg-green-500 text-white hover:bg-green-400"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
-                    onClick={() => toggleProductFeatured(p.id, p.isFeatured, p.name)}
-                  >
-                    {p.isFeatured ? "Nổi bật" : "Không"}
-                  </button>
-                </td>
-                {/* <td className="p-3 border-b border-gray-200 text-center">{new Date(p.createdAt).toLocaleDateString("vi-VN")}</td> */}
-                <td className="p-3 border-b border-gray-200 text-center">
-                  <div className="inline-flex gap-2">
-                    <button
-                      className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
-                      onClick={() => handleEditProduct(p)}
-                    >
-                      <FiEye></FiEye>
-                    </button>
-                    <button
-                      className="p-2 text-red-600 hover:bg-red-100 rounded transition"
-                      onClick={() => toggleProductDelete(p.id, p.name)}
-                    >
-                      <FiTrash2></FiTrash2>
-                    </button>
-                  </div>
-                </td>
+
               </tr>
-            )) : (
+            ) : (products.length === 0 ? (
               <tr>
                 <td colSpan={10} className="text-center p-4 text-gray-500">Không có sản phẩm phù hợp</td>
-              </tr>
-            )}
+              </tr>) : (
+              products.map(p => (
+                <tr key={p.id} className="hover:bg-gray-50 transition">
+                  <td className="p-3 border-b border-gray-200 text-center">
+                    {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-16 h-16 object-cover mx-auto rounded" /> : "-"}
+                  </td>
+                  <td className="p-3 border-b border-gray-200 text-center">{p.productCode}</td>
+                  <td className="p-3 border-b border-gray-200 text-center">
+                    <div className="truncate max-w-[150px] mx-auto">{p.name}</div>
+                  </td>
+                  <td className="p-3 border-b border-gray-200 text-center">{p.categoryName || "-"}</td>
+                  <td className="p-3 border-b border-gray-200 text-center">{p.brandName || "-"}</td>
+                  <td className="p-3 border-b border-gray-200 text-center">{p.totalSold}</td>
+                  <td className="p-3 border-b border-gray-200 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {p.ratingAvg} <FaStar className="text-yellow-400 -mt-1"></FaStar>
+                    </div>
+                  </td>
+                  <td className="p-3 border-b border-gray-200 text-center">
+                    <button
+                      className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                       ${p.isActive ? "bg-green-500 text-white hover:bg-green-400"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      onClick={() => toggleProductActive(p.id, p.isActive, p.name)}
+                    >
+                      {p.isActive ? "Hoạt động" : "Đã khóa"}
+                    </button>
+                  </td>
+                  <td className="p-3 border-b border-gray-200 text-center">
+                    <button
+                      className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                       ${p.isFeatured ? "bg-green-500 text-white hover:bg-green-400"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      onClick={() => toggleProductFeatured(p.id, p.isFeatured, p.name)}
+                    >
+                      {p.isFeatured ? "Nổi bật" : "Không"}
+                    </button>
+                  </td>
+                  {/* <td className="p-3 border-b border-gray-200 text-center">{new Date(p.createdAt).toLocaleDateString("vi-VN")}</td> */}
+                  <td className="p-3 border-b border-gray-200 text-center">
+                    <div className="inline-flex gap-2">
+                      <button
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
+                        onClick={() => handleEditProduct(p)}
+                      >
+                        <FiEye></FiEye>
+                      </button>
+                      <button
+                        className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                        onClick={() => toggleProductDelete(p.id, p.name)}
+                      >
+                        <FiTrash2></FiTrash2>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ))}
           </tbody>
         </table>
       </div>
@@ -725,12 +778,38 @@ export default function ProductManager() {
       {/* Add/Edit Product Form */}
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 overflow-y-auto p-4">
-          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] my-10 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] my-10 relative">
             <h3 className="text-3xl font-bold mb-5 text-black">
               {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
             </h3>
-
-            <div className="grid grid-cols-2 gap-8">
+            {isProcessing && (
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                  <svg
+                    className="animate-spin h-5 w-5 text-gray-700"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                  <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                </div>
+              </div>
+            )}
+            <div className="p-1 grid grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto">
               {/* LEFT COLUMN */}
               <div className="space-y-3">
                 {/* Tên sản phẩm */}
@@ -752,7 +831,10 @@ export default function ProductManager() {
                     type="text"
                     placeholder="Nhập mã sản phẩm"
                     value={form.productCode}
-                    onChange={(e) => setForm({ ...form, productCode: e.target.value })}
+                    onChange={(e) => {
+                      setForm({ ...form, productCode: e.target.value })
+                      setIsCodeManuallyEdited(true);
+                    }}
                     className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
                   />
                 </label>
@@ -926,40 +1008,17 @@ export default function ProductManager() {
             {/* Buttons */}
             <div className="flex justify-end gap-4 mt-8 pt-6 border-t-2 border-gray-200">
               <button
-                disabled={isProcessing}
                 onClick={closeAndResetForm}
-                className={`px-8 py-3 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold  ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`px-8 py-3 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold`}
               >
                 Hủy
               </button>
               <button
-                disabled={isProcessing}
                 onClick={editingProductId ? handleUpdateProduct : handleCreateProduct}
-                className={`flex items-center gap-1 px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`flex items-center gap-1 px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibol`}
               >
-                {isProcessing && (
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    ></path>
-                  </svg>
-                )}
-                {isProcessing ? "Đang xử lý..." : editingProductId ? "Cập nhật" : "Thêm"}
+
+                {editingProductId ? "Cập nhật" : "Thêm"}
               </button>
             </div>
           </div>
@@ -975,12 +1034,15 @@ export default function ProductManager() {
       <ConfirmPanel
         visible={confirmPanel.visible}
         message={confirmPanel.message}
-        onConfirm={() => {
-          confirmPanel.onConfirm && confirmPanel.onConfirm();
-          setConfirmPanel({ visible: false, message: "", onConfirm: null });
+        onConfirm={async () => {
+          if (confirmPanel.onConfirm) {
+            await confirmPanel.onConfirm();
+          }
+          closeConfirmPanel();
         }}
         onCancel={closeConfirmPanel}
       />
+
     </div>
   );
 }

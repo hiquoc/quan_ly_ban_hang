@@ -493,6 +493,7 @@ const AdminDashboard = () => {
                 <YAxis
                   yAxisId="left"
                   stroke="#3B82F6"
+                  domain={['dataMin', (dataMax) => Math.ceil(dataMax * 1.1)]}  // Min=actual min (but clamp data first), max=110% of data
                   tickFormatter={(value) => value.toLocaleString('vi-VN') + '₫'}
                 />
 

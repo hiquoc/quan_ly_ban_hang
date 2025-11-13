@@ -5,6 +5,7 @@ import com.doan.inventory_service.dtos.inventory.InventoryQuantityChangeResponse
 import com.doan.inventory_service.dtos.inventory.InventoryResponse;
 import com.doan.inventory_service.dtos.inventory.InventoryResponseForVariant;
 import com.doan.inventory_service.dtos.order.UpdateOrderStatusFromInvRequest;
+import com.doan.inventory_service.dtos.productVariant.VariantResponse;
 import com.doan.inventory_service.dtos.transaction.*;
 import com.doan.inventory_service.models.Inventory;
 import com.doan.inventory_service.models.InventoryTransaction;
@@ -35,6 +36,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -74,27 +76,26 @@ public class InventoryService {
             inventory = inventoryRepository.findAllByIsActive(isActive, pageable);
         }
 
+        Map<Long, VariantResponse> variantMap = productServiceClient
+                .getVariantsByIds(inventory.getContent().stream()
+                        .map(Inventory::getVariantId)
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(VariantResponse::getId, v -> v));
 
-        Map<Long, Object> variantMap = new HashMap<>();
-        List<InventoryResponse> responses = inventory.getContent().stream().map(i -> {
-            Object variant = variantMap.computeIfAbsent(i.getVariantId(), id -> {
-                try {
-                    return productServiceClient.getProductVariantFromInternal(id);
-                } catch (Exception e) {
-                    return "Error";
-                }
-            });
-            return new InventoryResponse(
-                    i.getId(),
-                    variant,
-                    i.getWarehouse(),
-                    i.getQuantity(),
-                    i.getReservedQuantity(),
-                    i.isActive(),
-                    i.getCreatedAt(),
-                    i.getUpdatedAt()
-            );
-        }).toList();
+        List<InventoryResponse> responses = inventory.getContent().stream()
+                .map(i -> new InventoryResponse(
+                        i.getId(),
+                        Optional.ofNullable(variantMap.get(i.getVariantId())),
+                        i.getWarehouse(),
+                        i.getQuantity(),
+                        i.getReservedQuantity(),
+                        i.isActive(),
+                        i.getCreatedAt(),
+                        i.getUpdatedAt()
+                ))
+                .toList();
+
 
         return new PageImpl<>(responses, pageable, inventory.getTotalElements());
     }
@@ -254,13 +255,14 @@ public class InventoryService {
 
     @Transactional
     public InventoryTransactionResponse createTransactions(List<InventoryTransactionRequest> requestList, Long staffId) {
-        int size=requestList.size();
+        int size = requestList.size();
         for (InventoryTransactionRequest request : requestList) {
             Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy kho!"));
-            if (!"ADJUST".equals(request.getTransactionType()) &&
-                    request.getReferenceType() != null && request.getReferenceCode() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng điền đầy đủ thông tin!");
+            if (!"ADJUST".equals(request.getTransactionType())) {
+                if (request.getReferenceType() != null && request.getReferenceCode() == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng điền đầy đủ thông tin!");
+                }
             }
 
             AtomicBoolean existed = new AtomicBoolean(true);
@@ -281,12 +283,12 @@ public class InventoryService {
             inventoryRepository.save(inventory);
             WebhookUtils.postToWebhook(inventory.getId(), existed.get() ? "update" : "insert");
 
-
+            int quantityToUse = "ADJUST".equals(request.getTransactionType()) ? request.getQuantity() : Math.abs(request.getQuantity());
             InventoryTransaction inventoryTransaction = new InventoryTransaction(
                     generateTransactionCode(request.getTransactionType()),
                     inventory,
                     request.getTransactionType(),
-                    Math.abs(request.getQuantity()),
+                    quantityToUse,
                     request.getPricePerItem(),
                     request.getNote(),
                     request.getReferenceType(),
@@ -302,7 +304,7 @@ public class InventoryService {
                 }
                 updateReservedQuantity(inventory.getId(), inventory.getReservedQuantity() + request.getQuantity());
             }
-            if(size==1)
+            if (size == 1)
                 return transactionResponseMapper(List.of(inventoryTransaction)).getFirst();
         }
         return null;
@@ -552,7 +554,6 @@ public class InventoryService {
     }
 
 
-
     public Page<InventoryTransactionResponse> getTransaction(
             Long id, Integer page, Integer size, LocalDate fromDate, LocalDate toDate) {
 
@@ -640,35 +641,34 @@ public class InventoryService {
 
         return new InventoryQuantityChangeResponse(fromQuantity, finalToQuantity, dailyChanges);
     }
+
     @Transactional
     private List<InventoryTransactionResponse> transactionResponseMapper(List<InventoryTransaction> list) {
-        Map<Long, Object> variantMap = new HashMap<>();
-        return list.stream().map(it -> {
-            Object variant = variantMap.computeIfAbsent(it.getInventory().getVariantId(), id -> {
-                try {
-                    return productServiceClient.getProductVariantFromInternal(it.getInventory().getVariantId());
-                } catch (Exception e) {
-                    return "Error";
-                }
-            });
-            return InventoryTransactionResponse.builder()
-                    .id(it.getId())
-                    .variant(variant)
-                    .warehouse(it.getInventory().getWarehouse())
-                    .code(it.getCode())
-                    .transactionType(it.getTransactionType())
-                    .quantity(it.getQuantity())
-                    .pricePerItem(it.getPricePerItem())
-                    .note(it.getNote())
-                    .referenceType(it.getReferenceType())
-                    .referenceCode(it.getReferenceCode())
-                    .status(it.getStatus())
-                    .createdBy(it.getCreatedBy())
-                    .updatedBy(it.getUpdatedBy())
-                    .createdAt(it.getCreatedAt())
-                    .updatedAt(it.getUpdatedAt())
-                    .build();
-        }).toList();
+        Map<Long, VariantResponse> variantMap = productServiceClient
+                .getVariantsByIds(list.stream()
+                        .map(it -> it.getInventory().getVariantId())
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(VariantResponse::getId, v -> v));
+        return list.stream().map(it ->
+                InventoryTransactionResponse.builder()
+                        .id(it.getId())
+                        .variant(Optional.ofNullable(variantMap.get(it.getInventory().getVariantId())))
+                        .warehouse(it.getInventory().getWarehouse())
+                        .code(it.getCode())
+                        .transactionType(it.getTransactionType())
+                        .quantity(it.getQuantity())
+                        .pricePerItem(it.getPricePerItem())
+                        .note(it.getNote())
+                        .referenceType(it.getReferenceType())
+                        .referenceCode(it.getReferenceCode())
+                        .status(it.getStatus())
+                        .createdBy(it.getCreatedBy())
+                        .updatedBy(it.getUpdatedBy())
+                        .createdAt(it.getCreatedAt())
+                        .updatedAt(it.getUpdatedAt())
+                        .build()
+        ).toList();
     }
 
     public List<InventoryResponseForVariant> getInventoriesByVariantIds(List<Long> variantIds) {
@@ -751,26 +751,26 @@ public class InventoryService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Inventory> inventories = inventoryRepository.findAllOrderByAvailableStock(pageable);
 
-        Map<Long, Object> variantMap = new HashMap<>();
-        List<InventoryResponse> responses = inventories.getContent().stream().map(i -> {
-            Object variant = variantMap.computeIfAbsent(i.getVariantId(), id -> {
-                try {
-                    return productServiceClient.getProductVariantFromInternal(id);
-                } catch (Exception e) {
-                    return "Error";
-                }
-            });
-            return new InventoryResponse(
-                    i.getId(),
-                    variant,
-                    i.getWarehouse(),
-                    i.getQuantity(),
-                    i.getReservedQuantity(),
-                    i.isActive(),
-                    i.getCreatedAt(),
-                    i.getUpdatedAt()
-            );
-        }).toList();
+        Map<Long, VariantResponse> variantMap = productServiceClient
+                .getVariantsByIds(inventories.getContent().stream()
+                        .map(Inventory::getVariantId)
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(VariantResponse::getId, v -> v));
+
+        List<InventoryResponse> responses = inventories.getContent().stream()
+                .map(i -> new InventoryResponse(
+                        i.getId(),
+                        Optional.ofNullable(variantMap.get(i.getVariantId())),
+                        i.getWarehouse(),
+                        i.getQuantity(),
+                        i.getReservedQuantity(),
+                        i.isActive(),
+                        i.getCreatedAt(),
+                        i.getUpdatedAt()
+                ))
+                .toList();
+
         return new PageImpl<>(responses, pageable, inventories.getTotalElements());
     }
 }

@@ -113,9 +113,9 @@ export default function HomePage() {
       return;
     }
     // console.log(res.data)
-    // setCategories(res.data.content);
+    setCategories(res.data.content);
     setIsLoadingCategories(false);
-    setCategories(Array(5).fill(res.data.content).flat());
+    // setCategories(Array(5).fill(res.data.content).flat());
   };
 
   const handleBrands = async () => {
@@ -128,8 +128,8 @@ export default function HomePage() {
       return;
     }
     setIsLoadingBrands(false);
-    // setBrands(res.data.content);
-    setBrands(Array(5).fill(res.data.content).flat());
+    setBrands(res.data.content);
+    // setBrands(Array(5).fill(res.data.content).flat());
 
   };
   const scrollNextDiscount = () => {
@@ -156,12 +156,12 @@ export default function HomePage() {
   const scrollNextBrands = () => {
     const container = brandsRef.current;
     if (!container) return;
-    container.scrollBy({ left: container.firstChild.offsetWidth + 24, behavior: "smooth" });
+    container.scrollBy({ left: container.firstChild.offsetWidth + 26, behavior: "smooth" });
   };
   const scrollPrevBrands = () => {
     const container = brandsRef.current;
     if (!container) return;
-    container.scrollBy({ left: -(container.firstChild.offsetWidth + 24), behavior: "smooth" });
+    container.scrollBy({ left: -(container.firstChild.offsetWidth + 26), behavior: "smooth" });
   };
   useEffect(() => {
     const refs = [categoriesRef, brandsRef, discountRef];
@@ -335,9 +335,9 @@ export default function HomePage() {
                   ref={categoriesRef}
                   className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth"
                 >
-                  {categories && categories.map((cat) => (
+                  {categories && categories.map((cat, idx) => (
                     <a
-                      key={cat.id}
+                      key={`category-${cat.id}-${idx}`}
                       href={`search?categories=${cat.slug}`}
                       className="group py-4"
                     >
@@ -408,21 +408,23 @@ export default function HomePage() {
                 ref={discountRef}
                 className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
               >
-                {discountProducts && discountProducts.map((product) => (
+                {discountProducts && discountProducts.map((product, idx) => (
                   <div
+                    key={`discount-${product.id}-${idx}`}
                     className="flex-shrink-0 pb-12 overflow-visible"
                     style={{
                       width: `calc((100% - 5 * 1.5rem) / 6)`
                     }}
                   >
                     <ProductCard
-                      key={product.id}
                       product={product}
                       preferDiscounted={true}
                       priceRange={emptyRange}
                     />
                   </div>
                 ))}
+
+
               </div>
             )}
           </div>
@@ -481,7 +483,7 @@ export default function HomePage() {
               ))}
             </div>
             <Link
-              to={activeTab==="new"?"/search?":activeTab==="hot"?"/search?sort=sold":"/search?sort=featured"}
+              to={activeTab === "new" ? "/search?" : activeTab === "hot" ? "/search?sort=sold" : "/search?sort=featured"}
               className="text-blue-600 mb-8 font-semibold hover:text-blue-700 transition flex items-center gap-2 group"
             >
               Xem tất cả
@@ -502,9 +504,9 @@ export default function HomePage() {
               : activeTab === "hot"
                 ? hotProducts
                 : featuredProducts
-            ).map((product) => (
+            ).map((product, idx) => (
               <ProductCard
-                key={product.id}
+                key={`tab-${product.id}-${idx}`}
                 product={product}
                 priceRange={emptyRange}
               />
@@ -551,19 +553,20 @@ export default function HomePage() {
               ) : (
                 <div
                   ref={brandsRef}
-                  className="flex overflow-x-auto scroll-smooth gap-6 py-12 scrollbar-hide"
+                  className="flex overflow-x-auto scroll-smooth gap-3 py-12 scrollbar-hide"
                 >
                   {brands && brands.map((b) => (
                     <div
                       key={b.id}
                       className="flex-shrink-0 w-72 bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
                     >
-                      <div className="h-48 overflow-hidden bg-gray-100">
+                      <div className="h-48 overflow-hidden bg-white">
                         <img
                           src={b.imageUrl}
                           alt={b.name}
-                          className="w-full h-full object-cover bg-white transform transition-transform duration-500 hover:scale-110"
+                          className="h-full w-auto max-w-full object-cover transform transition-transform duration-500 hover:scale-110 mx-auto"
                         />
+
                       </div>
                       <div className="p-6">
                         <h3 className="text-xl font-bold text-gray-900 mb-2">{b.name}</h3>

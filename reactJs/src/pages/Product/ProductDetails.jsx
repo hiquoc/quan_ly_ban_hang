@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate, NavLink } from "react-router-dom";
 import { createProductReview, deleteProductReview, getActiveProductDetails, getProductDetails, getProductReviews, getRandomActiveProductByCategory, updateProductReview } from "../../apis/productApi";
-import { FiSettings, FiShoppingCart, FiCreditCard,
+import {
+    FiSettings, FiShoppingCart, FiCreditCard,
     FiChevronDown, FiChevronUp, FiX, FiEdit, FiCpu, FiHardDrive, FiDroplet, FiBox,
     FiMonitor, FiBattery, FiZap, FiWifi, FiCamera,
     FiPackage, FiShield, FiTrendingUp, FiLayers,
@@ -474,27 +475,41 @@ export default function ProductDetails() {
                                         return pa - pb;
                                     })
                                     : [...values];
-
                                 return (
                                     <div key={attrName} className="flex">
-                                        <p className="font-semibold mb-2">{attrName}:</p>
+                                        <p className="font-semibold mb-2 w-15">{attrName}:</p>
                                         <div className="flex gap-2 flex-wrap ml-5 -mt-2">
                                             {sortedValues.map((value) => {
                                                 const isColor = attrName.toLowerCase().includes("màu");
                                                 const selected = selectedAttributes[attrName] === value;
 
+                                                const variantWithColor = isColor
+                                                    ? allVariants.find(v => v.attributes[attrName] === value)
+                                                    : null;
+                                                const variantImage = variantWithColor?.imageUrls?.main || "";
                                                 return (
                                                     <button
                                                         key={value}
                                                         className={`transition-all duration-150 hover:cursor-pointer ${isColor
-                                                            ? `w-10 h-10 rounded-full border-2 ${selected ? "border-gray-700" : "border-gray-300"} hover:scale-105`
-                                                            : `px-6 py-2 rounded border text-base font-medium ${selected ? "border-black text-black" : " text-gray-500 border-gray-300 hover:bg-gray-50 "} hover:scale-105`
+                                                                ? `flex items-center gap-2 px-3 py-2 rounded border bg-white ${selected ? "border-black" : "border-gray-300"
+                                                                } hover:scale-105`
+                                                                : `px-6 py-2 rounded border text-base font-medium ${selected ? "border-black text-black" : "text-gray-500 border-gray-300 hover:bg-gray-50"
+                                                                } hover:scale-105`
                                                             }`}
-                                                        style={isColor ? { backgroundColor: ColorMap[value] || "#ccc" } : {}}
                                                         onClick={() => handleAttributeSelect(attrName, value)}
-                                                        title={isColor ? value : ""}
                                                     >
-                                                        {!isColor && value}
+                                                        {isColor ? (
+                                                            <>
+                                                                <img
+                                                                    src={variantImage}
+                                                                    alt={value}
+                                                                    className="w-7 h-7 object-cover rounded"
+                                                                />
+                                                                <span className="text-sm font-medium">{value}</span>
+                                                            </>
+                                                        ) : (
+                                                            value
+                                                        )}
                                                     </button>
                                                 );
                                             })}

@@ -13,6 +13,8 @@ export default function WarehouseManager() {
   const [editingWarehouseId, setEditingWarehouseId] = useState(null);
   const [readOnly, setReadOnly] = useState(false);
   const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [searchText, setSearchText] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -28,25 +30,31 @@ export default function WarehouseManager() {
   }, [form.name]);
 
   const loadWarehouses = async () => {
+    setIsLoading(true);
     const res = await getAllWarehouses();
     if (res.error) {
       console.error(res.error);
       setWarehouses([]);
       setPopup({ message: "Có lỗi khi lấy dữ liệu kho!", type: "error" });
+      setIsLoading(false);
       return;
     }
     setWarehouses(res.data);
+    setIsLoading(false);
   };
 
   const handleCreateWarehouse = async () => {
+    setIsProcessing(true);
     const res = await createWarehouse(form.name, form.code, form.address, form.description);
     if (res.error) {
       setPopup({ message: res.error, type: "error" });
+      setIsProcessing(false);
       return;
     }
     setWarehouses(prev => [...prev, res.data]);
     setPopup({ message: res.message || "Tạo kho thành công!", type: "success" });
     closeAndResetForm();
+    setIsProcessing(false);
   };
 
   const handleUpdateWarehouse = async () => {
@@ -158,45 +166,74 @@ export default function WarehouseManager() {
             </tr>
           </thead>
           <tbody className="bg-white text-gray-700">
-            {filteredWarehouses.length > 0 ? (
-              filteredWarehouses.map(w => (
-                <tr key={w.id} className="hover:bg-gray-50 transition">
-                  <td className="p-4 text-center border-b border-gray-200">{w.id}</td>
-                  <td className="p-4 text-center border-b border-gray-200">{w.name}</td>
-                  <td className="p-4 text-center border-b border-gray-200">{w.code || "-"}</td>
-                  <td className="p-4 text-center border-b border-gray-200">{w.address || "-"}</td>
-                  <td className="p-4 text-center border-b border-gray-200 max-w-[200px] truncate overflow-hidden whitespace-nowrap">
-                    {w.description}
-                  </td>
-                  <td className="p-4 text-center border-b border-gray-200">
-                    <div className="inline-flex gap-2">
-                      <button
-                        className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
-                        onClick={() => {
-                          setForm(w);
-                          setEditingWarehouseId(w.id);
-                          setShowForm(true);
-                        }}
-                      >
-                        <FiEye></FiEye>
-                      </button>
-                      <button
-                        className="p-2 text-red-600 hover:bg-red-100 rounded transition"
-                        onClick={() => toggleWarehouseDelete(w.id, w.name)}
-                      >
-                        <FiTrash2></FiTrash2>
-                      </button>
-                    </div>
-                  </td>
-
-                </tr>
-              ))
-            ) : (
+            {isLoading ? (
+              <tr>
+                <td colSpan={7} className="p-4 text-gray-500 text-center align-middle">
+                  <div className="inline-flex gap-2 items-center justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                    Đang tải dữ liệu...
+                  </div>
+                </td>
+              </tr>
+            ) : (filteredWarehouses.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center p-6 text-gray-500">
                   Không có kho phù hợp
                 </td>
               </tr>
+            ) :
+              (
+                filteredWarehouses.map(w => (
+                  <tr key={w.id} className="hover:bg-gray-50 transition">
+                    <td className="p-4 text-center border-b border-gray-200">{w.id}</td>
+                    <td className="p-4 text-center border-b border-gray-200">{w.name}</td>
+                    <td className="p-4 text-center border-b border-gray-200">{w.code || "-"}</td>
+                    <td className="p-4 text-center border-b border-gray-200">{w.address || "-"}</td>
+                    <td className="p-4 text-center border-b border-gray-200 max-w-[200px] truncate overflow-hidden whitespace-nowrap">
+                      {w.description}
+                    </td>
+                    <td className="p-4 text-center border-b border-gray-200">
+                      <div className="inline-flex gap-2">
+                        <button
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
+                          onClick={() => {
+                            setForm(w);
+                            setEditingWarehouseId(w.id);
+                            setShowForm(true);
+                          }}
+                        >
+                          <FiEye></FiEye>
+                        </button>
+                        <button
+                          className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                          onClick={() => toggleWarehouseDelete(w.id, w.name)}
+                        >
+                          <FiTrash2></FiTrash2>
+                        </button>
+                      </div>
+                    </td>
+
+                  </tr>
+                )))
             )}
           </tbody>
         </table>
@@ -209,7 +246,33 @@ export default function WarehouseManager() {
             <h3 className="text-lg font-semibold mb-4">
               {editingWarehouseId ? "Thông tin kho" : "Thêm kho"}
             </h3>
-
+            {isProcessing && (
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                  <svg
+                    className="animate-spin h-5 w-5 text-gray-700"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                  <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-3">
 
               <div className="flex flex-col gap-1">

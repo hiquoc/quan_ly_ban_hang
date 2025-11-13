@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-
 export default function SearchableSelect({
     options = [],
     value,
@@ -7,24 +6,20 @@ export default function SearchableSelect({
     placeholder,
     disabled,
     filterOutValues = [],
-    onInputChange 
+    onInputChange
 }) {
     const [search, setSearch] = useState("");
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef(null);
-
+    const timeoutRef = useRef(null);
     const safeOptions = options || [];
-
     const visibleOptions = safeOptions.filter(
         o => !filterOutValues.includes(String(o.value ?? o.id))
     );
-
     const selectedOption = visibleOptions.find(o => String(o.value ?? o.id) === String(value));
-
     const filteredOptions = visibleOptions.filter(o =>
         (o.label ?? o.name ?? "").toLowerCase().includes(search.toLowerCase())
     );
-
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (ref.current && !ref.current.contains(event.target)) {
@@ -37,9 +32,18 @@ export default function SearchableSelect({
 
     const handleInputChange = (e) => {
         const val = e.target.value;
-        setSearch(val);
-        if (onInputChange) onInputChange(val); // notify parent
+        setValue(val);
+
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+        timeoutRef.current = setTimeout(() => {
+            onInputChange(val);
+        }, 1000);
     };
+
+    useEffect(() => {
+        return () => clearTimeout(timeoutRef.current);
+    }, []);
 
     return (
         <div ref={ref} className="relative w-full">
@@ -50,7 +54,7 @@ export default function SearchableSelect({
                 onChange={handleInputChange}
                 onFocus={() => setIsOpen(true)}
                 disabled={disabled}
-                className={`border p-2 rounded w-full ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                className={`border p-3 rounded w-full ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
             />
             {isOpen && !disabled && (
                 <ul className="absolute z-10 bg-white border rounded shadow-md w-full max-h-48 overflow-y-auto mt-1">
@@ -59,10 +63,11 @@ export default function SearchableSelect({
                             <li
                                 key={o.value ?? o.id}
                                 className={`p-2 hover:bg-blue-100 cursor-pointer ${String(o.value ?? o.id) === String(value) ? "bg-blue-50" : ""}`}
-                                onClick={() => {
-                                    onChange(o.value ?? o.id);
+                                onMouseDown={(e) => {
+                                    e.stopPropagation();
                                     setSearch("");
                                     setIsOpen(false);
+                                    onChange(o.value ?? o.id);
                                 }}
                             >
                                 {o.label ?? o.name}

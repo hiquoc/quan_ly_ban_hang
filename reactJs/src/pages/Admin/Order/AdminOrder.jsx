@@ -38,15 +38,21 @@ function AdminOrder() {
     });
     const [confirmNotes, setConfirmNotes] = useState("");
     const [isProcessing, setIsProcessing] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
 
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
     const getData = async (page = currentPage) => {
+        setIsLoading(true);
         const res = await getAllOrders(page, 20, sortStatus, keyword, startDate, endDate);
-        if (res.error) return showPopup(res.error);
-        console.log(res.data)
+        if (res.error){
+            setIsLoading(false);
+            return showPopup(res.error);
+        } 
+        // console.log(res.data)
         setOrders(res.data.content || []);
         setTotalPages(res.data.totalPages || 1);
+        setIsLoading(false);
     };
 
     useEffect(() => { getData(); }, [currentPage, sortStatus, startDate, endDate]);
@@ -218,7 +224,35 @@ function AdminOrder() {
                             </tr>
                         </thead>
                         <tbody className="bg-white">
-                            {orders.length === 0 ? (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={7} className="p-4 text-gray-500 text-center align-middle">
+                                        <div className="inline-flex gap-2 items-center justify-center">
+                                            <svg
+                                                className="animate-spin h-5 w-5 text-black"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    className="opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    strokeWidth="4"
+                                                ></circle>
+                                                <path
+                                                    className="opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                                ></path>
+                                            </svg>
+                                            Đang tải dữ liệu...
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (orders.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="p-3 text-center text-gray-500">
                                         Không tìm thấy đơn hàng
@@ -342,8 +376,9 @@ function AdminOrder() {
                                             </button>
                                         </td>
                                     </tr>
+
                                 ))
-                            )}
+                            ))}
                         </tbody>
                     </table>
 
@@ -542,13 +577,40 @@ function AdminOrder() {
                             setConfirmNotes("");
                         }}
                     >
+                        {isProcessing && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                                    <svg
+                                        className="animate-spin h-5 w-5 text-gray-700"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                        ></path>
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                                </div>
+                            </div>
+                        )}
                         <div
                             className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md relative"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Close Button */}
                             <button
-                                disabled={isProcessing}
+
                                 className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 font-bold text-2xl"
                                 onClick={() => {
                                     setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
@@ -568,7 +630,7 @@ function AdminOrder() {
                                 </span>.
                             </p>
                             <textarea
-                                disabled={isProcessing}
+
                                 placeholder="Ghi chú (tùy chọn)..."
                                 value={confirmNotes}
                                 onChange={(e) => setConfirmNotes(e.target.value)}
@@ -577,7 +639,7 @@ function AdminOrder() {
                             />
                             <div className="flex justify-end gap-2">
                                 <button
-                                    disabled={isProcessing}
+
                                     className={`px-4 py-2 rounded border hover:bg-gray-100 ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
                                     onClick={() => {
                                         setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
@@ -616,37 +678,16 @@ function AdminOrder() {
                                                         : order
                                                 )
                                             );
-                                            setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
                                             setEditingOrderId(null);
-                                        }finally{
-                                            setIsProcessing(false)
                                         }
-                                        
-                                    }}
-                                > {isProcessing && (
-                                    <svg
-                                        className="animate-spin h-5 w-5 text-white"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                        ></circle>
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                        ></path>
-                                    </svg>
-                                )}
-                                    {isProcessing ? "Đang xử lý..." : "Xác nhận"}
+                                        finally {
+                                            setIsProcessing(false);
+                                            setConfirmStatusPanel({ ...confirmStatusPanel, visible: false });
+                                        }
 
+                                    }}
+                                >
+                                    Xác nhận
                                 </button>
                             </div>
                         </div>

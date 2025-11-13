@@ -14,6 +14,8 @@ export default function SupplierManager() {
     const [editingSupplierId, setEditingSupplierId] = useState(null);
     const [readOnly, setReadOnly] = useState(false);
     const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const [searchText, setSearchText] = useState("");
     const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -31,26 +33,32 @@ export default function SupplierManager() {
     }, [form.name]);
 
     const loadSuppliers = async () => {
+        setIsLoading(true);
         const res = await getAllSuppliers();
         if (res.error) {
             console.error(res.error);
             setSuppliers([]);
             setPopup({ message: "Có lỗi khi lấy dữ liệu nhà cung cấp!", type: "error" });
+            setIsLoading(false);
             return;
         }
         setSuppliers(res.data);
+        setIsLoading(false);
     };
 
     const handleCreateSupplier = async () => {
+        setIsProcessing(true);
         const res = await createSupplier(form.name, form.code, form.phone, form.email,
             form.address, form.taxCode, form.description);
         if (res.error) {
             setPopup({ message: res.error, type: "error" });
+            setIsProcessing(false);
             return;
         }
         setPopup({ message: res.message || "Tạo nhà cung cấp thành công!", type: "success" });
         setSuppliers(prev => [...prev, res.data]);
         closeAndResetForm();
+        setIsProcessing(false);
     };
 
     const handleUpdateSupplier = async () => {
@@ -157,8 +165,42 @@ export default function SupplierManager() {
                         </tr>
                     </thead>
                     <tbody className="bg-white text-gray-700">
-                        {filteredSuppliers.length > 0 ? (
-                            filteredSuppliers.map(s => (
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={7} className="p-4 text-gray-500 text-center align-middle">
+                                    <div className="inline-flex gap-2 items-center justify-center">
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-black"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                            ></path>
+                                        </svg>
+                                        Đang tải dữ liệu...
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (filteredSuppliers.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="text-center p-6 text-gray-500">
+                                    Không có nhà cung cấp phù hợp
+                                </td>
+                            </tr>
+                        ) :
+                            (filteredSuppliers.map(s => (
                                 <tr key={s.id} className="hover:bg-gray-50 transition">
                                     <td className="p-4 text-center border-b border-gray-200">{s.id}</td>
                                     <td className="p-4 text-center border-b border-gray-200">{s.name}</td>
@@ -191,13 +233,7 @@ export default function SupplierManager() {
                                     </td>
 
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={6} className="text-center p-6 text-gray-500">
-                                    Không có nhà cung cấp phù hợp
-                                </td>
-                            </tr>
+                            )))
                         )}
                     </tbody>
                 </table>
@@ -210,7 +246,33 @@ export default function SupplierManager() {
                         <h3 className="text-lg font-semibold mb-4">
                             {editingSupplierId ? "Thông tin nhà cung cấp" : "Thêm nhà cung cấp"}
                         </h3>
-
+                        {isProcessing && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                                    <svg
+                                        className="animate-spin h-5 w-5 text-gray-700"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                        ></path>
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                                </div>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 gap-3">
 
                             <div className="flex flex-col gap-1">

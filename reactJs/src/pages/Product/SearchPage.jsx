@@ -357,12 +357,12 @@ export default function SearchPage() {
 
                     {/* Product list */}
                     <div className="flex-1">
-                        <div className="flex items-center justify-between mb-6 pb-4 border-b">
+                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-600">
                             <span className="text-gray-700 font-semibold text-sm">
                                 <span className="text-black font-bold">{totalProducts}</span> sản phẩm
                             </span>
                             <select
-                                className="border border-gray-300 py-2 px-4 rounded-lg text-sm focus:ring-2 focus:ring-black focus:border-black focus:outline-none transition-all cursor-pointer bg-white"
+                                className="border border-gray-300 py-2 px-4 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-black focus:outline-none transition-all cursor-pointer bg-white"
                                 value={sort}
                                 onChange={(e) => setSort(e.target.value)}
                             >

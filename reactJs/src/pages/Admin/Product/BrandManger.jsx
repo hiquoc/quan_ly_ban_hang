@@ -18,6 +18,7 @@ export default function BrandManager() {
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
     const [editingBrandId, setEditingBrandId] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
 
     const [searchText, setSearchText] = useState("");
 
@@ -33,16 +34,19 @@ export default function BrandManager() {
     }, [form.name]);
 
     const handleLoadBrands = async (currentPage = page, newStatus = status, newFeatured = featured) => {
+        setIsLoading(true);
         const res = await getAllBrands(currentPage, 10, searchText, newStatus, newFeatured);
         if (res.error) {
             console.error(res.error);
             setBrands([]);
             showPopup("Có lỗi khi lấy dữ liệu thương hiệu!");
+            setIsLoading(false);
             return;
         }
         setBrands(res.data.content);
         setPage(currentPage);
         setTotalPages(res.data.totalPages);
+        setIsLoading(false);
     };
 
     const handleCreateBrand = async () => {
@@ -85,7 +89,7 @@ export default function BrandManager() {
     const handleChangeBrandActive = async (id) => {
         const response = await changeBrandActive(id);
         if (response?.error) {
-            showPopup(response.erro);
+            showPopup(response.error);
             return;
         }
         showPopup(response.message || "Cập nhật trạng thái thành công!", "success");
@@ -249,7 +253,39 @@ export default function BrandManager() {
                         </tr>
                     </thead>
                     <tbody className="bg-white">
-                        {brands.map(b => (
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={7} className="p-4 text-gray-500 text-center align-middle">
+                                    <div className="inline-flex gap-2 items-center justify-center">
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-black"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                            ></path>
+                                        </svg>
+                                        Đang tải dữ liệu...
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (brands.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="text-center p-4 text-gray-500">Không có thương hiệu phù hợp</td>
+                            </tr>
+                        ) : (brands.map(b => (
                             <tr key={b.id} className="hover:bg-gray-50 transition">
                                 <td className="p-3 border-b border-gray-200 text-center">{b.imageUrl ? <img src={b.imageUrl} alt={b.name} className="w-16 h-16 object-cover mx-auto rounded" /> : "-"}</td>
                                 <td className="p-3 border-b border-gray-200 text-center">{b.name}</td>
@@ -297,11 +333,7 @@ export default function BrandManager() {
                                 </td>
 
                             </tr>
-                        ))}
-                        {brands.length === 0 && (
-                            <tr>
-                                <td colSpan={7} className="text-center p-4 text-gray-500">Không có thương hiệu phù hợp</td>
-                            </tr>
+                        )))
                         )}
                     </tbody>
                 </table>
@@ -347,6 +379,33 @@ export default function BrandManager() {
                         <h3 className="text-3xl font-bold mb-5 text-black">
                             {editingBrandId ? "Cập nhật thương hiệu" : "Thêm thương hiệu"}
                         </h3>
+                        {isProcessing && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                                    <svg
+                                        className="animate-spin h-5 w-5 text-gray-700"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                        ></path>
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-3">
                             {/* Tên */}
@@ -428,7 +487,12 @@ export default function BrandManager() {
             <ConfirmPanel
                 visible={confirmPanel.visible}
                 message={confirmPanel.message}
-                onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); setConfirmPanel({ visible: false, message: "", onConfirm: null }); }}
+                onConfirm={async () => {
+                    if (confirmPanel.onConfirm) {
+                        await confirmPanel.onConfirm();
+                    }
+                    closeConfirmPanel();
+                }}
                 onCancel={closeConfirmPanel}
             />
         </div>

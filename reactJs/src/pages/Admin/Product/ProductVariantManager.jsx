@@ -17,7 +17,7 @@ import { FaChevronRight } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
 
 export default function ProductVariantManager() {
-    const navigate=useNavigate();
+    const navigate = useNavigate();
     const [variants, setVariants] = useState([]);
     const [products, setProducts] = useState([]);
     const [inventoryModal, setInventoryModal] = useState({
@@ -37,7 +37,7 @@ export default function ProductVariantManager() {
         sku: "",
         basePrice: "",
         discountPercent: 0,
-        importPrice:"",
+        importPrice: "",
     });
     const [attributesList, setAttributesList] = useState([]);
     const [images, setImages] = useState([]);
@@ -53,6 +53,7 @@ export default function ProductVariantManager() {
     const [productOptions, setProductOptions] = useState([]);
     const [productSearch, setProductSearch] = useState("");
 
+    const [isBasePriceFocused, setIsBasePriceFocused] = useState(false);
     const [isImportPriceFocused, setIsImportPriceFocused] = useState(false);
 
     const [page, setPage] = useState(0)
@@ -60,6 +61,7 @@ export default function ProductVariantManager() {
     const [totalPages, setTotalPages] = useState(0)
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSkuManuallyEdited, setIsSkuManuallyEdited] = useState(false)
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         handleLoadVariants();
@@ -89,31 +91,35 @@ export default function ProductVariantManager() {
     }, [productSearch]);
 
     const handleLoadVariants = async (searchPage = page) => {
-        const res = await getAllVariants({
-            page: searchPage, size, productId: filterProductId, keyword: searchKeyword, active: filterActive, status: filterStatus
-            , discount: filterDiscount, minPrice: filterMinPrice, maxPrice: filterMaxPrice
-        });
-        if (res.error) {
-            console.error(res.error);
-            setVariants([]);
-            setPopup({ message: "Có lỗi khi tải dữ liệu biến thể!", type: "error" });
-            return;
+        try {
+            setPage(searchPage)
+            setIsLoading(true);
+            const res = await getAllVariants({
+                page: searchPage, size, productId: filterProductId, keyword: searchKeyword, active: filterActive, status: filterStatus
+                , discount: filterDiscount, minPrice: filterMinPrice, maxPrice: filterMaxPrice
+            });
+            if (res.error) {
+                console.error(res.error);
+                setVariants([]);
+                setPopup({ message: "Có lỗi khi tải dữ liệu biến thể!", type: "error" });
+                return;
+            }
+            // console.log(res.data.content)
+            setVariants(res.data.content);
+            setTotalPages(res.data.totalPages)
         }
-        // console.log(res.data.content)
-        setVariants(res.data.content);
-        setPage(searchPage)
-        setTotalPages(res.data.totalPages)
+        finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleLoadProducts = async () => {
-        const res = await getAllProducts();
-        if (res.error) {
-            console.error(res.error);
-            setProducts([]);
-            setPopup({ message: "Có lỗi khi tải danh sách sản phẩm!", type: "error" });
-            return;
+    const handleLoadProducts = async (keyword = "") => {
+        const res = await getAllProducts(0, 5, keyword);
+        if (!res.error) {
+            setProducts(res.data.content || []);
+        } else {
+            setPopup({ message: res.error, type: "error" });
         }
-        setProducts(res.data.content || []);
     };
 
     const handleShowInventory = async (variantId) => {
@@ -135,10 +141,13 @@ export default function ProductVariantManager() {
         setAttributesList([{ id: crypto.randomUUID(), key: "Màu", value: "" }]);
         setImages([])
         setEditingVariantId(null);
+        handleLoadProducts();
         setShowForm(true);
     };
 
     const handleEditVariant = (v) => {
+        const firstWord = v.name?.split(" ")[0] || "";
+        handleLoadProducts(firstWord);
         setForm({
             productId: v.productId,
             name: v.name,
@@ -203,6 +212,7 @@ export default function ProductVariantManager() {
             if (res?.error) return setPopup({ message: res.error, type: "error" });
             setPopup({ message: "Cập nhật biến thể thành công!", type: "success" });
             setShowForm(false);
+            // setVariants(prev=> prev.map(v => v.id === editingVariantId ? res.data : v))
             handleLoadVariants();
         } finally {
             setIsSubmitting(false);
@@ -381,19 +391,17 @@ export default function ProductVariantManager() {
                             <div>
                                 <label className="text-sm font-medium mb-1 block">Sản phẩm</label>
                                 <SearchableSelect
-                                    options={productOptions}
+                                    options={products.map(p => ({ label: `${p.name}`, value: p.id }))}
                                     value={filterProductId}
-                                    onChange={(id) => setFilterProductId(id)}
-                                    placeholder="Tìm sản phẩm..."
-                                    disabled={false}
-                                    onInputChange={async (keyword) => {
-                                        if (!keyword) return;
-                                        const res = await getAllProducts(0, 5, keyword);
-                                        if (!res.error) {
-                                            setProductOptions(res.data.content.map(p => ({ label: p.name, value: p.id })));
-                                        }
+                                    placeholder="Chọn sản phẩm"
+                                    disabled={isSubmitting}
+                                    onChange={(selectedId) => {
+                                        setFilterProductId(selectedId);
                                     }}
+                                    onInputChange={(inputValue) => handleLoadProducts(inputValue)}
                                 />
+
+
                             </div>
 
                             <div>
@@ -477,55 +485,84 @@ export default function ProductVariantManager() {
                         </tr>
                     </thead>
                     <tbody className="bg-white">
-                        {variants.map(v => (
-                            <tr key={v.id} className="hover:bg-gray-50 transition">
-                                <td className="p-2 border-b border-gray-200 text-center">
-                                    <img src={v.imageUrls?.main} alt={v.name}
-                                     className="h-18 w-18 object-contain mx-auto rounded cursor-pointer"
-                                     onClick={()=>navigate(`/admin/product/${v.productSlug}?sku=${v.sku}`)} />
-                                </td>                                
-                                <td className="p-2 border-b border-gray-200 text-center">{v.name}</td>
-                                <td className="p-2 border-b border-gray-200 text-center">{v.sku}</td>
-
-                                <td className={`p-2 border-b border-gray-200 text-center ${v.discountPercent > 0 ? "text-red-500 font-semibold" : ""
-                                    }`}>
-                                    {v.sellingPrice?.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
-                                </td>
-                                <td className="p-2 border-b border-gray-200 text-center">{v.soldCount ?? 0}</td>
-                                <td className="p-2 border-b border-gray-200 text-center">
-                                    <button
-                                        className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
-                                            ${v.active ? "bg-green-500 text-white hover:bg-green-400"
-                                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                            }`}
-                                        onClick={() => toggleVariantActive(v.id, v.active, v.name)}
-                                    >
-                                        {v.active ? "Hoạt động" : "Đã khóa"}
-                                    </button>
-                                    <button
-                                        className={`ml-1 px-3 py-1 rounded-full text-sm ${v.status === "AVAILABLE" ? "bg-green-500 text-white hover:bg-green-400" : (v.status === "OUT_OF_STOCK" ? "bg-red-500 text-white hover:bg-red-400" : "bg-yellow-400 text-white hover:bg-yellow-300")}`}
-                                        onClick={() => handleShowInventory(v.id)}
-                                    >
-                                        {v.status === "AVAILABLE" ? "Còn hàng" : (v.status === "OUT_OF_STOCK" ? "Hết hàng" : "Sắp hết")}
-                                    </button>
-
-                                </td>
-                                <td className="p-2 border-b border-gray-200 text-center">
-                                    <button className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
-                                        onClick={() => handleEditVariant(v)}>
-                                        <FiEye></FiEye>
-                                    </button>
-                                    <button className="p-2 text-red-600 hover:bg-red-100 rounded transition"
-                                        onClick={() => handleDeleteVariant(v.id, v.name)}>
-                                        <FiTrash2></FiTrash2></button>
-                                </td>
-
-                            </tr>
-                        ))}
-                        {variants.length === 0 && (
+                        {isLoading ? (
                             <tr>
-                                <td colSpan={9} className="text-center p-4 text-gray-500">Không có biến thể phù hợp</td>
+                                <td colSpan={9} className="p-4 text-gray-500 text-center align-middle">
+                                    <div className="inline-flex gap-2 items-center justify-center">
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-black"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                            ></path>
+                                        </svg>
+                                        Đang tải dữ liệu...
+                                    </div>
+                                </td>
+
                             </tr>
+                        ) : (
+                            variants.length === 0 ?
+                                (<tr>
+                                    <td colSpan={9} className="text-center p-4 text-gray-500">Không có biến thể phù hợp</td>
+                                </tr>) :
+                                (variants.map(v => (
+                                    <tr key={v.id} className="hover:bg-gray-50 transition">
+                                        <td className="p-2 border-b border-gray-200 text-center">
+                                            <img src={v.imageUrls?.main} alt={v.name}
+                                                className="h-18 w-18 object-contain mx-auto rounded cursor-pointer"
+                                                onClick={() => navigate(`/admin/product/${v.productSlug}?sku=${v.sku}`)} />
+                                        </td>
+                                        <td className="p-2 border-b border-gray-200 text-center">{v.name}</td>
+                                        <td className="p-2 border-b border-gray-200 text-center">{v.sku}</td>
+
+                                        <td className={`p-2 border-b border-gray-200 text-center ${v.discountPercent > 0 ? "text-red-500 font-semibold" : ""
+                                            }`}>
+                                            {v.sellingPrice?.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
+                                        </td>
+                                        <td className="p-2 border-b border-gray-200 text-center">{v.soldCount ?? 0}</td>
+                                        <td className="p-2 border-b border-gray-200 text-center">
+                                            <button
+                                                className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
+                                            ${v.active ? "bg-green-500 text-white hover:bg-green-400"
+                                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                                    }`}
+                                                onClick={() => toggleVariantActive(v.id, v.active, v.name)}
+                                            >
+                                                {v.active ? "Hoạt động" : "Đã khóa"}
+                                            </button>
+                                            <button
+                                                className={`ml-1 px-3 py-1 rounded-full text-sm ${v.status === "AVAILABLE" ? "bg-green-500 text-white hover:bg-green-400" : (v.status === "OUT_OF_STOCK" ? "bg-red-500 text-white hover:bg-red-400" : "bg-yellow-400 text-white hover:bg-yellow-300")}`}
+                                                onClick={() => handleShowInventory(v.id)}
+                                            >
+                                                {v.status === "AVAILABLE" ? "Còn hàng" : (v.status === "OUT_OF_STOCK" ? "Hết hàng" : "Sắp hết")}
+                                            </button>
+
+                                        </td>
+                                        <td className="p-2 border-b border-gray-200 text-center">
+                                            <button className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
+                                                onClick={() => handleEditVariant(v)}>
+                                                <FiEye></FiEye>
+                                            </button>
+                                            <button className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                                                onClick={() => handleDeleteVariant(v.id, v.name)}>
+                                                <FiTrash2></FiTrash2></button>
+                                        </td>
+                                    </tr>)
+                                ))
                         )}
                     </tbody>
                 </table>
@@ -567,52 +604,71 @@ export default function ProductVariantManager() {
                 </div>
             )}
             {showForm && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 overflow-y-auto p-4">
+                <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
                     <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] my-10 relative">
-                        <h3 className="text-3xl font-bold mb-5 text-black">
+                        <h3 className="text-3xl font-bold mb-3 text-black">
                             {editingVariantId ? "Chỉnh sửa biến thể" : "Thêm biến thể"}
                         </h3>
-
-                        <div className="grid grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto">
+                        {isSubmitting && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                                    <svg
+                                        className="animate-spin h-5 w-5 text-gray-700"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                        ></path>
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                                </div>
+                            </div>
+                        )}
+                        <div className="p-1 grid grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto">
                             {/* LEFT COLUMN */}
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {/* Sản phẩm */}
                                 <label className="flex flex-col">
                                     <span className="text-gray-700 font-semibold mb-2 text-black">Sản phẩm</span>
-                                    <select
-                                        disabled={isSubmitting}
+                                    <SearchableSelect
+                                        options={products.map(p => ({ label: `${p.name}`, value: p.id }))}
                                         value={form.productId}
-                                        onChange={(e) => {
-                                            const selectedId = Number(e.target.value);
-                                            const selectedProduct = products.find((p) => p.id === selectedId);
+                                        onChange={id => {
+                                            const selectedProduct = products.find((p) => p.id === id);
                                             setForm({
                                                 ...form,
-                                                productId: selectedId,
-                                                name: selectedProduct?.name || "",
+                                                productId: id,
+                                                name: selectedProduct?.name || form.productName,
                                             });
                                         }}
-                                        className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
-                                    >
-                                        <option value="">Chọn sản phẩm</option>
-                                        {products.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        placeholder="Tìm hoặc chọn sản phẩm..."
 
+                                        onInputChange={(keyword) => handleLoadProducts(keyword)}
+                                    />
                                 </label>
 
                                 {/* Tên biến thể */}
                                 <label className="flex flex-col">
                                     <span className="text-gray-700 font-semibold mb-2 text-black">Tên biến thể</span>
                                     <input
-                                        disabled={isSubmitting}
+
                                         type="text"
                                         placeholder="Nhập tên biến thể"
                                         value={form.name}
                                         onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                        className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                                        className={`border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all `}
                                     />
                                 </label>
 
@@ -620,7 +676,7 @@ export default function ProductVariantManager() {
                                 <label className="flex flex-col">
                                     <span className="text-gray-700 font-semibold mb-2 text-black">SKU</span>
                                     <input
-                                        disabled={isSubmitting}
+
                                         type="text"
                                         placeholder="Nhập SKU"
                                         value={form.sku}
@@ -628,7 +684,7 @@ export default function ProductVariantManager() {
                                             setForm({ ...form, sku: e.target.value });
                                             setIsSkuManuallyEdited(true)
                                         }}
-                                        className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                                        className={`border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all `}
                                     />
                                 </label>
 
@@ -639,27 +695,35 @@ export default function ProductVariantManager() {
                                         <label className="flex flex-col">
                                             <span className="text-gray-700 font-semibold mb-2 text-black">Giá gốc</span>
                                             <input
-                                                disabled={isSubmitting}
-                                                type="number"
+                                                type="text"
                                                 placeholder="Nhập giá gốc"
-                                                value={form.basePrice}
+                                                value={
+                                                    isBasePriceFocused
+                                                        ? form.basePrice ?? ""
+                                                        : form.basePrice
+                                                            ? form.basePrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
+                                                            : ""
+                                                }
+
+                                                onFocus={() => setIsBasePriceFocused(true)}
+                                                onBlur={() => setIsBasePriceFocused(false)}
                                                 onChange={(e) => {
-                                                    const basePrice = Number(e.target.value) || 0;
+                                                    const rawValue = Number(e.target.value.replace(/\D/g, "")) || 0;
                                                     const discount = Number(form.discountPercent) || 0;
                                                     setForm({
                                                         ...form,
-                                                        basePrice,
-                                                        sellingPrice: basePrice * (1 - discount / 100),
+                                                        basePrice: rawValue,
+                                                        sellingPrice: rawValue * (1 - discount / 100),
                                                     });
                                                 }}
-                                                className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                                                className={`border p-3 rounded text-black focus:outline-none focus:ring focus:ring-gray-700 transition-all ${isSubmitting ? "bg-gray-100 cursor-not-allowed" : " "}`}
                                             />
                                         </label>
 
                                         <label className="flex flex-col">
                                             <span className="text-gray-700 font-semibold mb-2 text-black">Giảm giá (%)</span>
                                             <input
-                                                disabled={isSubmitting}
+
                                                 type="number"
                                                 placeholder="Nhập giảm giá %"
                                                 value={form.discountPercent}
@@ -672,7 +736,7 @@ export default function ProductVariantManager() {
                                                         sellingPrice: basePrice * (1 - discount / 100),
                                                     });
                                                 }}
-                                                className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                                                className={`border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all `}
                                             />
                                         </label>
 
@@ -698,14 +762,14 @@ export default function ProductVariantManager() {
                                                             ? form.importPrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
                                                             : ""
                                                 }
-                                                disabled={isSubmitting}
+
                                                 onFocus={() => setIsImportPriceFocused(true)}
                                                 onBlur={() => setIsImportPriceFocused(false)}
                                                 onChange={(e) => {
                                                     const rawValue = Number(e.target.value.replace(/\D/g, "")) || 0;
                                                     setForm({ ...form, importPrice: rawValue });
                                                 }}
-                                                className={`border p-3 rounded text-black ${isImportPriceFocused?"":"bg-gray-100 "}`}
+                                                className={`border p-3 rounded text-black focus:outline-none focus:ring focus:ring-gray-700 transition-all ${isImportPriceFocused ? "" : "bg-gray-100 "}`}
                                             />
                                         </label>
 
@@ -727,30 +791,30 @@ export default function ProductVariantManager() {
                                 {/* Đặc điểm */}
                                 <div className="border p-5 rounded">
                                     <h4 className="font-semibold mb-4 text-black text-lg">Đặc điểm</h4>
-                                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                                    <div className="space-y-3 max-h-64">
                                         {attributesList.map(attr => (
                                             <div key={attr.id} className="flex gap-2">
                                                 <input
-                                                    disabled={isSubmitting}
+
                                                     type="text"
                                                     placeholder="Đặc tính"
                                                     value={attr.key}
                                                     onChange={e => updateAttributeKey(attr.id, e.target.value)}
-                                                    className="bg-white border p-2 rounded text-black placeholder-gray-400 flex-1 focus:outline-none text-sm"
+                                                    className={`border p-2 rounded text-black placeholder-gray-400 flex-1 focus:outline-none text-sm `}
                                                 />
                                                 <input
-                                                    disabled={isSubmitting}
+
                                                     type="text"
                                                     placeholder="Giá trị"
                                                     value={attr.value}
                                                     onChange={e => updateAttributeValue(attr.id, e.target.value)}
-                                                    className="bg-white border p-2 rounded text-black placeholder-gray-400 flex-1 focus:outline-none text-sm"
+                                                    className={`border p-2 rounded text-black placeholder-gray-400 flex-1 focus:outline-none text-sm `}
                                                 />
                                                 <button
-                                                    disabled={isSubmitting}
+
                                                     type="button"
                                                     onClick={() => removeAttribute(attr.id)}
-                                                    className="px-3 bg-rose-500 text-white rounded hover:bg-rose-600 cursor-pointer transition-colors font-medium text-sm"
+                                                    className={`px-3 bg-rose-500 text-white rounded hover:bg-rose-600 cursor-pointer transition-colors font-medium text-sm }`}
                                                 >
                                                     Xóa
                                                 </button>
@@ -758,10 +822,10 @@ export default function ProductVariantManager() {
                                         ))}
                                     </div>
                                     <button
-                                        disabled={isSubmitting}
+
                                         type="button"
                                         onClick={addAttribute}
-                                        className="mt-3 px-4 py-2 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold w-full"
+                                        className={`mt-3 px-4 py-2 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold w-full }`}
                                     >
                                         + Thêm đặc điểm
                                     </button>
@@ -772,7 +836,7 @@ export default function ProductVariantManager() {
 
                                     {/* Upload multiple images */}
                                     <input
-                                        disabled={isSubmitting}
+
                                         key={images.length}
                                         type="file"
                                         accept="image/*"
@@ -789,7 +853,7 @@ export default function ProductVariantManager() {
                                                 <div className="flex justify-between items-center w-full mt-2">
                                                     <label className="flex items-center gap-1 text-sm cursor-pointer">
                                                         <input
-                                                            disabled={isSubmitting}
+
                                                             type="radio"
                                                             name="mainImage"
                                                             checked={img.isMain}
@@ -799,7 +863,7 @@ export default function ProductVariantManager() {
                                                         Ảnh chính
                                                     </label>
                                                     <button
-                                                        disabled={isSubmitting}
+
                                                         type="button"
                                                         onClick={() => removeImage(img.key)}
                                                         className="text-xs text-rose-600 hover:text-rose-700 font-semibold"
@@ -818,40 +882,17 @@ export default function ProductVariantManager() {
                         <div className="flex justify-end gap-4 mt-8 pt-6 border-t-2 border-gray-200">
                             <button
                                 onClick={closeForm}
-                                disabled={isSubmitting}
-                                className={`px-8 py-3 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+
+                                className={`px-8 py-3 bg-white border text-black rounded hover:bg-gray-100 transition-colors font-semibold }`}
                             >
                                 Hủy
                             </button>
 
                             <button
                                 onClick={editingVariantId ? handleUpdateVariant : handleCreateVariant}
-                                disabled={isSubmitting}
-                                className={`px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold flex items-center justify-center gap-2 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                                className={`px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold flex items-center justify-center gap-2 }`}
                             >
-                                {isSubmitting && (
-                                    <svg
-                                        className="animate-spin h-5 w-5 text-white"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                        ></circle>
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                        ></path>
-                                    </svg>
-                                )}
-                                {isSubmitting ? "Đang xử lý..." : editingVariantId ? "Cập nhật" : "Thêm"}
+                                {editingVariantId ? "Cập nhật" : "Thêm"}
                             </button>
                         </div>
 
@@ -904,7 +945,12 @@ export default function ProductVariantManager() {
             <ConfirmPanel
                 visible={confirmPanel.visible}
                 message={confirmPanel.message}
-                onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); setConfirmPanel({ visible: false, message: "", onConfirm: null }); }}
+                onConfirm={async () => {
+                    if (confirmPanel.onConfirm) {
+                        await confirmPanel.onConfirm();
+                    }
+                    setConfirmPanel({ visible: false, message: "", onConfirm: null });
+                }}
                 onCancel={() => setConfirmPanel({ visible: false, message: "", onConfirm: null })}
             />
         </div>

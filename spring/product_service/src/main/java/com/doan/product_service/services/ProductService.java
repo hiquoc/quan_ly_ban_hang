@@ -161,6 +161,10 @@ public class ProductService {
                 predicates.add(cb.exists(variantSub));
             }
 
+            // Eager fetch variants to avoid N+1 queries, but only for non-count queries
+            if (query.getResultType() != Long.class) {
+                root.fetch("variants", JoinType.LEFT);
+            }
             query.distinct(true);
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -173,7 +177,6 @@ public class ProductService {
             List<ProductVariant> variants = product.getVariants().stream()
                     .filter(v -> excludeOutOfStockProducts == null || !excludeOutOfStockProducts
                             || !"OUT_OF_STOCK".equalsIgnoreCase(v.getStatus()))
-                    .sorted(Comparator.comparing(v -> v.getProduct().getTotalSold(), Comparator.reverseOrder()))
                     .toList();
 
             pr.setVariants(variants.stream().map(this::toVariantDetailsResponse).toList());

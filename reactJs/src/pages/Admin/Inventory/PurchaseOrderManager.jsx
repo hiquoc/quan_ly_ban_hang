@@ -7,7 +7,7 @@ import {
     getAllSuppliers,
     getAllWarehouses,
 } from "../../../apis/inventoryApi";
-import { getAllProducts, getAllVariants, getProductVariantByProductId, getVariantByIdIncludingInactive } from "../../../apis/productApi";
+import { getAllProducts, getAllVariants, getProductVariantByProductId, getVariantByIdIncludingInactive, getVariantsByIds } from "../../../apis/productApi";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import SearchableSelect from "../../../components/SearchableSelect";
@@ -27,6 +27,8 @@ export default function PurchaseOrderManager() {
     const [popup, setPopup] = useState({ message: "", type: "" });
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
     const [isProcessing, setIsProcessing] = useState(false)
+    const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
     const [page, setPage] = useState(0)
     const [totalPages, setTotalPages] = useState(1);
@@ -41,14 +43,17 @@ export default function PurchaseOrderManager() {
     }, [startDate, endDate])
 
     const loadOrders = async (currentPage = page, pageSize = size, orderStatus = status, start = startDate, end = endDate) => {
+        setIsLoading(true);
         const ordersRes = await getAllPurchaseOrders(currentPage, pageSize, orderStatus || null, start || null, end || null)
         if (ordersRes.error) {
             setPopup({ message: "Không thể tải danh sách đơn nhập!" });
+            setIsLoading(false);
             return;
         }
         setPage(currentPage)
         setTotalPages(ordersRes.data.totalPages);
         setOrders(ordersRes.data.content || []);
+        setIsLoading(false);
     }
     const loadData = async () => {
         try {
@@ -70,7 +75,7 @@ export default function PurchaseOrderManager() {
     };
     const loadProducts = async (keyword = "") => {
         try {
-            const res = await getAllProducts(0, 10, keyword);
+            const res = await getAllProducts(0, 5, keyword);
             if (!res.error) {
                 setProducts(res.data.content || []);
             } else {
@@ -85,11 +90,7 @@ export default function PurchaseOrderManager() {
         try {
             const res = await getProductVariantByProductId(productId);
             if (!res.error) {
-                setVariants(prev => {
-                    const newVariants = [...prev];
-                    newVariants[itemIndex] = res.data || [];
-                    return newVariants;
-                });
+                setVariants(res.data);
             } else {
                 setPopup({ message: res.error, type: "error" });
             }
@@ -100,6 +101,7 @@ export default function PurchaseOrderManager() {
 
 
     const openDetailsForm = async (order) => {
+        setIsLoadingDetails(true);
         const items = (order.items || []).map((i) => ({
             variantId: i.variantId,
             quantity: i.quantity || 0,
@@ -117,27 +119,17 @@ export default function PurchaseOrderManager() {
             items: items
         });
 
-        const newVariants = [];
+        const variantIds = items.map(i => Number(i.variantId));
 
-        for (let index = 0; index < items.length; index++) {
-            const item = items[index];
-            try {
-                const res = await getVariantByIdIncludingInactive(item.variantId);
-                if (!res.error) {
-                    newVariants[index] = [res.data];
-                } else {
-                    setPopup({ message: res.error, type: "error" });
-                    newVariants[index] = [];
-                }
-            } catch (err) {
-                setPopup({ message: err.message, type: "error" });
-                newVariants[index] = [];
-            }
+        const res = await getVariantsByIds(variantIds);
+        if (res.error) {
+            setIsLoadingDetails(false);
+            return setPopup({ message: res.error, type: "error" });
         }
-
-        setVariants(newVariants);
+        setVariants(res.data);
         setEditingOrderId(order.id);
         setShowForm(true);
+        setIsLoadingDetails(false);
     };
 
 
@@ -177,8 +169,8 @@ export default function PurchaseOrderManager() {
                 return;
             }
 
-            loadOrders(0);
-            // setOrders(prev => editingOrderId ? prev.map(o => (o.id === editingOrderId ? res.data : o)) : [...prev, res.data]);
+            // loadOrders(0);
+            setOrders(prev => editingOrderId ? prev.map(o => (o.id === editingOrderId ? res.data : o)) : [ res.data,...prev]);
             setPopup({ message: res.message || (editingOrderId ? "Cập nhật đơn mua hàng thành công!" : "Tạo đơn mua hàng hàng thành công!"), type: "success" });
             closeAndResetForm();
         } finally {
@@ -256,7 +248,6 @@ export default function PurchaseOrderManager() {
     const total = form.items.reduce((acc, item) => acc + subtotal(item), 0);
 
     function getPageNumbers() {
-        console.log(totalPages)
         const pages = [];
         const maxVisible = 4;
 
@@ -278,7 +269,7 @@ export default function PurchaseOrderManager() {
     }
 
     return (
-        <div className="p-6 bg-white rounded shadow">
+        <div className="p-6 bg-white rounded shadow relative">
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold text-gray-800">Lịch sử mua hàng</h2>
@@ -299,8 +290,8 @@ export default function PurchaseOrderManager() {
                         />
                     </div>
                     <button
-                        onClick={loadData}
-                        className="flex items-center px-4 py-2 border border-gray-300 text-gray-800 rounded hover:bg-gray-300 transition"
+                        onClick={() => loadOrders(0)}
+                        className="flex items-center px-4 py-2 border border-gray-700 text-gray-800 rounded hover:bg-gray-300 transition"
                     >
                         <FiRefreshCw className="h-5 w-5 mr-2" /> Làm mới
                     </button>
@@ -339,8 +330,42 @@ export default function PurchaseOrderManager() {
                         </tr>
                     </thead>
                     <tbody className="bg-white text-gray-700">
-                        {orders.length > 0 ? (
-                            orders.map((o, idx) => (
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={7} className="p-4 text-gray-500 text-center align-middle">
+                                    <div className="inline-flex gap-2 items-center justify-center">
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-black"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                            ></path>
+                                        </svg>
+                                        Đang tải dữ liệu...
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (orders.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="text-center p-6 text-gray-500 text-base">
+                                    Không có đơn mua nào
+                                </td>
+                            </tr>
+                        ) :
+                            (orders.map(o => (
                                 <tr
                                     key={o.id}
                                     className={`transition hover:bg-gray-100 `}
@@ -375,15 +400,8 @@ export default function PurchaseOrderManager() {
                                             <FiEye></FiEye>
                                         </button>
                                     </td>
-
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={7} className="text-center p-6 text-gray-500 text-base">
-                                    Không có đơn mua nào
-                                </td>
-                            </tr>
+                            )))
                         )}
                     </tbody>
                 </table>
@@ -438,7 +456,33 @@ export default function PurchaseOrderManager() {
                         <h3 className="text-2xl font-bold mb-4">
                             {editingOrderId ? "Chi tiết đơn mua hàng" : "Tạo đơn mua hàng"}
                         </h3>
-
+                        {isProcessing && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                                    <svg
+                                        className="animate-spin h-5 w-5 text-gray-700"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                        ></path>
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                                </div>
+                            </div>
+                        )}
                         {editingOrderId && (
                             <div className="mb-4 grid grid-cols-2 gap-x-8  text-gray-500">
                                 <div className="flex flex-col gap-1">
@@ -529,7 +573,7 @@ export default function PurchaseOrderManager() {
                                     {/* Variant Dropdown */}
                                     <div className="mb-2">
                                         <SearchableSelect
-                                            options={Array.isArray(variants[idx]) ? variants[idx].map(v => ({ label: `${v.sku} | ${v.name}`, value: v.id })) : []}
+                                            options={variants.map(v => ({ label: `${v.sku} | ${v.name}`, value: v.id }))}
                                             value={item.variantId}
                                             onChange={id => updateItem(idx, "variantId", id)}
                                             placeholder="Chọn biến thể..."
@@ -634,7 +678,7 @@ export default function PurchaseOrderManager() {
                                 <button
                                     disabled={isProcessing}
                                     onClick={closeAndResetForm}
-                                    className={`px-4 py-2 h-10 border border-gray-700 rounded hover:bg-gray-100  ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    className={`px-4 py-2 h-10 border border-gray-700 rounded hover:bg-gray-100 `}
                                 >
                                     Đóng
                                 </button>
@@ -642,30 +686,9 @@ export default function PurchaseOrderManager() {
                                     <button
                                         disabled={isProcessing}
                                         onClick={handleSaveOrder}
-                                        className={` flex items-center justify-center gap-1 px-4 py-2 h-10 bg-black text-white rounded hover:bg-gray-800 ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
-                                    > {isProcessing && (
-                                        <svg
-                                            className="animate-spin h-5 w-5 text-white"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <circle
-                                                className="opacity-25"
-                                                cx="12"
-                                                cy="12"
-                                                r="10"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                            ></circle>
-                                            <path
-                                                className="opacity-75"
-                                                fill="currentColor"
-                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                            ></path>
-                                        </svg>
-                                    )}
-                                        {isProcessing ? "Đang xử lý..." : editingOrderId ? "Cập nhật đơn" : "Tạo đơn"}
+                                        className={` flex items-center justify-center gap-1 px-4 py-2 h-10 bg-black text-white rounded hover:bg-gray-800`}
+                                    >
+                                        {editingOrderId ? "Cập nhật đơn" : "Tạo đơn"}
                                     </button>
 
                                 )}
@@ -675,12 +698,44 @@ export default function PurchaseOrderManager() {
                     </div>
                 </div>
             )}
+            {isLoadingDetails && (
+                <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[9999] rounded-none pointer-events-auto">
+                    <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                        <svg
+                            className="animate-spin h-5 w-5 text-gray-700"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                            ></circle>
+                            <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                            ></path>
+                        </svg>
+                        <span className="text-gray-700 font-medium">Đang tải...</span>
+                    </div>
+                </div>
+            )}
 
             <Popup message={popup.message} type={popup.type} onClose={() => setPopup({ message: "", type: "" })} duration={3000} />
             <ConfirmPanel
                 visible={confirmPanel.visible}
                 message={confirmPanel.message}
-                onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); closeConfirmPanel(); }}
+                onConfirm={async () => {
+                    if (confirmPanel.onConfirm) {
+                        await confirmPanel.onConfirm();
+                    }
+                    closeConfirmPanel();
+                }}
                 onCancel={closeConfirmPanel}
             />
         </div>

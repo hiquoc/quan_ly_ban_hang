@@ -25,6 +25,7 @@ export default function CategoryManager() {
   const [totalPages, setTotalPages] = useState(0)
   const [searchText, setSearchText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     handleLoadCategories(0);
@@ -40,16 +41,19 @@ export default function CategoryManager() {
   }, [form.name]);
 
   const handleLoadCategories = async (currentPage = page, newStatus = status) => {
+    setIsLoading(true);
     const res = await getAllCategories(currentPage, 10, searchText, newStatus);
     if (res.error) {
       console.error(res.error);
       setCategories([]);
       setPopup({ message: "Có lỗi khi lấy dữ liệu danh mục!", type: "error" });
+      setIsLoading(false);
       return;
     }
     setPage(currentPage);
     setCategories(res.data.content);
     setTotalPages(res.data.totalPages)
+    setIsLoading(false);
   }
 
   const handleCreateCategory = async () => {
@@ -106,10 +110,8 @@ export default function CategoryManager() {
 
     // Success
     setPopup({ message: response.message || "Cập nhật trạng thái thành công!", type: "success" });
-    setCategories((prevCategories) =>
-      prevCategories.map((c) =>
-        c.id === id ? { ...c, isActive: !c.isActive } : c
-      )
+    setCategories((prev) =>
+      prev.map((c) =>( c.id === id ? { ...c, isActive: !c.isActive } : c))
     );
   };
   const handleDeleteCategory = async (id) => {
@@ -252,7 +254,40 @@ export default function CategoryManager() {
             </tr>
           </thead>
           <tbody className="bg-white">
-            {categories.map((c) => (
+            {isLoading ? (
+              <tr>
+                <td colSpan={9} className="p-4 text-gray-500 text-center align-middle">
+                  <div className="inline-flex gap-2 items-center justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                    Đang tải dữ liệu...
+                  </div>
+                </td>
+
+              </tr>
+            ) : (categories.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center p-4 text-gray-500">Không có danh mục phù hợp</td>
+              </tr>
+            ) : (categories.map((c) => (
               <tr key={c.id} className="hover:bg-gray-50 transition">
                 <td className="p-3 border-b border-gray-200 text-center">
                   {c.imageUrl ? (
@@ -293,11 +328,7 @@ export default function CategoryManager() {
                 </td>
 
               </tr>
-            ))}
-            {categories.length === 0 && (
-              <tr>
-                <td colSpan={7} className="text-center p-4 text-gray-500">Không có danh mục phù hợp</td>
-              </tr>
+            )))
             )}
           </tbody>
         </table>
@@ -321,7 +352,7 @@ export default function CategoryManager() {
                 key={i}
                 onClick={() => handleLoadCategories(num)}
                 className={`w-8 h-8 flex items-center justify-center rounded border transition-all
-                                                  ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
+                ${page === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
               >
                 {num + 1}
               </button>
@@ -344,6 +375,33 @@ export default function CategoryManager() {
             <h3 className="text-3xl font-bold mb-5 text-black">
               {editingCategoryId ? "Cập nhật danh mục" : "Thêm danh mục"}
             </h3>
+            {isProcessing && (
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                  <svg
+                    className="animate-spin h-5 w-5 text-gray-700"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                  <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               {/* Tên */}
@@ -422,12 +480,15 @@ export default function CategoryManager() {
       <ConfirmPanel
         visible={confirmPanel.visible}
         message={confirmPanel.message}
-        onConfirm={() => {
-          confirmPanel.onConfirm && confirmPanel.onConfirm();
-          setConfirmPanel({ visible: false, message: "", onConfirm: null });
+        onConfirm={async () => {
+          if (confirmPanel.onConfirm) {
+            await confirmPanel.onConfirm();
+          }
+          closeConfirmPanel();
         }}
         onCancel={closeConfirmPanel}
       />
+
     </div>
   );
 }
