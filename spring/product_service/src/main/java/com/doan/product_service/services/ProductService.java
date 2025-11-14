@@ -18,6 +18,10 @@ import com.doan.product_service.repositories.ProductVariantRepository;
 import com.doan.product_service.services.client.RecServiceClient;
 import com.doan.product_service.services.cloud.CloudinaryService;
 import com.doan.product_service.utils.WebhookUtils;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +35,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -41,6 +46,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final RecServiceClient recServiceClient;
     private final CloudinaryService cloudinaryService;
+
 
 
     public ProductResponse createProduct(ProductRequest productRequest, MultipartFile image) {
@@ -81,6 +87,11 @@ public class ProductService {
         WebhookUtils.postToWebhook(product.getId(),"insert");
         return fromEntity(product);
     }
+    @PersistenceContext
+    EntityManager em;
+    // Add these private methods to the class
+
+
     public Page<ProductResponse> getAllProducts(
             Integer page,
             Integer size,
@@ -96,99 +107,101 @@ public class ProductService {
             Long endPrice,
             Boolean excludeOutOfStockProducts
     ) {
+        boolean isPriceSort = "price".equalsIgnoreCase(sortBy);
         Pageable pageable;
         if (page == null || size == null) {
             pageable = Pageable.unpaged();
         } else {
-            Sort sort = "sold".equalsIgnoreCase(sortBy)
-                    ? Sort.by("totalSold")
-                    : "rating".equalsIgnoreCase(sortBy)
-                    ? Sort.by("ratingAvg")
-                    : Sort.by("updatedAt");
+            Sort sort = Sort.by("updatedAt");
+            if(!isPriceSort){
+                if ("sold".equalsIgnoreCase(sortBy)) {
+                    sort = Sort.by("totalSold");
+                } else if ("rating".equalsIgnoreCase(sortBy)) {
+                    sort = Sort.by("ratingAvg");
+                }
+            }
             sort = (desc != null && !desc) ? sort.ascending() : sort.descending();
             pageable = PageRequest.of(page, size, sort);
         }
 
-        Specification<Product> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+        if (!isPriceSort) {
+            Specification<Product> spec = (root, query, cb) -> {
+                Predicate wherePredicate = buildWherePredicate(cb, root, query, keyword, categoryName, brandName, active, featured, discount, startPrice, endPrice, excludeOutOfStockProducts);
 
-            // Keyword
-            if (keyword != null && !keyword.isBlank()) {
-                String likeKeyword = "%" + keyword.trim().toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.function("unaccent", String.class, cb.lower(root.get("name"))),
-                                cb.function("unaccent", String.class, cb.literal(likeKeyword))),
-                        cb.like(cb.function("unaccent", String.class, cb.lower(root.get("productCode"))),
-                                cb.function("unaccent", String.class, cb.literal(likeKeyword)))
-                ));
-            }
+                // Eager fetch variants to avoid N+1 queries, but only for non-count queries
+                if (query.getResultType() != Long.class) {
+                    root.fetch("variants", JoinType.LEFT);
+                }
+                query.distinct(true);
+                return wherePredicate;
+            };
+            Page<Product> productsPage = productRepository.findAll(spec, pageable);
+            return productsPage.map(product -> {
+                ProductResponse pr = fromEntity(product);
 
-            // Category
-            if (categoryName != null && !categoryName.isEmpty()) {
-                Join<Product, Category> categoryJoin = root.join("category", JoinType.INNER);
-                List<Predicate> catPreds = categoryName.stream()
-                        .filter(c -> c != null && !c.isBlank())
-                        .map(c -> cb.like(cb.lower(categoryJoin.get("name")), "%" + c.trim().toLowerCase() + "%"))
+                List<ProductVariant> variants = product.getVariants().stream()
+                        .filter(v -> excludeOutOfStockProducts == null || !excludeOutOfStockProducts
+                                || !"OUT_OF_STOCK".equalsIgnoreCase(v.getStatus()))
                         .toList();
-                if (!catPreds.isEmpty()) predicates.add(cb.or(catPreds.toArray(new Predicate[0])));
-            }
 
-            // Brand
-            if (brandName != null && !brandName.isEmpty()) {
-                Join<Product, Brand> brandJoin = root.join("brand", JoinType.INNER);
-                List<Predicate> brandPreds = brandName.stream()
-                        .filter(b -> b != null && !b.isBlank())
-                        .map(b -> cb.like(cb.lower(brandJoin.get("name")), "%" + b.trim().toLowerCase() + "%"))
+                pr.setVariants(variants.stream().map(this::toVariantDetailsResponse).toList());
+                return pr;
+            });
+        } else {
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+
+            // Build predicate once for reuse in count and data (but note: must be built per query due to root/query binding)
+            // For count
+            CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+            Root<Product> countRoot = countQuery.from(Product.class);
+            Predicate countPredicate = buildWherePredicate(cb, countRoot, countQuery, keyword, categoryName, brandName, active, featured, discount, startPrice, endPrice, excludeOutOfStockProducts);
+            countQuery.select(cb.countDistinct(countRoot));
+            countQuery.where(countPredicate);
+            long total = em.createQuery(countQuery).getSingleResult();
+
+            // Data query
+            CriteriaQuery<Tuple> dataQuery = cb.createQuery(Tuple.class);
+            Root<Product> dataRoot = dataQuery.from(Product.class);
+            Predicate dataPredicate = buildWherePredicate(cb, dataRoot, dataQuery, keyword, categoryName, brandName, active, featured, discount, startPrice, endPrice, excludeOutOfStockProducts);
+
+            // Min price subquery (with variant filters for consistency)
+            Subquery<Long> minPriceSub = dataQuery.subquery(Long.class);
+            Root<ProductVariant> vRoot = minPriceSub.from(ProductVariant.class);
+            minPriceSub.select(cb.min(vRoot.get("sellingPrice")));
+            List<Predicate> minSubPreds = buildVariantSubPredicates(cb, vRoot, dataRoot, discount, startPrice, endPrice, excludeOutOfStockProducts);
+            minPriceSub.where(cb.and(minSubPreds.toArray(new Predicate[0])));
+
+            dataQuery.multiselect(dataRoot, minPriceSub);
+            dataQuery.where(dataPredicate);
+            dataQuery.distinct(true);
+
+            Order order = (desc != null && !desc) ? cb.asc(minPriceSub) : cb.desc(minPriceSub);
+            dataQuery.orderBy(order);
+
+            TypedQuery<Tuple> tq = em.createQuery(dataQuery);
+            if (!pageable.isUnpaged()) {
+                tq.setFirstResult((int) pageable.getOffset());
+                tq.setMaxResults(pageable.getPageSize());
+            }
+            List<Tuple> tuples = tq.getResultList();
+            List<Product> content = tuples.stream()
+                    .map(tuple -> tuple.get(0, Product.class))
+                    .collect(Collectors.toList());
+            Page<Product> productsPage = new PageImpl<>(content, pageable, total);
+
+            return productsPage.map(product -> {
+                ProductResponse pr = fromEntity(product);
+
+                List<ProductVariant> variants = product.getVariants().stream()
+                        .filter(v -> excludeOutOfStockProducts == null || !excludeOutOfStockProducts
+                                || !"OUT_OF_STOCK".equalsIgnoreCase(v.getStatus()))
                         .toList();
-                if (!brandPreds.isEmpty()) predicates.add(cb.or(brandPreds.toArray(new Predicate[0])));
-            }
 
-            // Active & Featured
-            if (active != null) predicates.add(cb.equal(root.get("isActive"), active));
-            if (featured != null) predicates.add(cb.equal(root.get("isFeatured"), featured));
-
-            // Variant-based filters: discount, price range, out-of-stock
-            if (Boolean.TRUE.equals(discount) || startPrice != null || endPrice != null || Boolean.TRUE.equals(excludeOutOfStockProducts)) {
-                Subquery<Long> variantSub = query.subquery(Long.class);
-                Root<ProductVariant> vRoot = variantSub.from(ProductVariant.class);
-                variantSub.select(vRoot.get("product").get("id"));
-
-                List<Predicate> subPreds = new ArrayList<>();
-                subPreds.add(cb.equal(vRoot.get("product").get("id"), root.get("id")));
-
-                if (Boolean.TRUE.equals(discount)) subPreds.add(cb.greaterThan(vRoot.get("discountPercent"), 0));
-                if (Boolean.TRUE.equals(excludeOutOfStockProducts)) subPreds.add(cb.notEqual(cb.upper(vRoot.get("status")), "OUT_OF_STOCK"));
-                if (startPrice != null) subPreds.add(cb.greaterThanOrEqualTo(vRoot.get("sellingPrice"), startPrice));
-                if (endPrice != null) subPreds.add(cb.lessThanOrEqualTo(vRoot.get("sellingPrice"), endPrice));
-
-                variantSub.where(cb.and(subPreds.toArray(new Predicate[0])));
-                predicates.add(cb.exists(variantSub));
-            }
-
-            // Eager fetch variants to avoid N+1 queries, but only for non-count queries
-            if (query.getResultType() != Long.class) {
-                root.fetch("variants", JoinType.LEFT);
-            }
-            query.distinct(true);
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        Page<Product> productsPage = productRepository.findAll(spec, pageable);
-
-        return productsPage.map(product -> {
-            ProductResponse pr = fromEntity(product);
-
-            List<ProductVariant> variants = product.getVariants().stream()
-                    .filter(v -> excludeOutOfStockProducts == null || !excludeOutOfStockProducts
-                            || !"OUT_OF_STOCK".equalsIgnoreCase(v.getStatus()))
-                    .toList();
-
-            pr.setVariants(variants.stream().map(this::toVariantDetailsResponse).toList());
-            return pr;
-        });
+                pr.setVariants(variants.stream().map(this::toVariantDetailsResponse).toList());
+                return pr;
+            });
+        }
     }
-
-
     public List<Product> getAllProductsWithoutInactive(){
         return productRepository.findByIsActiveIsTrue();
     }
@@ -359,6 +372,24 @@ public class ProductService {
         return product.getVariants().stream().map(this::toVariantResponse).toList();
     }
 
+    public List<ProductResponse> getProductsByIds(List<Long> ids) {
+        return productRepository.findAllById(ids).stream().map(this::fromEntity).toList();
+    }
+
+    public List<ProductResponse> getRecommendations(Long customerId) {
+        RecResponse response= recServiceClient.getRecommendations(customerId,4,12);
+        if(response==null)
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Có lỗi xảy ra khi lấy dữ liệu recommendations");
+        List<Long> productIds = response.getRecommendations().stream()
+                .map(v -> (long) v.getProduct_id())
+                .toList();
+        List<Product> products = productRepository.findAllById(productIds);
+        return products.stream().map(this::fromEntity).toList();
+    }
+
+    public void rebuildRecommendations() {
+        recServiceClient.rebuildRecommendations();
+    }
 
     private VariantResponse toVariantResponse(ProductVariant productVariant) {
         return new VariantResponse(
@@ -398,22 +429,105 @@ public class ProductService {
         );
     }
 
-    public List<ProductResponse> getProductsByIds(List<Long> ids) {
-        return productRepository.findAllById(ids).stream().map(this::fromEntity).toList();
+
+    private List<Predicate> buildBasePredicates(
+            Root<Product> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb,
+            String keyword,
+            List<String> categoryName,
+            List<String> brandName,
+            Boolean active,
+            Boolean featured
+    ) {
+        List<Predicate> predicates = new ArrayList<>();
+
+        // Keyword
+        if (keyword != null && !keyword.isBlank()) {
+            String likeKeyword = "%" + keyword.trim().toLowerCase() + "%";
+            predicates.add(cb.or(
+                    cb.like(cb.function("unaccent", String.class, cb.lower(root.get("name"))),
+                            cb.function("unaccent", String.class, cb.literal(likeKeyword))),
+                    cb.like(cb.function("unaccent", String.class, cb.lower(root.get("productCode"))),
+                            cb.function("unaccent", String.class, cb.literal(likeKeyword)))
+            ));
+        }
+
+        // Category
+        if (categoryName != null && !categoryName.isEmpty()) {
+            Join<Product, Category> categoryJoin = root.join("category", JoinType.INNER);
+            List<Predicate> catPreds = categoryName.stream()
+                    .filter(c -> c != null && !c.isBlank())
+                    .map(c -> cb.like(cb.lower(categoryJoin.get("name")), "%" + c.trim().toLowerCase() + "%"))
+                    .toList();
+            if (!catPreds.isEmpty()) predicates.add(cb.or(catPreds.toArray(new Predicate[0])));
+        }
+
+        // Brand
+        if (brandName != null && !brandName.isEmpty()) {
+            Join<Product, Brand> brandJoin = root.join("brand", JoinType.INNER);
+            List<Predicate> brandPreds = brandName.stream()
+                    .filter(b -> b != null && !b.isBlank())
+                    .map(b -> cb.like(cb.lower(brandJoin.get("name")), "%" + b.trim().toLowerCase() + "%"))
+                    .toList();
+            if (!brandPreds.isEmpty()) predicates.add(cb.or(brandPreds.toArray(new Predicate[0])));
+        }
+
+        // Active & Featured
+        if (active != null) predicates.add(cb.equal(root.get("isActive"), active));
+        if (featured != null) predicates.add(cb.equal(root.get("isFeatured"), featured));
+
+        return predicates;
     }
 
-    public List<ProductResponse> getRecommendations(Long customerId) {
-        RecResponse response= recServiceClient.getRecommendations(customerId,4,12);
-        if(response==null)
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Có lỗi xảy ra khi lấy dữ liệu recommendations");
-        List<Long> productIds = response.getRecommendations().stream()
-                .map(v -> (long) v.getProduct_id())
-                .toList();
-        List<Product> products = productRepository.findAllById(productIds);
-        return products.stream().map(this::fromEntity).toList();
+    private List<Predicate> buildVariantSubPredicates(
+            CriteriaBuilder cb,
+            Root<ProductVariant> vRoot,
+            Root<Product> productRoot,
+            Boolean discount,
+            Long startPrice,
+            Long endPrice,
+            Boolean excludeOutOfStockProducts
+    ) {
+        List<Predicate> subPreds = new ArrayList<>();
+        subPreds.add(cb.equal(vRoot.get("product").get("id"), productRoot.get("id")));
+
+        if (Boolean.TRUE.equals(discount)) subPreds.add(cb.greaterThan(vRoot.get("discountPercent"), 0));
+        if (Boolean.TRUE.equals(excludeOutOfStockProducts)) subPreds.add(cb.notEqual(cb.upper(vRoot.get("status")), "OUT_OF_STOCK"));
+        if (startPrice != null) subPreds.add(cb.greaterThanOrEqualTo(vRoot.get("sellingPrice"), startPrice));
+        if (endPrice != null) subPreds.add(cb.lessThanOrEqualTo(vRoot.get("sellingPrice"), endPrice));
+
+        return subPreds;
     }
 
-    public void rebuildRecommendations() {
-        recServiceClient.rebuildRecommendations();
+    private Predicate buildWherePredicate(
+            CriteriaBuilder cb,
+            Root<Product> root,
+            CriteriaQuery<?> query,
+            String keyword,
+            List<String> categoryName,
+            List<String> brandName,
+            Boolean active,
+            Boolean featured,
+            Boolean discount,
+            Long startPrice,
+            Long endPrice,
+            Boolean excludeOutOfStockProducts
+    ) {
+        List<Predicate> basePredicates = buildBasePredicates(root, query, cb, keyword, categoryName, brandName, active, featured);
+
+        boolean hasVariantFilters = Boolean.TRUE.equals(discount) || startPrice != null || endPrice != null || Boolean.TRUE.equals(excludeOutOfStockProducts);
+        if (hasVariantFilters) {
+            Subquery<Long> variantSub = query.subquery(Long.class);
+            Root<ProductVariant> vRoot = variantSub.from(ProductVariant.class);
+            variantSub.select(vRoot.get("product").get("id"));
+
+            List<Predicate> subPreds = buildVariantSubPredicates(cb, vRoot, root, discount, startPrice, endPrice, excludeOutOfStockProducts);
+            variantSub.where(cb.and(subPreds.toArray(new Predicate[0])));
+            basePredicates.add(cb.exists(variantSub));
+        }
+
+        return basePredicates.isEmpty() ? cb.conjunction() : cb.and(basePredicates.toArray(new Predicate[0]));
     }
+
 }

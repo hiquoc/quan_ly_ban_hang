@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { act, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiChevronLeft, FiChevronRight, FiShoppingBag, FiTruck, FiShield, FiCreditCard } from "react-icons/fi";
-import { getActiveBrands, getActiveCategories, getFeaturedProducts, getHomeProducts, getHotProducts, getRecommendedProducts } from "../apis/productApi";
+import { getActiveBrands, getActiveCategories, getActiveProducts, getHomeProducts, getRecommendedProducts } from "../apis/productApi";
 import Popup from "../components/Popup";
 import ProductCard from "../components/ProductCard";
 import { Link, useNavigate } from "react-router-dom";
@@ -107,15 +107,15 @@ export default function HomePage() {
       setIsLoadingRecommended(false);
       return;
     }
-    // setRecommendedProducts(res.data);
-    setRecommendedProducts(Array(5).fill(res.data).flat());
+    setRecommendedProducts(res.data);
+    // setRecommendedProducts(Array(5).fill(res.data).flat());
     setIsLoadingRecommended(false);
   }
   const handleLoadHotProducts = async () => {
     if (hotProducts.length > 0)
       return;
     setIsLoadingProducts(true);
-    const res = await getHotProducts(12);
+    const res = await getActiveProducts(0, 12, null, null, null, null, true, "sold", null, null, null, null);
     if (res.error) {
       console.error(res.error);
       setPopup({ message: res.error })
@@ -123,14 +123,14 @@ export default function HomePage() {
       setIsLoadingProducts(false);
       return;
     }
-    setHotProducts(res.data);
+    setHotProducts(res.data.content);
     setIsLoadingProducts(false);
   };
   const handleLoadFeaturedProducts = async () => {
     if (featuredProducts.length > 0)
       return;
     setIsLoadingProducts(true);
-    const res = await getFeaturedProducts(12);
+    const res = await getActiveProducts(0, 12, null, null, null, true, true, null, null, null, null, null);
     if (res.error) {
       console.error(res.error);
       setPopup({ message: res.error })
@@ -138,7 +138,7 @@ export default function HomePage() {
       setIsLoadingProducts(false);
       return;
     }
-    setFeaturedProducts(res.data);
+    setFeaturedProducts(res.data.content);
     setIsLoadingProducts(false);
   };
 
@@ -375,7 +375,8 @@ export default function HomePage() {
               </div>
             </div>
             {isLoadingCategories ? (
-              <div className="w-full flex justify-center items-center py-12">
+              <div className="w-full flex justify-center items-center py-12"
+                style={{ height: "420px" }}>
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Đang tải...</p>
@@ -449,7 +450,8 @@ export default function HomePage() {
               </button>
             )}
             {isLoadingProducts ? (
-              <div className="col-span-full flex justify-center items-center py-12">
+              <div className="col-span-full flex justify-center items-center py-12"
+                style={{ height: "420px" }}>
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Đang tải...</p>
@@ -489,13 +491,6 @@ export default function HomePage() {
               <h2 className="text-3xl font-bold text-gray-900">Dành riêng cho bạn ✨</h2>
               <p className="text-gray-600 mt-2">Những sản phẩm phù hợp với sở thích của bạn</p>
             </div>
-            {/* <Link
-              to="/search?recommended=true"
-              className="text-blue-600 font-semibold hover:text-blue-700 transition flex items-center gap-2 group"
-            >
-              Xem thêm
-              <FiChevronRight className="transform group-hover:translate-x-1 transition" />
-            </Link> */}
           </div>
           <div className="relative">
             {canScrollRecommendLeft && (
@@ -516,7 +511,8 @@ export default function HomePage() {
               </button>
             )}
             {isLoadingRecommended ? (
-              <div className="col-span-full flex justify-center items-center py-12">
+              <div className="col-span-full flex justify-center items-center py-12"
+                style={{ height: "420px" }}>
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Đang tải...</p>
@@ -608,17 +604,21 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
-            <Link
-              to={activeTab === "new" ? "/search?" : activeTab === "hot" ? "/search?sort=sold" : "/search?sort=featured"}
-              className="text-blue-600 mb-8 font-semibold hover:text-blue-700 transition flex items-center gap-2 group"
-            >
-              Xem tất cả
-              <FiChevronRight className="transform group-hover:translate-x-1 transition" />
-            </Link>
+            {activeTab !== "featured" && (
+              <Link
+                to={activeTab === "new" ? "/search?" : activeTab === "hot" ? "/search?sort=sold" : "/search?featured=true"}
+                className="text-blue-600 mb-8 font-semibold hover:text-blue-700 transition flex items-center gap-2 group"
+              >
+                Xem tất cả
+                <FiChevronRight className="transform group-hover:translate-x-1 transition" />
+              </Link>
+            )}
+
           </div>
 
           {isLoadingProducts ? (
-            <div className="col-span-full flex justify-center items-center py-12">
+            <div className="col-span-full flex justify-center items-center py-12"
+              style={{ height: "420px" }}>
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">Đang tải...</p>
@@ -643,7 +643,7 @@ export default function HomePage() {
         </div>
 
         {/* Brands Showcase */}
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 pt-12">
+        <div className="bg-gradient-to-br from-gray-100 to-gray-200 pt-12">
           <div className="px-40">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-gray-900 mb-3">Thương hiệu nổi bật</h2>
@@ -670,7 +670,8 @@ export default function HomePage() {
               )}
 
               {isLoadingBrands ? (
-                <div className="w-full flex justify-center items-center py-12">
+                <div className="w-full flex justify-center items-center py-12"
+                  style={{ height: "420px" }}>
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                     <p className="text-gray-600">Đang tải...</p>
@@ -684,22 +685,21 @@ export default function HomePage() {
                   {brands && brands.map((b) => (
                     <div
                       key={b.id}
-                      className="flex-shrink-0 w-72 bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
+                      className="py-3 flex-shrink-0 w-72 bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
                     >
-                      <div className="h-48 overflow-hidden bg-white">
+                      <div className="h-48 w-full flex justify-center items-center overflow-hidden bg-white">
                         <img
                           src={b.imageUrl}
                           alt={b.name}
-                          className="h-full w-auto max-w-full object-cover transform transition-transform duration-500 hover:scale-110 mx-auto"
+                          className="h-full w-auto max-w-full object-cover scale-75 transform transition-transform duration-500 hover:scale-90"
                         />
-
                       </div>
-                      <div className="p-6">
+                      <div className="p-6 -mt-4">
                         <h3 className="text-xl font-bold text-gray-900 mb-2">{b.name}</h3>
-                        <p className="text-gray-600 text-sm mb-6 line-clamp-3">{b.description}</p>
+                        <p className="text-gray-600 text-sm mb-6 line-clamp-4">{b.description}</p>
                         <Link
                           to={`search?brands=${b.slug}`}
-                          className="block text-center bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition transform hover:scale-105"
+                          className="text-center border border-gray-400 px-6 py-3 mt-5 rounded font-semibold transition transform hover:bg-gray-200 "
                         >
                           Xem sản phẩm
                         </Link>

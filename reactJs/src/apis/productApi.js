@@ -80,18 +80,6 @@ export const getHomeProducts = (newProduct, discountProduct) =>
     return api.get("product/public/home", { params });
   });
  
-export const getHotProducts = (size) =>
-  safeApiCall(() => {
-    const params = {};
-    if (size != null) params.size = size;
-    return api.get("product/public/hot-products", { params });
-  });
-export const getFeaturedProducts = (size) =>
-  safeApiCall(() => {
-    const params = {};
-    if (size != null) params.size = size;
-    return api.get("product/public/featured-products", { params });
-  });
 
 export const getProductVariantByProductId = (id) =>
   safeApiCall(() => api.get(`product/secure/products/${id}/variants`));

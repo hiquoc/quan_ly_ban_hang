@@ -50,17 +50,6 @@ public class ProductController {
     @GetMapping("/public/home")
     public ResponseEntity<?> getHomeProduct(@ModelAttribute HomeRequest request) {
         try {
-//            Page<ProductResponse> newProductList = productService.getAllProducts(0, request.getNewProduct(), null, null, null, true, null, null, null, null, null, null, true);
-//            Page<ProductResponse> hotProductList = productService.getAllProducts(0, request.getHotProduct(), null, null, null, true, null, null, "sold", null, null, null, true);
-//            Page<ProductResponse> featuredProductList = productService.getAllProducts(0, request.getFeaturedProduct(), null, null, null, true, true, null, null, null, null, null, true);
-//            Page<ProductResponse> discountProductList = productService.getAllProducts(0, request.getDiscountProduct(), null, null, null, true, null, null, null, true, null, null, true);
-//
-//            HomeResponse response = new HomeResponse(
-//                    newProductList.getContent(),
-//                    hotProductList.getContent(),
-//                    featuredProductList.getContent(),
-//                    discountProductList.getContent()
-//            );
             Page<ProductResponse> newProductList = productService.getAllProducts(0, request.getNewProduct(), null, null, null, true, null, null, null, null, null, null, true);
             Page<ProductResponse> discountProductList = productService.getAllProducts(0, request.getDiscountProduct(), null, null, null, true, null, null, null, true, null, null, true);
 
@@ -71,28 +60,6 @@ public class ProductController {
 
             return ResponseEntity.ok(
                     new ApiResponse<>("Lấy dữ liệu thành công!", true, response));
-        } catch (ResponseStatusException ex) {
-            return errorResponse(ex);
-        }
-    }
-    @GetMapping("/public/hot-products")
-    public ResponseEntity<?> getHotProducts(@RequestParam Integer size){
-        try {
-            if(size>20 ||size<0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng điền số lượng phù hợp");
-            Page<ProductResponse> hotProductList = productService.getAllProducts(0, size, null, null, null, true, null, null, "sold", null, null, null, true);
-            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, hotProductList.getContent()));
-        } catch (ResponseStatusException ex) {
-            return errorResponse(ex);
-        }
-    }
-    @GetMapping("/public/featured-products")
-    public ResponseEntity<?> getFeaturedProducts(@RequestParam Integer size){
-        try {
-            if(size>20 ||size<0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng điền số lượng phù hợp");
-            Page<ProductResponse> featuredProductList = productService.getAllProducts(0, size, null, null, null, true, true, null, null, null, null, null, true);
-            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, featuredProductList.getContent()));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }

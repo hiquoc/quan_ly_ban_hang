@@ -35,8 +35,7 @@ export default function SearchPage() {
     const categoryMap = useMemo(() => Object.fromEntries(categories.map(c => [c.slug, c.name])), [categories]);
     const brandMap = useMemo(() => Object.fromEntries(brands.map(b => [b.slug, b.name])), [brands]);
 
-    const loadTimeoutRef = useRef(null);
-    const lastCallTimeRef = useRef(0);
+    const executeTimeoutRef = useRef(null);
     const lastRequestIdRef = useRef(0);
 
     // Load categories & brands once
@@ -65,7 +64,6 @@ export default function SearchPage() {
 
     }, [location.search, categories, brands]);
 
-    // --- Load Products ---
     async function handleLoadProducts(
         newPage = 0,
         currentSort = sort,
@@ -74,24 +72,21 @@ export default function SearchPage() {
         currentBrandSlugs = selectedBrands,
         currentPrice = priceRange
     ) {
-        const now = Date.now();
-        const cooldown = 800;
+        const requestId = ++lastRequestIdRef.current;
 
-        if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+        if (executeTimeoutRef.current) clearTimeout(executeTimeoutRef.current);
 
-        const timeSinceLastCall = now - lastCallTimeRef.current;
-
-        const doLoad = () => {
-            lastCallTimeRef.current = Date.now();
-            const requestId = ++lastRequestIdRef.current;
-            executeLoad(newPage, currentSort, currentDiscount, currentCatSlugs, currentBrandSlugs, currentPrice, requestId);
-        };
-
-        if (timeSinceLastCall >= cooldown) {
-            doLoad(); // run immediately
-        } else {
-            loadTimeoutRef.current = setTimeout(doLoad, cooldown - timeSinceLastCall);
-        }
+        executeTimeoutRef.current = setTimeout(() => {
+            executeLoad(
+                newPage,
+                currentSort,
+                currentDiscount,
+                currentCatSlugs,
+                currentBrandSlugs,
+                currentPrice,
+                requestId
+            );
+        }, 500);
     }
 
     async function executeLoad(
@@ -103,7 +98,8 @@ export default function SearchPage() {
         currentPrice = priceRange,
         requestId
     ) {
-        setIsLoadingProducts(true)
+        setIsLoadingProducts(true);
+        console.log(Date.now())
         const selectedCatNames = currentCatSlugs.map(slug => categoryMap[slug]).filter(Boolean);
         const selectedBrandNames = currentBrandSlugs.map(slug => brandMap[slug]).filter(Boolean);
 
@@ -114,13 +110,15 @@ export default function SearchPage() {
             selectedCatNames,
             selectedBrandNames,
             null,
-            null,
-            currentSort === "sold" ? currentSort : currentSort === "rating" ? currentSort : null,
+            currentSort === "priceHTL" ? true : currentSort === "priceLTH" ? false : true,
+            currentSort === "priceHTL" ||currentSort === "priceLTH" ?  "price" : currentSort,
             currentDiscount,
             currentPrice[0] != null ? currentPrice[0] : undefined,
             currentPrice[1] != null ? currentPrice[1] : undefined
         );
+
         if (requestId !== lastRequestIdRef.current) return;
+
         setProducts(res.error ? [] : res.data.content);
         setTotalProducts(res.error ? 0 : res.data.totalElements);
         setTotalPage(res.error ? 0 : res.data.totalPages);
@@ -393,6 +391,8 @@ export default function SearchPage() {
                                 <option value="">Mới nhất</option>
                                 <option value="sold">Lượt mua</option>
                                 <option value="rating">Đánh giá</option>
+                                <option value="priceHTL">Giá giảm dần</option>
+                                <option value="priceLTH">Giá tăng dần</option>
                             </select>
                         </div>
 

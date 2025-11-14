@@ -651,8 +651,8 @@ public class OrderService {
             order.setNotes(notes);
 
         if ("DELIVERED".equals(newStatusName)) {
-            if(!"SHIPPER".equals(role))
-                throw new IllegalStateException("Bạn không có quyền hoàn tất đơn hàng!");
+//            if(!"SHIPPER".equals(role))
+//                throw new IllegalStateException("Bạn không có quyền hoàn tất đơn hàng!");
             List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
             if (!orderItems.isEmpty()) {
                 try {
