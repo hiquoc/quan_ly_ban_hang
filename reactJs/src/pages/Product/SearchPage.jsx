@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, useMemo } from "react";
+import { useContext, useEffect, useState, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getActiveBrands, getActiveCategories, getActiveProducts } from "../../apis/productApi";
 import { PopupContext } from "../../contexts/PopupContext";
@@ -35,6 +35,10 @@ export default function SearchPage() {
     const categoryMap = useMemo(() => Object.fromEntries(categories.map(c => [c.slug, c.name])), [categories]);
     const brandMap = useMemo(() => Object.fromEntries(brands.map(b => [b.slug, b.name])), [brands]);
 
+    const loadTimeoutRef = useRef(null);
+    const lastCallTimeRef = useRef(0);
+    const lastRequestIdRef = useRef(0);
+
     // Load categories & brands once
     useEffect(() => {
         handleLoadCategories();
@@ -57,8 +61,8 @@ export default function SearchPage() {
         setSelectedCats(urlCats);
         setSelectedBrands(urlBrands);
         setPriceRange([priceFrom, priceTo]);
-
         handleLoadProducts(0, urlSort, urlDiscount, urlCats, urlBrands, [priceFrom, priceTo]);
+
     }, [location.search, categories, brands]);
 
     // --- Load Products ---
@@ -69,6 +73,35 @@ export default function SearchPage() {
         currentCatSlugs = selectedCats,
         currentBrandSlugs = selectedBrands,
         currentPrice = priceRange
+    ) {
+        const now = Date.now();
+        const cooldown = 800;
+
+        if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+
+        const timeSinceLastCall = now - lastCallTimeRef.current;
+
+        const doLoad = () => {
+            lastCallTimeRef.current = Date.now();
+            const requestId = ++lastRequestIdRef.current;
+            executeLoad(newPage, currentSort, currentDiscount, currentCatSlugs, currentBrandSlugs, currentPrice, requestId);
+        };
+
+        if (timeSinceLastCall >= cooldown) {
+            doLoad(); // run immediately
+        } else {
+            loadTimeoutRef.current = setTimeout(doLoad, cooldown - timeSinceLastCall);
+        }
+    }
+
+    async function executeLoad(
+        newPage = 0,
+        currentSort = sort,
+        currentDiscount = discountSort,
+        currentCatSlugs = selectedCats,
+        currentBrandSlugs = selectedBrands,
+        currentPrice = priceRange,
+        requestId
     ) {
         setIsLoadingProducts(true)
         const selectedCatNames = currentCatSlugs.map(slug => categoryMap[slug]).filter(Boolean);
@@ -87,21 +120,12 @@ export default function SearchPage() {
             currentPrice[0] != null ? currentPrice[0] : undefined,
             currentPrice[1] != null ? currentPrice[1] : undefined
         );
-
-        if (res.error) {
-            setProducts([]);
-            setTotalProducts(0);
-            setTotalPage(0);
-            setPage(0);
-            setIsLoadingProducts(false)
-            return;
-        }
-
-        setProducts(res.data.content);
-        setTotalProducts(res.data.totalElements);
-        setTotalPage(res.data.totalPages);
+        if (requestId !== lastRequestIdRef.current) return;
+        setProducts(res.error ? [] : res.data.content);
+        setTotalProducts(res.error ? 0 : res.data.totalElements);
+        setTotalPage(res.error ? 0 : res.data.totalPages);
         setPage(newPage);
-        setIsLoadingProducts(false)
+        setIsLoadingProducts(false);
     }
 
     // --- Load Categories & Brands ---
@@ -377,7 +401,7 @@ export default function SearchPage() {
                             {!isLoadingProducts && products && products.length === 0 && (
                                 <div className="col-span-full flex flex-col items-center justify-center py-10 text-center">
                                     <img
-                                        src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1762246335/product-not-found_cjciip.png"
+                                        src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763006398/product-not-found_bkrnsf.png"
                                         className="w-48 h-auto opacity-90"
                                         alt="No products"
                                     />

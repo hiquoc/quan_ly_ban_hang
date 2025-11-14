@@ -452,7 +452,7 @@ export default function PurchaseOrderManager() {
             {/* Form Modal */}
             {showForm && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-lg w-[750px] max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white px-10 py-8 rounded-lg shadow-lg w-[900px] max-h-[90vh] overflow-y-auto">
                         <h3 className="text-2xl font-bold mb-4">
                             {editingOrderId ? "Chi tiết đơn mua hàng" : "Tạo đơn mua hàng"}
                         </h3>

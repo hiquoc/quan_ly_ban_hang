@@ -54,6 +54,8 @@ export default function CustomerPage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [forceLogout, setForceLogout] = useState(false);
   const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   //const [returnOrderForm, setReturnOrderForm] = useState({ visible: false, order: null })
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -80,14 +82,19 @@ export default function CustomerPage() {
     setInitalEmail(res.data.email);
   };
   const loadOrders = async (page = 0) => {
-    const res = await getCustomerOrders(page, size, sortStatus);
-    if (res.error) return showPopup("Lấy thông tin đơn hàng thất bại!");
-    setOrders(res.data.content);
-    setTotalPage(res.data.totalPages)
-    setPage(page)
-    console.log(res.data.content)
-    if (res.data.content.some(order => order.statusName === "DELIVERED"))
-      loadCustomerReviews()
+    try {
+      setIsLoading(true);
+      const res = await getCustomerOrders(page, size, sortStatus);
+      if (res.error) return showPopup("Lấy thông tin đơn hàng thất bại!");
+      setOrders(res.data.content);
+      setTotalPage(res.data.totalPages)
+      setPage(page)
+      console.log(res.data.content)
+      if (res.data.content.some(order => order.statusName === "DELIVERED"))
+        loadCustomerReviews()
+    } finally {
+      setIsLoading(false);
+    }
   }
   const loadCustomerReviews = async () => {
     const res = await getCustomerReviews();
@@ -132,11 +139,16 @@ export default function CustomerPage() {
     updateCustomerAPI();
   };
   const updateCustomerAPI = async () => {
-    const res = await updateCustomer(editForm.fullName, editForm.phone, editForm.email, editForm.gender, editForm.dateOfBirth);
-    if (res.error) return showPopup(res.error);
-    setCustomer(prev => ({ ...prev, ...editForm }));
-    setShowEditForm(false);
-    // showPopup("Cập nhật thông tin thành công");
+    try {
+      setIsProcessing(true);
+      const res = await updateCustomer(editForm.fullName, editForm.phone, editForm.email, editForm.gender, editForm.dateOfBirth);
+      if (res.error) return showPopup(res.error);
+      setCustomer(prev => ({ ...prev, ...editForm }));
+      setShowEditForm(false);
+      // showPopup("Cập nhật thông tin thành công");
+    } finally {
+      setIsProcessing(false);
+    }
   }
 
   const openAddressForm = (addr = null) => {
@@ -148,21 +160,26 @@ export default function CustomerPage() {
   const handleSaveAddress = async () => {
     const { id, name, phone, street, ward, district, city } = editAddressForm;
     if (!name || !phone || !street || !ward || !district || !city) return showPopup("Vui lòng điền đầy đủ thông tin");
-    if (id) {
-      const res = await updateAddress(id, name, phone, street, ward, district, city);
-      if (res.error) return showPopup(res.error || "Cập nhật địa chỉ thất bại");
-      setCustomer(prev => ({
-        ...prev,
-        addresses: prev.addresses.map(a => (a.id === id ? { ...a, name, phone, street, ward, district, city } : a))
-      }));
-    } else {
-      const res = await createAddress(name, phone, street, ward, district, city);
-      if (res.error) return showPopup(res.error || "Thêm địa chỉ thất bại");
-      const newAddr = { ...editAddressForm, id: res.data, isMain: false };
-      setCustomer(prev => ({ ...prev, addresses: [...prev.addresses, newAddr] }));
+    try {
+      setIsProcessing(true);
+      if (id) {
+        const res = await updateAddress(id, name, phone, street, ward, district, city);
+        if (res.error) return showPopup(res.error || "Cập nhật địa chỉ thất bại");
+        setCustomer(prev => ({
+          ...prev,
+          addresses: prev.addresses.map(a => (a.id === id ? { ...a, name, phone, street, ward, district, city } : a))
+        }));
+      } else {
+        const res = await createAddress(name, phone, street, ward, district, city);
+        if (res.error) return showPopup(res.error || "Thêm địa chỉ thất bại");
+        const newAddr = { ...editAddressForm, id: res.data, isMain: false };
+        setCustomer(prev => ({ ...prev, addresses: [...prev.addresses, newAddr] }));
+      }
+      setShowAddressForm(false);
+      showPopup(id ? "Cập nhật địa chỉ thành công" : "Thêm địa chỉ thành công");
+    } finally {
+      setIsProcessing(false);
     }
-    setShowAddressForm(false);
-    showPopup(id ? "Cập nhật địa chỉ thành công" : "Thêm địa chỉ thành công");
   };
 
   const handleSetMainAddress = async (id) => {
@@ -175,10 +192,15 @@ export default function CustomerPage() {
   };
 
   const handleDeleteAddress = async (id) => {
-    const res = await deleteAddress(id);
-    if (res.error) return showPopup("Xóa địa chỉ thất bại");
-    setCustomer(prev => ({ ...prev, addresses: prev.addresses.filter(a => a.id !== id) }));
-    showPopup("Xóa địa chỉ thành công");
+    setIsProcessing(true);
+    try {
+      const res = await deleteAddress(id);
+      if (res.error) return showPopup("Xóa địa chỉ thất bại");
+      setCustomer(prev => ({ ...prev, addresses: prev.addresses.filter(a => a.id !== id) }));
+      // showPopup("Xóa địa chỉ thành công");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -288,7 +310,14 @@ export default function CustomerPage() {
             </div>
 
             <div className="flex flex-col gap-6">
-              {orders.length === 0 ? (
+              {isLoading ? (
+                <div className="w-full flex justify-center items-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Đang tải...</p>
+                  </div>
+                </div>
+              ) : (orders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16">
                   <img
                     src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1761657389/emptyOrder_xt8frf.webp"
@@ -503,7 +532,7 @@ export default function CustomerPage() {
 
                     </div>
                   </div>
-                )))}
+                ))))}
             </div>
 
 
@@ -556,7 +585,7 @@ export default function CustomerPage() {
                     className="ml-1 max-w-[300px] inline-block overflow-hidden text-ellipsis whitespace-nowrap"
                     title={customer?.fullName}
                   >
-                    {customer?.fullName}
+                    {customer?.fullName || "-"}
                   </span>
                 </p>
 
@@ -566,12 +595,12 @@ export default function CustomerPage() {
                     className="ml-1 max-w-[300px] inline-block overflow-hidden text-ellipsis whitespace-nowrap"
                     title={customer?.email}
                   >
-                    {customer?.email}
+                    {customer?.email || "-"}
                   </span>
                 </p>
-                <p className="text-gray-700"><strong>SĐT:</strong> {customer?.phone}</p>
-                <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender}</p>
-                <p className="text-gray-700"><strong>Ngày sinh:</strong> {customer?.dateOfBirth}</p>
+                <p className="text-gray-700"><strong>SĐT:</strong> {customer?.phone || "-"}</p>
+                <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender || "-"}</p>
+                <p className="text-gray-700"><strong>Ngày sinh:</strong> {customer?.dateOfBirth || "-"}</p>
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => { setEditForm(customer); setShowEditForm(true); }} className="px-5 py-2 bg-black text-white rounded hover:bg-gray-900 flex items-center gap-2 hover:cursor-pointer"><FiEdit /> Chỉnh sửa</button>
                   <button onClick={() => setShowPasswordForm(true)} className="px-3 py-2 border border-black text-black rounded hover:bg-gray-100 flex items-center gap-2 hover:cursor-pointer">
@@ -796,9 +825,15 @@ export default function CustomerPage() {
         <ConfirmPanel
           visible={confirmPanel.visible}
           message={confirmPanel.message}
-          onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); setConfirmPanel({ visible: false, message: "", onConfirm: null }); }}
+          onConfirm={async () => {
+            if (confirmPanel.onConfirm) {
+              await confirmPanel.onConfirm();
+            }
+           setConfirmPanel({ visible: false, message: "", onConfirm: null })
+          }}
           onCancel={() => setConfirmPanel({ visible: false, message: "", onConfirm: null })}
         />
+        
         {showVerifyPanel && (
           <VerificationSection
             email={editForm.email}
@@ -816,6 +851,33 @@ export default function CustomerPage() {
           reviewingProduct={reviewingProduct}
           showPopup={showPopup}
         />
+        {isProcessing && (
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50 rounded pointer-events-auto">
+            <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+              <svg
+                className="animate-spin h-5 w-5 text-gray-700"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+              <span className="text-gray-700 font-medium">Đang xử lý...</span>
+            </div>
+          </div>
+        )}
         {/* <ReturnOrderModal
           order={returnOrderForm.order}
           show={returnOrderForm.visible}

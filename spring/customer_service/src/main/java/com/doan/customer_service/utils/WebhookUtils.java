@@ -7,7 +7,7 @@ import org.springframework.web.client.RestTemplate;
 
 public class WebhookUtils {
 
-    private static final String WEBHOOK_URL = "http://34.60.240.21:5678/webhook/sync/customer";
+    private static final String WEBHOOK_URL = "http://3.27.223.232/webhook/sync/customer";
 
     public static void postToWebhook(Long customerId,String action) {
         RestTemplate restTemplate = new RestTemplate();

@@ -860,7 +860,7 @@ export default function ProductManager() {
                   <select
                     value={form.categoryId}
                     onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all"
+                    className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring focus:ring-gray-700 transition-all max-h-20 overflow-y-auto"
                   >
                     <option value="">Chọn danh mục</option>
                     {categories.map((c) => (

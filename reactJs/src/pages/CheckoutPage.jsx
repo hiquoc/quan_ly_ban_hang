@@ -26,6 +26,7 @@ export default function CheckoutPage() {
     const [promotions, setPromotions] = useState([]);
     const [loadingPromos, setLoadingPromos] = useState(false);
     const [selectedPromo, setSelectedPromo] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const stepTitles = ["Thông tin đơn hàng", "Thông tin giao hàng", "Thanh toán"];
     const stepIcons = [<FiFileText />, <FiTruck />, <FiCreditCard />];
@@ -163,23 +164,29 @@ export default function CheckoutPage() {
     };
 
     const handleSaveAddress = async () => {
-        const { id, name, phone, street, ward, district, city } = editAddressForm;
-        if (!name || !phone || !street || !ward || !district || !city) return showPopup("Vui lòng điền đầy đủ thông tin");
+        if (isProcessing) return;
+        setIsProcessing(true);
+        try {
+            const { id, name, phone, street, ward, district, city } = editAddressForm;
+            if (!name || !phone || !street || !ward || !district || !city) return showPopup("Vui lòng điền đầy đủ thông tin");
 
-        if (id) {
-            const res = await updateAddress(id, name, phone, street, ward, district, city);
-            if (res.error) return showPopup(res.error);
-            setCustomer(prev => ({
-                ...prev,
-                addresses: prev.addresses.map(a => (a.id === id ? { ...a, name, phone, street, ward, district, city } : a))
-            }));
-        } else {
-            const res = await createAddress(name, phone, street, ward, district, city);
-            if (res.error) return showPopup(res.error);
-            const newAddr = { ...editAddressForm, id: res.data, isMain: false };
-            setCustomer(prev => ({ ...prev, addresses: [...prev.addresses, newAddr] }));
+            if (id) {
+                const res = await updateAddress(id, name, phone, street, ward, district, city);
+                if (res.error) return showPopup(res.error);
+                setCustomer(prev => ({
+                    ...prev,
+                    addresses: prev.addresses.map(a => (a.id === id ? { ...a, name, phone, street, ward, district, city } : a))
+                }));
+            } else {
+                const res = await createAddress(name, phone, street, ward, district, city);
+                if (res.error) return showPopup(res.error);
+                const newAddr = { ...editAddressForm, id: res.data, isMain: false };
+                setCustomer(prev => ({ ...prev, addresses: [...prev.addresses, newAddr] }));
+            }
+            setShowAddressForm(false);
+        } finally {
+            setIsProcessing(false);
         }
-        setShowAddressForm(false);
     };
 
     const handleSetMainAddress = async (id) => {
@@ -284,9 +291,9 @@ export default function CheckoutPage() {
                                 ) : (
                                     selectedCartItems.map((item) => (
                                         <div key={item.id} className="flex p-3 border-b border-gray-300">
-                                            <img onClick={()=>navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
-                                            src={item.imageUrls?.main} alt={item.variantName}
-                                             className="w-20 h-20 object-cover rounded mr-6 hover:cursor-pointer" />
+                                            <img onClick={() => navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
+                                                src={item.imageUrls?.main} alt={item.variantName}
+                                                className="w-20 h-20 object-cover rounded mr-6 hover:cursor-pointer" />
                                             <div className="min-h-[2.5rem] w-80 flex items-center">
                                                 <p className="text-lg font-medium line-clamp-2 leading-tight">{item.variantName}</p>
                                             </div>
@@ -470,7 +477,7 @@ export default function CheckoutPage() {
                                                     <button
                                                         onClick={handleApplyPromo}
                                                         disabled={!selectedPromo}
-                                                        className="flex-1 px-6 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60 shadow-lg disabled:shadow-none"
+                                                        className="flex-1 px-6 py-3 bg-black text-white cursor-pointer font-semibold rounded-lg hover:bg-gray-800 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60 shadow-lg disabled:shadow-none"
                                                     >
                                                         {selectedPromo ? 'Áp dụng mã' : 'Chọn mã giảm giá'}
                                                     </button>
@@ -575,7 +582,7 @@ export default function CheckoutPage() {
                                     </div>
                                 </div>
                             ))
-                            : <p className="text-gray-500 italic">Chưa có địa chỉ nào</p>}
+                            : <p className="text-gray-500 text-center italic">Chưa có địa chỉ nào</p>}
 
                         <div className="relative w-full flex justify-center items-center my-10">
                             <div className="flex-1 text-center relative">
@@ -615,8 +622,33 @@ export default function CheckoutPage() {
                                         <input type="text" placeholder="Quận/Huyện" value={editAddressForm.district} onChange={e => setEditAddressForm(prev => ({ ...prev, district: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
                                         <input type="text" placeholder="Thành phố/Tỉnh" value={editAddressForm.city} onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
                                         <div className="flex gap-3 mt-2">
-                                            <button onClick={() => setShowAddressForm(false)} className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer">Hủy</button>
-                                            <button onClick={handleSaveAddress} className="px-4 py-3 bg-black text-white rounded hover:bg-gray-900 flex-1 hover:cursor-pointer">{editAddressForm.id ? "Cập nhật" : "Thêm"}</button>
+                                            <button onClick={() => setShowAddressForm(false)}
+                                                className={`"px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                disabled={isProcessing}>Hủy</button>
+                                            <button onClick={handleSaveAddress} className={`flex gap-1 justify-center items-center px-4 py-3 bg-black text-white rounded hover:bg-gray-900 flex-1 hover:cursor-pointer ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                disabled={isProcessing}>
+                                                {isProcessing && (<svg
+                                                    className="animate-spin h-5 w-5 text-black"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <circle
+                                                        className="opacity-25 text-gray-200"
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        stroke="currentColor"
+                                                        strokeWidth="4"
+                                                    ></circle>
+                                                    <path
+                                                        className="opacity-75 text-white"
+                                                        fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                                    ></path>
+                                                </svg>)}
+                                                {isProcessing ? "Đang xử lý" : editAddressForm.id ? "Cập nhật" : "Thêm"}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -744,9 +776,7 @@ export default function CheckoutPage() {
                                 <div className="flex gap-4">
                                     {/* Quay lại button */}
                                     <button
-                                        disabled={isCreatingOrder}
-                                        className={`px-10 py-4 rounded border border-gray-300 transition
-                                            ${!isCreatingOrder ? 'hover:bg-gray-100 hover:cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                                        className={`px-10 py-4 rounded border border-gray-300 transition`}
                                         onClick={() => setStep(1)}
                                     >
                                         Quay lại
@@ -754,34 +784,10 @@ export default function CheckoutPage() {
 
                                     {/* Thanh toán button */}
                                     <button
-                                        disabled={isCreatingOrder}
-                                        className={`bg-black text-white px-10 py-4 rounded text-lg font-medium flex items-center justify-center gap-2 shadow transition
-                                            ${!isCreatingOrder ? 'hover:bg-gray-900 hover:cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                                        className={`bg-black text-white px-10 py-4 rounded text-lg font-medium flex items-center justify-center gap-2 shadow transition`}
                                         onClick={handleCheckout}
                                     >
-                                        {isCreatingOrder && (
-                                            <svg
-                                                className="animate-spin h-5 w-5 text-white"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <circle
-                                                    className="opacity-25"
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    stroke="currentColor"
-                                                    strokeWidth="4"
-                                                ></circle>
-                                                <path
-                                                    className="opacity-75"
-                                                    fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                                ></path>
-                                            </svg>
-                                        )}
-                                        <span>{isCreatingOrder ? 'Đang xử lý...' : 'Thanh toán'}</span>
+                                        <span>Thanh toán</span>
                                     </button>
                                 </div>
                             </div>
@@ -797,6 +803,33 @@ export default function CheckoutPage() {
                                 title={`Xác thực Email\n trước khi đặt hàng`}
                                 completeTitle="Xác thực thành công! Đang xử lý..."
                             />
+                        )}
+                        {isCreatingOrder && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50 rounded pointer-events-auto">
+                                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                                    <svg
+                                        className="animate-spin h-5 w-5 text-gray-700"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                        ></path>
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}

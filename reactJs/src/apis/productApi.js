@@ -72,14 +72,25 @@ export const changeProductFeatured = (id) =>
 export const deleteProduct = (id) =>
   safeApiCall(() => api.delete(`product/secure/products/${id}`));
 
-export const getHomeProduct = (newProduct, hotProduct, featuredProduct, discountProduct) =>
+export const getHomeProducts = (newProduct, discountProduct) =>
   safeApiCall(() => {
     const params = {};
     if (newProduct != null) params.newProduct = newProduct;
-    if (hotProduct != null) params.hotProduct = hotProduct;
-    if (featuredProduct) params.featuredProduct = featuredProduct;
     if (discountProduct) params.discountProduct = discountProduct;
     return api.get("product/public/home", { params });
+  });
+ 
+export const getHotProducts = (size) =>
+  safeApiCall(() => {
+    const params = {};
+    if (size != null) params.size = size;
+    return api.get("product/public/hot-products", { params });
+  });
+export const getFeaturedProducts = (size) =>
+  safeApiCall(() => {
+    const params = {};
+    if (size != null) params.size = size;
+    return api.get("product/public/featured-products", { params });
   });
 
 export const getProductVariantByProductId = (id) =>
@@ -222,9 +233,10 @@ export const updateVariant = async (
   if (hasNewImages || hasDeletedImages || hasMainChange) {
     const resImages = await updateVariantImages(id, images);
     if (resImages?.error) return { error: resImages.error };
+    return { success: true ,data:resImages.data};
   }
 
-  return { success: true };
+  return { success: true ,data:resInfo.data};
 };
 
 
@@ -504,3 +516,6 @@ export const getCustomerReviews = () => {
 
 export const getRandomActiveProductByCategory=async(categorySlug)=>
   safeApiCall(()=>api.get(`/product/public/products-random/category/${categorySlug}`))
+
+export const getRecommendedProducts=async(customerId)=>
+  safeApiCall(()=>api.get(`/product/public/recommendations?customerId=${customerId}`))

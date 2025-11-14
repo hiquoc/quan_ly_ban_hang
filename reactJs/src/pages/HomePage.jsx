@@ -1,17 +1,21 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiChevronLeft, FiChevronRight, FiShoppingBag, FiTruck, FiShield, FiCreditCard } from "react-icons/fi";
-import { getActiveBrands, getActiveCategories, getHomeProduct } from "../apis/productApi";
+import { getActiveBrands, getActiveCategories, getFeaturedProducts, getHomeProducts, getHotProducts, getRecommendedProducts } from "../apis/productApi";
 import Popup from "../components/Popup";
 import ProductCard from "../components/ProductCard";
 import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { AuthContext } from "../contexts/AuthContext";
 
 export default function HomePage() {
+  const { ownerId } = useContext(AuthContext);
   const [newProducts, setNewProducts] = useState([]);
   const [hotProducts, setHotProducts] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [discountProducts, setDiscountProducts] = useState([]);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
   const discountRef = useRef(null);
+  const recommendRef = useRef(null);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [activeTab, setActiveTab] = useState("new");
@@ -24,11 +28,15 @@ export default function HomePage() {
   const emptyRange = useMemo(() => [], []);
 
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isLoadingRecommended, setIsLoadingRecommended] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isLoadingBrands, setIsLoadingBrands] = useState(true);
 
   const [canScrollDiscountLeft, setCanScrollDiscountLeft] = useState(false);
   const [canScrollDiscountRight, setCanScrollDiscountRight] = useState(true);
+
+  const [canScrollRecommendLeft, setCanScrollRecommendLeft] = useState(false);
+  const [canScrollRecommendRight, setCanScrollRecommendRight] = useState(true);
 
   const [canScrollBrandLeft, setCanScrollBrandLeft] = useState(false);
   const [canScrollBrandRight, setCanScrollBrandRight] = useState(true);
@@ -61,15 +69,12 @@ export default function HomePage() {
 
 
   useEffect(() => {
-    handleLoadProducts();
+    handleLoadHomeProducts();
+    handleLoadRecommendedProducts();
     handleLoadCategories();
     handleBrands();
   }, []);
 
-  // useEffect(() => {
-  //   const interval = setInterval(() => nextItem(), 3000);
-  //   return () => clearInterval(interval);
-  // }, [currentIndex]);
 
   useEffect(() => {
     const heroInterval = setInterval(() => {
@@ -78,28 +83,62 @@ export default function HomePage() {
     return () => clearInterval(heroInterval);
   }, []);
 
-  const handleLoadProducts = async () => {
+  const handleLoadHomeProducts = async () => {
     setIsLoadingProducts(true);
-    const res = await getHomeProduct(12, 12, 12, 12);
+    const res = await getHomeProducts(12, 12);
     if (res.error) {
       console.error(res.error);
       setPopup({ message: res.error })
       setNewProducts([]);
-      setHotProducts([]);
-      setFeaturedProducts([]);
       setDiscountProducts([]);
       setIsLoadingProducts(false);
       return;
     }
     setNewProducts(res.data.newProducts);
-    setHotProducts(res.data.hotProducts);
-    setFeaturedProducts(res.data.featuredProducts);
     setDiscountProducts(res.data.discountProducts);
-    // setNewProducts(Array(4).fill(res.data.newProducts).flat());
-    // setHotProducts(Array(4).fill(res.data.hotProducts).flat());
-    // setFeaturedProducts(Array(4).fill(res.data.featuredProducts).flat());
-    // setDiscountProducts(Array(10).fill(res.data.discountProducts).flat());
-
+    setIsLoadingProducts(false);
+  };
+  const handleLoadRecommendedProducts = async () => {
+    setIsLoadingRecommended(true);
+    const res = await getRecommendedProducts(ownerId != null ? ownerId : undefined);
+    if (res.error) {
+      console.error(res.error);
+      setRecommendedProducts([]);
+      setIsLoadingRecommended(false);
+      return;
+    }
+    // setRecommendedProducts(res.data);
+    setRecommendedProducts(Array(5).fill(res.data).flat());
+    setIsLoadingRecommended(false);
+  }
+  const handleLoadHotProducts = async () => {
+    if (hotProducts.length > 0)
+      return;
+    setIsLoadingProducts(true);
+    const res = await getHotProducts(12);
+    if (res.error) {
+      console.error(res.error);
+      setPopup({ message: res.error })
+      setHotProducts([]);
+      setIsLoadingProducts(false);
+      return;
+    }
+    setHotProducts(res.data);
+    setIsLoadingProducts(false);
+  };
+  const handleLoadFeaturedProducts = async () => {
+    if (featuredProducts.length > 0)
+      return;
+    setIsLoadingProducts(true);
+    const res = await getFeaturedProducts(12);
+    if (res.error) {
+      console.error(res.error);
+      setPopup({ message: res.error })
+      setFeaturedProducts([]);
+      setIsLoadingProducts(false);
+      return;
+    }
+    setFeaturedProducts(res.data);
     setIsLoadingProducts(false);
   };
 
@@ -135,12 +174,22 @@ export default function HomePage() {
   const scrollNextDiscount = () => {
     const container = discountRef.current;
     if (!container) return;
-    container.scrollBy({ left: container.firstChild.offsetWidth + 24, behavior: "smooth" });
+    container.scrollBy({ left: container.firstChild.offsetWidth + 26, behavior: "smooth" });
   };
   const scrollPrevDiscount = () => {
     const container = discountRef.current;
     if (!container) return;
-    container.scrollBy({ left: -container.firstChild.offsetWidth - 24, behavior: "smooth" });
+    container.scrollBy({ left: -container.firstChild.offsetWidth - 26, behavior: "smooth" });
+  };
+  const scrollNextRecommend = () => {
+    const container = recommendRef.current;
+    if (!container) return;
+    container.scrollBy({ left: container.firstChild.offsetWidth + 26, behavior: "smooth" });
+  };
+  const scrollPrevRecommend = () => {
+    const container = recommendRef.current;
+    if (!container) return;
+    container.scrollBy({ left: -container.firstChild.offsetWidth - 26, behavior: "smooth" });
   };
 
   const scrollNextCategories = () => {
@@ -164,7 +213,7 @@ export default function HomePage() {
     container.scrollBy({ left: -(container.firstChild.offsetWidth + 26), behavior: "smooth" });
   };
   useEffect(() => {
-    const refs = [categoriesRef, brandsRef, discountRef];
+    const refs = [categoriesRef, brandsRef, discountRef, recommendRef];
 
     const handleScroll = (container, setLeft, setRight) => {
       const { scrollLeft, scrollWidth, clientWidth } = container;
@@ -179,6 +228,9 @@ export default function HomePage() {
       const listener = () => {
         if (ref === discountRef) {
           handleScroll(container, setCanScrollDiscountLeft, setCanScrollDiscountRight);
+        }
+        else if (ref === recommendRef) {
+          handleScroll(container, setCanScrollRecommendLeft, setCanScrollRecommendRight);
         }
         else if (ref === categoriesRef) {
           handleScroll(container, setCanScrollCategoryLeft, setCanScrollCategoryRight);
@@ -212,7 +264,7 @@ export default function HomePage() {
       </Helmet>
       <div className="min-h-screen bg-white">
         {/* Hero Banner with Auto-Sliding */}
-        <div className="relative h-[500px] w-full flex items-center justify-center bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 overflow-hidden">
+        <div className="relative h-[500px] w-full flex items-center justify-center bg-gradient-to-r from-gray-500 via-gray-400 to-gray-300 overflow-hidden">
           {heroSlides.map((slide, idx) => (
             <div
               key={idx}
@@ -430,6 +482,73 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Recommended Products Section */}
+        <div className="px-40 py-12 bg-gradient-to-br from-purple-50 to-blue-50">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Dành riêng cho bạn ✨</h2>
+              <p className="text-gray-600 mt-2">Những sản phẩm phù hợp với sở thích của bạn</p>
+            </div>
+            {/* <Link
+              to="/search?recommended=true"
+              className="text-blue-600 font-semibold hover:text-blue-700 transition flex items-center gap-2 group"
+            >
+              Xem thêm
+              <FiChevronRight className="transform group-hover:translate-x-1 transition" />
+            </Link> */}
+          </div>
+          <div className="relative">
+            {canScrollRecommendLeft && (
+              <button
+                onClick={scrollPrevRecommend}
+                className="absolute -left-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
+              >
+                <FiChevronLeft className="text-2xl text-gray-800" />
+              </button>
+            )}
+
+            {canScrollRecommendRight && (
+              <button
+                onClick={scrollNextRecommend}
+                className="absolute -right-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
+              >
+                <FiChevronRight className="text-2xl text-gray-800" />
+              </button>
+            )}
+            {isLoadingRecommended ? (
+              <div className="col-span-full flex justify-center items-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Đang tải...</p>
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={recommendRef}
+                className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
+              >
+                {recommendedProducts && recommendedProducts.map((product, idx) => (
+                  <div
+                    key={`recommended-${product.id}-${idx}`}
+                    className="flex-shrink-0 pb-12 overflow-visible"
+                    style={{
+                      width: `calc((100% - 5 * 1.5rem) / 6)`
+                    }}
+                  >
+                    <ProductCard
+                      product={product}
+                      preferDiscounted={true}
+                      priceRange={emptyRange}
+                    />
+                  </div>
+                ))}
+
+
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Mid Promotional Banner */}
         <div className="relative h-80 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 flex items-center">
@@ -458,6 +577,7 @@ export default function HomePage() {
           </div>
         </div>
 
+
         {/* Product Tabs Section */}
         <div className="px-40 py-10">
           <div className="flex justify-between items-center">
@@ -469,7 +589,13 @@ export default function HomePage() {
                     ? "text-blue-600"
                     : "text-gray-500 hover:text-gray-900"
                     }`}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    if (tab === "hot")
+                      handleLoadHotProducts();
+                    else if (tab === "featured")
+                      handleLoadFeaturedProducts();
+                  }}
                 >
                   {tab === "new"
                     ? "Sản phẩm mới"

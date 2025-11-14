@@ -134,6 +134,7 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
         <h3
           className="text-gray-900 font-semibold leading-tight line-clamp-2 -mt-3 mb-4 h-10 cursor-pointer hover:text-blue-600 transition"
           onClick={() => navigate(`/product/${product.slug}?sku=${selectedVariant.sku}`)}
+          title={product.name}
         >
           {product.name}
         </h3>

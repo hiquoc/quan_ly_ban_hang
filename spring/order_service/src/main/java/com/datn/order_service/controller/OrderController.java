@@ -230,8 +230,7 @@ public class OrderController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
-    @GetMapping("/secure/recommend")
+    @GetMapping("/internal/recommend")
     public ResponseEntity<?> getOrdersDetailsAdvanced(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
@@ -264,7 +263,7 @@ public class OrderController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF') or hasRole('SHIPPER')")
     @PatchMapping("/{orderId}/status")
     public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
             @PathVariable Long orderId,

@@ -5,6 +5,8 @@ import com.doan.product_service.dtos.product.ProductRequest;
 import com.doan.product_service.dtos.product.ProductResponse;
 import com.doan.product_service.dtos.product_variant.VariantDetailsResponse;
 import com.doan.product_service.dtos.product_variant.VariantResponse;
+import com.doan.product_service.dtos.rec.RecResponse;
+import com.doan.product_service.dtos.rec.Recommendation;
 import com.doan.product_service.models.Brand;
 import com.doan.product_service.models.Category;
 import com.doan.product_service.models.Product;
@@ -13,6 +15,7 @@ import com.doan.product_service.repositories.BrandRepository;
 import com.doan.product_service.repositories.CategoryRepository;
 import com.doan.product_service.repositories.ProductRepository;
 import com.doan.product_service.repositories.ProductVariantRepository;
+import com.doan.product_service.services.client.RecServiceClient;
 import com.doan.product_service.services.cloud.CloudinaryService;
 import com.doan.product_service.utils.WebhookUtils;
 import jakarta.persistence.criteria.*;
@@ -36,6 +39,7 @@ public class ProductService {
     private final ProductVariantRepository productVariantRepository;
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
+    private final RecServiceClient recServiceClient;
     private final CloudinaryService cloudinaryService;
 
 
@@ -398,4 +402,18 @@ public class ProductService {
         return productRepository.findAllById(ids).stream().map(this::fromEntity).toList();
     }
 
+    public List<ProductResponse> getRecommendations(Long customerId) {
+        RecResponse response= recServiceClient.getRecommendations(customerId,4,12);
+        if(response==null)
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Có lỗi xảy ra khi lấy dữ liệu recommendations");
+        List<Long> productIds = response.getRecommendations().stream()
+                .map(v -> (long) v.getProduct_id())
+                .toList();
+        List<Product> products = productRepository.findAllById(productIds);
+        return products.stream().map(this::fromEntity).toList();
+    }
+
+    public void rebuildRecommendations() {
+        recServiceClient.rebuildRecommendations();
+    }
 }

@@ -641,20 +641,23 @@ public class OrderService {
         List<String> validNext = ALLOWED_TRANSITIONS.getOrDefault(oldStatusName, List.of());
         if (!validNext.contains(newStatusName)) {
             throw new IllegalStateException(String.format(
-                    "Invalid status transition: %s → %s", oldStatusName, newStatusName
+                    "Trạng thái không hợp lệ: %s → %s", oldStatusName, newStatusName
             ));
         }
 
         order.setStatus(newStatus);
         handleStatusChange(order, staffId, oldStatus, newStatus);
+        if (notes != null && !notes.isBlank())
+            order.setNotes(notes);
 
-        if ("DELIVERED".equals(newStatusName) || "RETURNED".equals(newStatusName)) {
+        if ("DELIVERED".equals(newStatusName)) {
+            if(!"SHIPPER".equals(role))
+                throw new IllegalStateException("Bạn không có quyền hoàn tất đơn hàng!");
             List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
             if (!orderItems.isEmpty()) {
-                int direction = "DELIVERED".equals(newStatusName) ? 1 : -1;
                 try {
                     for (OrderItem item : orderItems) {
-                        productServiceClient.updateVariantSold(item.getVariantId(), direction * item.getQuantity());
+                        productServiceClient.updateVariantSold(item.getVariantId(), item.getQuantity());
                     }
                 } catch (FeignException e) {
                     log.error("Failed to update variant sold count: {}", e.getMessage());
@@ -671,8 +674,6 @@ public class OrderService {
                 log.error("Failed to release stock for orderNumber: {}", order.getOrderNumber(), e);
             }
         }
-        if (notes != null && !notes.isBlank())
-            order.setNotes(notes);
         order = orderRepository.save(order);
         WebhookUtils.postToWebhook(order.getId(),"update");
         log.info("Order status updated successfully - OrderId: {}, NewStatus: {}", orderId, newStatus.getName());

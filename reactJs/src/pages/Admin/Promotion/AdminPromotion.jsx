@@ -928,7 +928,12 @@ export default function AdminPromotion() {
                 <ConfirmPanel
                     visible={confirmPanel.visible}
                     message={confirmPanel.message}
-                    onConfirm={() => { confirmPanel.onConfirm && confirmPanel.onConfirm(); closeConfirmPanel(); }}
+                    onConfirm={async () => {
+                        if (confirmPanel.onConfirm) {
+                            await confirmPanel.onConfirm();
+                        }
+                        closeConfirmPanel();
+                    }}
                     onCancel={closeConfirmPanel}
                 />
             </div>

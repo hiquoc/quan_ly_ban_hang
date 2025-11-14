@@ -121,7 +121,7 @@ public class ProductReviewController {
             return errorResponse(ex);
         }
     }
-    @GetMapping("/public/recommend")
+    @GetMapping("/internal/reviews/recommend")
     public List<ProductReview> getProductRecommendData(@RequestParam(required = false) LocalDateTime startDate,
                                                              @RequestParam(required = false) LocalDateTime endDate) {
         return productReviewService.getAllReviews(startDate,endDate);

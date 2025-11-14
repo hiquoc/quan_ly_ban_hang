@@ -212,8 +212,9 @@ export default function ProductVariantManager() {
             if (res?.error) return setPopup({ message: res.error, type: "error" });
             setPopup({ message: "Cập nhật biến thể thành công!", type: "success" });
             setShowForm(false);
-            // setVariants(prev=> prev.map(v => v.id === editingVariantId ? res.data : v))
-            handleLoadVariants();
+            // console.log(res)
+            setVariants(prev=> prev.map(v => v.id === editingVariantId ? res.data : v))
+            // handleLoadVariants();
         } finally {
             setIsSubmitting(false);
         }

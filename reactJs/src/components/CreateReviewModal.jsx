@@ -56,6 +56,33 @@ export default function CreateReviewModal({ isOpen, onClose, onSuccess, showPopu
                 </button>
 
                 <h2 className="text-lg font-semibold mb-4">Đánh giá sản phẩm: {reviewingProduct.variantName}</h2>
+                {creatingReview && (
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded pointer-events-auto">
+                        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                            <svg
+                                className="animate-spin h-5 w-5 text-gray-700"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                ></circle>
+                                <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                ></path>
+                            </svg>
+                            <span className="text-gray-700 font-medium">Đang xử lý...</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* Rating */}
                 <div className="flex items-center gap-2 mb-4">
@@ -96,23 +123,23 @@ export default function CreateReviewModal({ isOpen, onClose, onSuccess, showPopu
                 </div>
 
                 {/* Images */}
- 
-                    {images.length > 0 && (
-                        <div className="flex flex-wrap gap-3 mb-4">
-                            {images.map((img, idx) => !img.isDeleted && (
-                                <div key={idx} className="relative">
-                                    <img src={img.url} alt={`preview-${idx}`} className="w-20 h-20 object-cover border border-gray-300 rounded" />
-                                    <button
-                                        onClick={() => handleRemoveImage(idx)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
-                                    >
-                                        <FiTrash />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
- 
+
+                {images.length > 0 && (
+                    <div className="flex flex-wrap gap-3 mb-4">
+                        {images.map((img, idx) => !img.isDeleted && (
+                            <div key={idx} className="relative">
+                                <img src={img.url} alt={`preview-${idx}`} className="w-20 h-20 object-cover border border-gray-300 rounded" />
+                                <button
+                                    onClick={() => handleRemoveImage(idx)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
+                                >
+                                    <FiTrash />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
 
                 {/* Action buttons */}
                 <div className="flex justify-end gap-2">

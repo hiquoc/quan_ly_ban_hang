@@ -7,12 +7,14 @@ import com.doan.product_service.dtos.product.ProductDetailsResponse;
 import com.doan.product_service.dtos.product.ProductRequest;
 import com.doan.product_service.dtos.product.ProductResponse;
 import com.doan.product_service.dtos.product_variant.VariantResponse;
+import com.doan.product_service.models.Product;
 import com.doan.product_service.services.ProductDashboardService;
 import com.doan.product_service.services.ProductService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -48,20 +50,59 @@ public class ProductController {
     @GetMapping("/public/home")
     public ResponseEntity<?> getHomeProduct(@ModelAttribute HomeRequest request) {
         try {
+//            Page<ProductResponse> newProductList = productService.getAllProducts(0, request.getNewProduct(), null, null, null, true, null, null, null, null, null, null, true);
+//            Page<ProductResponse> hotProductList = productService.getAllProducts(0, request.getHotProduct(), null, null, null, true, null, null, "sold", null, null, null, true);
+//            Page<ProductResponse> featuredProductList = productService.getAllProducts(0, request.getFeaturedProduct(), null, null, null, true, true, null, null, null, null, null, true);
+//            Page<ProductResponse> discountProductList = productService.getAllProducts(0, request.getDiscountProduct(), null, null, null, true, null, null, null, true, null, null, true);
+//
+//            HomeResponse response = new HomeResponse(
+//                    newProductList.getContent(),
+//                    hotProductList.getContent(),
+//                    featuredProductList.getContent(),
+//                    discountProductList.getContent()
+//            );
             Page<ProductResponse> newProductList = productService.getAllProducts(0, request.getNewProduct(), null, null, null, true, null, null, null, null, null, null, true);
-            Page<ProductResponse> hotProductList = productService.getAllProducts(0, request.getHotProduct(), null, null, null, true, null, null, "sold", null, null, null, true);
-            Page<ProductResponse> featuredProductList = productService.getAllProducts(0, request.getFeaturedProduct(), null, null, null, true, true, null, null, null, null, null, true);
             Page<ProductResponse> discountProductList = productService.getAllProducts(0, request.getDiscountProduct(), null, null, null, true, null, null, null, true, null, null, true);
 
             HomeResponse response = new HomeResponse(
                     newProductList.getContent(),
-                    hotProductList.getContent(),
-                    featuredProductList.getContent(),
                     discountProductList.getContent()
             );
 
             return ResponseEntity.ok(
                     new ApiResponse<>("Lấy dữ liệu thành công!", true, response));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @GetMapping("/public/hot-products")
+    public ResponseEntity<?> getHotProducts(@RequestParam Integer size){
+        try {
+            if(size>20 ||size<0)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng điền số lượng phù hợp");
+            Page<ProductResponse> hotProductList = productService.getAllProducts(0, size, null, null, null, true, null, null, "sold", null, null, null, true);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, hotProductList.getContent()));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @GetMapping("/public/featured-products")
+    public ResponseEntity<?> getFeaturedProducts(@RequestParam Integer size){
+        try {
+            if(size>20 ||size<0)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng điền số lượng phù hợp");
+            Page<ProductResponse> featuredProductList = productService.getAllProducts(0, size, null, null, null, true, true, null, null, null, null, null, true);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, featuredProductList.getContent()));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/public/recommendations")
+    public ResponseEntity<?> getRecommendations(@RequestParam(required = false) Long customerId){
+        try {
+            List<ProductResponse> response=productService.getRecommendations(customerId);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -190,6 +231,19 @@ public class ProductController {
         try {
             productService.deleteProduct(id);
             return ResponseEntity.ok(new ApiResponse<>("Xóa sản phẩm thành công!", true, null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+
+
+
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PostMapping("/secure/recommendations")
+    public ResponseEntity<?> rebuildRecommendations(){
+        try {
+            productService.rebuildRecommendations();
+            return ResponseEntity.ok(new ApiResponse<>("Rebuild thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }

@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class HomeResponse implements Serializable {
     private List<ProductResponse> newProducts;
-    private List<ProductResponse> hotProducts;
-    private List<ProductResponse> featuredProducts;
+//    private List<ProductResponse> hotProducts;
+//    private List<ProductResponse> featuredProducts;
     private List<ProductResponse> discountProducts;
 }

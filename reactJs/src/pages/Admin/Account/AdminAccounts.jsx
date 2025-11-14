@@ -72,7 +72,7 @@ function AdminAccounts() {
 
   // Handlers
   const handleRoleChange = async (accountId, newRole) => {
-    const roleMap = { ADMIN: 1, MANAGER: 2, STAFF: 3 };
+    const roleMap = { ADMIN: 1, MANAGER: 2, STAFF: 3 ,SHIPPER:5};
     const result = await changeAccountRole(accountId, roleMap[newRole]);
     if (result?.error) return showPopup(result.error);
     showPopup("Thay đổi quyền thành công!", "success");
@@ -261,6 +261,7 @@ function AdminAccounts() {
                         className="border rounded px-2 py-1"
                       >
                         <option value="STAFF">STAFF</option>
+                        <option value="SHIPPER">SHIPPER</option>
                         <option value="MANAGER">MANAGER</option>
                         <option value="ADMIN">ADMIN</option>
                       </select>

@@ -255,10 +255,18 @@ public class InventoryService {
 
     @Transactional
     public InventoryTransactionResponse createTransactions(List<InventoryTransactionRequest> requestList, Long staffId) {
-        int size = requestList.size();
+        if (requestList == null || requestList.isEmpty()) {
+            return null;
+        }
+        int originalSize = requestList.size();
+        Map<Long, Warehouse> warehouseCache = new HashMap<>();
+        List<InventoryTransaction> transactions = new ArrayList<>();
         for (InventoryTransactionRequest request : requestList) {
-            Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy kho!"));
+            Long warehouseId = request.getWarehouseId();
+            Warehouse warehouse = warehouseCache.computeIfAbsent(warehouseId, id ->
+                    warehouseRepository.findById(id)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy kho!"))
+            );
             if (!"ADJUST".equals(request.getTransactionType())) {
                 if (request.getReferenceType() != null && request.getReferenceCode() == null) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng điền đầy đủ thông tin!");
@@ -296,7 +304,7 @@ public class InventoryService {
                     staffId
             );
             inventoryTransactionRepository.save(inventoryTransaction);
-
+            transactions.add(inventoryTransaction);
             if ("EXPORT".equals(request.getTransactionType())) {
                 int available = inventory.getQuantity() - inventory.getReservedQuantity();
                 if (available < request.getQuantity()) {
@@ -304,9 +312,10 @@ public class InventoryService {
                 }
                 updateReservedQuantity(inventory.getId(), inventory.getReservedQuantity() + request.getQuantity());
             }
-            if (size == 1)
-                return transactionResponseMapper(List.of(inventoryTransaction)).getFirst();
+
         }
+        if (originalSize == 1)
+            return transactionResponseMapper(List.of(transactions.getFirst())).getFirst();
         return null;
     }
 
