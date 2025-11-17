@@ -16,6 +16,8 @@ import torch
 import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, TensorDataset, random_split
+from datetime import datetime, timedelta
+from io import StringIO
 
 USERNAME = os.getenv("ADMIN_ACCOUNT")
 PASSWORD = os.getenv("ADMIN_PASSWORD")
@@ -26,21 +28,18 @@ if not CONN_STR:
 EUREKA_SERVER_URL = os.getenv("EUREKA_CLIENT_SERVICEURL_DEFAULTZONE")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "rec-service")
 SERVICE_PORT = 8080
-
 class RecModel(nn.Module):
     def __init__(self, num_users, num_items, emb_dim=32):
         super(RecModel, self).__init__()
         self.user_emb = nn.Embedding(num_users, emb_dim)
         self.item_emb = nn.Embedding(num_items, emb_dim)
         self.fc = nn.Linear(emb_dim * 2, 1)
-
     def forward(self, user_ids, item_ids):
         user_vecs = self.user_emb(user_ids)
         item_vecs = self.item_emb(item_ids)
         x = torch.cat([user_vecs, item_vecs], dim=-1)
         out = self.fc(x)
         return out.squeeze()
-
 def get_pg_connection():
     """Create PostgreSQL connection with forced IPv4 resolution"""
     try:
@@ -67,7 +66,6 @@ def get_pg_connection():
     except Exception as e:
         print(f"PostgreSQL connection error: {e}", flush=True)
         raise
-
 # Helper to create table if not exists
 def create_table_if_not_exists():
     conn = get_pg_connection()
@@ -83,7 +81,6 @@ def create_table_if_not_exists():
     conn.commit()
     cur.close()
     conn.close()
-
 # Global Eureka client
 eureka_client = None
 # Global vars (updated on rebuild)
@@ -93,7 +90,6 @@ item_map: Dict[int, int] = None
 rev_user_map: Dict[int, int] = None
 rev_item_map: Dict[int, int] = None
 augmented_df: pd.DataFrame = None  # Keep for recs
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global eureka_client, model, user_map, item_map, rev_user_map, rev_item_map, augmented_df
@@ -177,23 +173,18 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"Eureka deregistration failed: {e}", flush=True)
     sys.stdout.flush()
-
 app = FastAPI(title="Recommendation Service", lifespan=lifespan)
-
 class RebuildResponse(BaseModel):
     status: str
     num_users: int
     num_items: int
     version: int
-
 class RecRequest(BaseModel):
     customer_id: int
     k: int = 5  # Not used in neural, but keep for compat
     n: int = 3
-
 class RecResponse(BaseModel):
     recommendations: List[Dict[str, Any]]
-
 def resolve_service_url(service_name: str, path: str = "") -> str:
     """
     Find a running instance of a service registered in Eureka.
@@ -214,7 +205,6 @@ def resolve_service_url(service_name: str, path: str = "") -> str:
     port = inst.port.port if inst.port else 80
     scheme = "http"  # assuming HTTP
     return f"{scheme}://{host}:{port}{path}"
-
 def get_token() -> str:
     print("=== get_token() ===", flush=True)
    
@@ -234,7 +224,6 @@ def get_token() -> str:
         raise ValueError("Token missing in auth response")
     print("Token OK:", token[:10] + "...", flush=True)
     return token
-
 def fetch_orders(start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
     print("=== fetch_orders() ===", flush=True)
     # token = get_token()
@@ -280,7 +269,6 @@ def fetch_orders(start_date: str = None, end_date: str = None) -> List[Dict[str,
     ]
     print("Orders filtered:", len(orders_filtered), flush=True)
     return orders_filtered
-
 def fetch_reviews(start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
     print("=== fetch_reviews() ===", flush=True)
     # token = get_token()
@@ -315,7 +303,6 @@ def fetch_reviews(start_date: str = None, end_date: str = None) -> List[Dict[str
     ]
     print("Reviews filtered:", len(reviews_filtered), flush=True)
     return reviews_filtered
-
 # Process functions (from your code)
 def process_orders(orders: List[Dict[str, Any]]) -> pd.DataFrame:
     df = pd.DataFrame(orders)
@@ -327,36 +314,58 @@ def process_orders(orders: List[Dict[str, Any]]) -> pd.DataFrame:
     orders_agg['implicit_rating'] = np.minimum(orders_agg['quantity'] * 2.5, 5.0)
     orders_agg['source'] = 'order'
     return orders_agg
-
 def process_reviews(reviews: List[Dict[str, Any]]) -> pd.DataFrame:
     df = pd.DataFrame(reviews)
     reviews_agg = df.groupby(['customerId', 'productId']).agg({'rating': 'mean'}).reset_index()
     reviews_agg['source'] = 'review'
     return reviews_agg
-
-def train_model(augmented_df: pd.DataFrame, num_epochs: int = 20) -> RecModel:
-    unique_customers = sorted(augmented_df['customerId'].unique())
-    unique_products = sorted(augmented_df['productId'].unique())
-    user_map = {cust: idx for idx, cust in enumerate(unique_customers)}
-    item_map = {prod: idx for idx, prod in enumerate(unique_products)}
-    num_users = len(unique_customers)
-    num_items = len(unique_products)
+def fine_tune_model(fine_tune_df: pd.DataFrame, prev_model=None, prev_user_map=None, prev_item_map=None,
+                    num_epochs: int = 5, lr: float = 0.001) -> tuple[RecModel, dict, dict]:
+    # Build full maps: prev + new
+    all_customers = sorted(set(list(fine_tune_df['customerId'].unique()) + list(prev_user_map.keys() if prev_user_map else [])))
+    all_products = sorted(set(list(fine_tune_df['productId'].unique()) + list(prev_item_map.keys() if prev_item_map else [])))
     
-    # Prepare training data
+    user_map = {cust: idx for idx, cust in enumerate(all_customers)}
+    item_map = {prod: idx for idx, prod in enumerate(all_products)}
+    num_users = len(all_customers)
+    num_items = len(all_products)
+    
+    # Initialize or load model
+    if prev_model is None:
+        model = RecModel(num_users, num_items)  # Full train fallback
+    else:
+        # Expand prev_model embeddings for new users/items
+        old_num_users, old_num_items = prev_model.user_emb.weight.shape[0], prev_model.item_emb.weight.shape[0]
+        model = RecModel(num_users, num_items)
+        
+        # Copy old embeddings
+        with torch.no_grad():
+            model.user_emb.weight[:old_num_users] = prev_model.user_emb.weight
+            model.item_emb.weight[:old_num_items] = prev_model.item_emb.weight
+        
+        # Init new: average of existing for stability
+        if num_users > old_num_users:
+            avg_user_emb = model.user_emb.weight[:old_num_users].mean(0)
+            nn.init.normal_(model.user_emb.weight[old_num_users:], mean=avg_user_emb.mean().item(), std=0.01)
+        if num_items > old_num_items:
+            avg_item_emb = model.item_emb.weight[:old_num_items].mean(0)
+            nn.init.normal_(model.item_emb.weight[old_num_items:], mean=avg_item_emb.mean().item(), std=0.01)
+    
+    # Prepare data (same as before, but on fine_tune_df)
     train_data = []
-    for _, row in augmented_df.iterrows():
+    for _, row in fine_tune_df.iterrows():
         u_idx = user_map[row['customerId']]
         i_idx = item_map[row['productId']]
-        r_norm = row['final_rating'] / 5.0  # Normalize to [0,1]
+        r_norm = row['final_rating'] / 5.0
         train_data.append((u_idx, i_idx, r_norm))
     
-    print(f"Training data ready: {len(train_data)} samples")
+    print(f"Fine-tuning data ready: {len(train_data)} samples")
     
     if len(train_data) == 0:
-        raise ValueError("No training data available")
+        raise ValueError("No fine-tuning data available")
     
-    model = RecModel(num_users, num_items)
-    optimizer = Adam(model.parameters(), lr=0.01)
+    # Rest is similar: split, dataloaders, but fewer epochs + lower LR
+    optimizer = Adam(model.parameters(), lr=lr)  # Lower LR for fine-tuning
     criterion = nn.MSELoss()
     
     train_size = int(0.9 * len(train_data))
@@ -383,6 +392,115 @@ def train_model(augmented_df: pd.DataFrame, num_epochs: int = 20) -> RecModel:
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=len(val_dataset), shuffle=False)
     
+    best_val_loss = float('inf')
+    patience = 2  # Lower patience for fine-tune
+    no_improve = 0
+    model.train()
+    for epoch in range(num_epochs):
+        train_loss = 0
+        for batch in train_loader:
+            users, items, targets = batch
+            pred = model(users, items).unsqueeze(1)
+            loss = criterion(pred, targets.unsqueeze(1))
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * len(batch[0])
+        avg_train_loss = train_loss / len(train_dataset)
+        
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for batch in val_loader:
+                users, items, targets = batch
+                pred = model(users, items).unsqueeze(1)
+                val_loss += criterion(pred, targets.unsqueeze(1)).item() * len(batch[0])
+        avg_val_loss = val_loss / len(val_dataset)
+        model.train()
+        
+        print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            no_improve = 0
+        else:
+            no_improve += 1
+            if no_improve >= patience:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
+    
+    # Negative sampling (adapted for efficiency)
+    print("Adding negative sampling...")
+    neg_samples = []
+    num_neg = min(len(train_data) * 2, 500)  # Cap for speed
+    seen_set = set((u, i) for u, i, _ in train_data)
+    for _ in range(num_neg):
+        u_idx = np.random.randint(0, num_users)
+        i_idx = np.random.randint(0, num_items)
+        if (u_idx, i_idx) not in seen_set:
+            neg_samples.append((u_idx, i_idx, 0.0))
+    
+    model.train()
+    for u, i, r in neg_samples[:100]:  # Limit for efficiency
+        pred = model(torch.tensor([u], dtype=torch.long), torch.tensor([i], dtype=torch.long)).unsqueeze(0)
+        loss = criterion(pred, torch.tensor([r], dtype=torch.float))
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    
+    model.eval()
+    print("Fine-tuning completed!")
+    return model, user_map, item_map
+
+def train_model(augmented_df: pd.DataFrame, num_epochs: int = 20) -> tuple[RecModel, dict, dict]:
+    # Fallback full training if no prev
+    unique_customers = sorted(augmented_df['customerId'].unique())
+    unique_products = sorted(augmented_df['productId'].unique())
+    user_map = {cust: idx for idx, cust in enumerate(unique_customers)}
+    item_map = {prod: idx for idx, prod in enumerate(unique_products)}
+    num_users = len(unique_customers)
+    num_items = len(unique_products)
+   
+    # Prepare training data
+    train_data = []
+    for _, row in augmented_df.iterrows():
+        u_idx = user_map[row['customerId']]
+        i_idx = item_map[row['productId']]
+        r_norm = row['final_rating'] / 5.0  # Normalize to [0,1]
+        train_data.append((u_idx, i_idx, r_norm))
+   
+    print(f"Training data ready: {len(train_data)} samples")
+   
+    if len(train_data) == 0:
+        raise ValueError("No training data available")
+   
+    model = RecModel(num_users, num_items)
+    optimizer = Adam(model.parameters(), lr=0.01)
+    criterion = nn.MSELoss()
+   
+    train_size = int(0.9 * len(train_data))
+    val_size = len(train_data) - train_size
+    train_split, val_split = random_split(train_data, [train_size, val_size])
+   
+    def build_dataset(split):
+        users, items, ratings = zip(*[
+            (torch.tensor(u, dtype=torch.long),
+             torch.tensor(i, dtype=torch.long),
+             torch.tensor(float(r), dtype=torch.float))
+            for (u, i, r) in split
+        ])
+        return TensorDataset(
+            torch.stack(users),
+            torch.stack(items),
+            torch.stack(ratings)
+        )
+   
+    train_dataset = build_dataset(train_split)
+    val_dataset = build_dataset(val_split)
+   
+    batch_size = min(8, len(train_dataset))
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=len(val_dataset), shuffle=False)
+   
     best_val_loss = float('inf')
     patience = 3
     no_improve = 0
@@ -418,7 +536,7 @@ def train_model(augmented_df: pd.DataFrame, num_epochs: int = 20) -> RecModel:
             if no_improve >= patience:
                 print(f"Early stopping at epoch {epoch+1}")
                 break
-    
+   
     # Negative sampling
     print("Adding negative sampling...")
     neg_samples = []
@@ -429,7 +547,7 @@ def train_model(augmented_df: pd.DataFrame, num_epochs: int = 20) -> RecModel:
         i_idx = np.random.randint(0, num_items)
         if (u_idx, i_idx) not in seen_set:
             neg_samples.append((u_idx, i_idx, 0.0))
-    
+   
     model.train()
     for u, i, r in neg_samples[:100]:  # Limit for efficiency
         pred = model(torch.tensor([u], dtype=torch.long), torch.tensor([i], dtype=torch.long)).unsqueeze(0)
@@ -437,16 +555,15 @@ def train_model(augmented_df: pd.DataFrame, num_epochs: int = 20) -> RecModel:
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-    
+   
     model.eval()
     print("Training completed!")
     return model, user_map, item_map
-
 def get_recommendations(model: RecModel, user_map: Dict[int, int], item_map: Dict[int, int], augmented_df: pd.DataFrame, customer_id: int, n: int = 3):
     if customer_id not in user_map:
         popular = augmented_df.groupby('productId')['final_rating'].mean().sort_values(ascending=False).head(n)
         return [{'product_id': int(pid), 'score': float(score)} for pid, score in popular.items()]
-    
+   
     u_idx = user_map[customer_id]
     seen_products = augmented_df[augmented_df['customerId'] == customer_id]['productId'].unique()
     all_products = list(item_map.keys())
@@ -467,24 +584,19 @@ def get_recommendations(model: RecModel, user_map: Dict[int, int], item_map: Dic
    
     top_recs = sorted(predictions.items(), key=lambda x: x[1], reverse=True)[:n]
     return [{'product_id': prod, "score": round(score, 2)} for prod, score in top_recs]
-
 # Rebuild endpoint: Fetch, process, build/train model, store to Supabase PG
 @app.post("/rebuild", response_model=RebuildResponse)
-async def rebuild_matrices(
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None)
-):
+async def rebuild_matrices():
     global model, user_map, item_map, rev_user_map, rev_item_map, augmented_df
     try:
         print("=== REBUILD START ===", flush=True)
-        # Create table
         create_table_if_not_exists()
         # Fetch data
-        print("Fetching orders...", flush=True)
-        orders_raw = fetch_orders(start_date, end_date)
+        print(f"Fetching orders...", flush=True)
+        orders_raw = fetch_orders()
         print(f"Orders fetched: {len(orders_raw)}", flush=True)
         print("Fetching reviews...", flush=True)
-        reviews_raw = fetch_reviews(start_date, end_date)
+        reviews_raw = fetch_reviews()
         print(f"Reviews fetched: {len(reviews_raw)}", flush=True)
         # Process orders & reviews
         print("Processing orders...", flush=True)
@@ -501,10 +613,9 @@ async def rebuild_matrices(
         interactions_df = merged[['customerId', 'productId', 'final_rating', 'source', 'quantity']].copy()
         interactions_df = interactions_df.dropna(subset=['final_rating'])
         print("Interactions shape:", interactions_df.shape, flush=True)
-        # FIXED: Cast IDs to int (prevents numpy.int64 in maps)
         interactions_df['customerId'] = interactions_df['customerId'].astype(int)
         interactions_df['productId'] = interactions_df['productId'].astype(int)
-        # Build initial user-item matrix (for legacy, but not used)
+        # Build initial user-item matrix
         user_item_matrix = interactions_df.pivot_table(
             index='customerId',
             columns='productId',
@@ -512,45 +623,61 @@ async def rebuild_matrices(
             fill_value=0
         )
         print("User-item matrix shape:", user_item_matrix.shape, flush=True)
-        # Fake data (keep as is, but cast after)
-        print("Generating synthetic data...", flush=True)
-        np.random.seed(44)
-        products = user_item_matrix.columns.tolist()
-        real_avg_ratings = interactions_df.groupby('productId')['final_rating'].mean().to_dict()
-        fake_ids = np.arange(10, 30)
-        fake_data = []
-        for cust_id in fake_ids:
-            num_interactions = np.random.randint(2, 5)
-            if len(products) == 0:
-                continue
-            selected_products = np.random.choice(products, size=num_interactions, replace=False)
-            for prod_id in selected_products:
-                real_avg = real_avg_ratings.get(prod_id, 3.0)
-                rating = np.clip(np.random.normal(real_avg, 1.0), 1, 5)
-                quantity = np.random.randint(1, 2)
-                fake_data.append({
-                    'customerId': int(cust_id),
-                    'productId': int(prod_id),
-                    'final_rating': round(rating, 1),
-                    'source': 'synthetic',
-                    'quantity': quantity
-                })
-        fake_df = pd.DataFrame(fake_data)
-        print("Fake data shape:", fake_df.shape, flush=True)
-        augmented_df = pd.concat([interactions_df, fake_df], ignore_index=True)
-        augmented_df = augmented_df.drop_duplicates(subset=['customerId', 'productId'], keep='last')
-        augmented_df = augmented_df.sort_values(['customerId', 'productId']).reset_index(drop=True)
+        print("Loading previous artifacts...", flush=True)
+        prev_aug_str = fetch_artifact("augmented_df")
+        prev_aug_df = pd.read_json(StringIO(prev_aug_str), orient="split") if prev_aug_str else pd.DataFrame()
+        prev_user_map_str = fetch_artifact("user_map")
+        prev_user_map = {int(k): int(v) for k, v in json.loads(prev_user_map_str).items()} if prev_user_map_str else {}
+        prev_item_map_str = fetch_artifact("item_map")
+        prev_item_map = {int(k): int(v) for k, v in json.loads(prev_item_map_str).items()} if prev_item_map_str else {}
+        prev_state_str = fetch_artifact("model_state")
+        prev_model = None
+        if prev_state_str and prev_user_map and prev_item_map:
+            try:
+                prev_state_serialized = json.loads(prev_state_str)
+                prev_state_dict = {k: torch.tensor(v) for k, v in prev_state_serialized.items()}
+                old_num_users = len(prev_user_map)
+                old_num_items = len(prev_item_map)
+                prev_model = RecModel(old_num_users, old_num_items)
+                prev_model.load_state_dict(prev_state_dict)
+                print("Previous model loaded for fine-tuning")
+            except Exception as load_err:
+                print(f"Previous model load error: {load_err}", flush=True)
+                prev_model = None
+
+        if len(prev_aug_df) > 0:
+            old_sample_size = min(int(0.1 * len(prev_aug_df)), 1000)
+            old_sample = prev_aug_df.sample(n=old_sample_size, random_state=42)
+            # Exclude pairs in new to avoid overlap
+            new_pairs = set(zip(interactions_df['customerId'], interactions_df['productId']))
+            old_sample = old_sample[~old_sample[['customerId', 'productId']].apply(tuple, axis=1).isin(new_pairs)]
+            fine_tune_df = pd.concat([interactions_df, old_sample], ignore_index=True)
+            print(f"Delta size: {len(interactions_df)}, Old sample: {len(old_sample)}, Fine-tune total: {len(fine_tune_df)}")
+        else:
+            fine_tune_df = interactions_df
+            print("No previous data; full training on new interactions")
+        # Update full augmented_df: concat new with prev, drop dups (new overrides)
+        if len(prev_aug_df) > 0:
+            full_augmented = pd.concat([prev_aug_df, interactions_df], ignore_index=True)
+            full_augmented = full_augmented.drop_duplicates(subset=['customerId', 'productId'], keep='last')
+        else:
+            full_augmented = interactions_df
+        
+        augmented_df = full_augmented.sort_values(['customerId', 'productId']).reset_index(drop=True)
         augmented_df['customerId'] = augmented_df['customerId'].astype(int)
         augmented_df['productId'] = augmented_df['productId'].astype(int)
-        print("Augmented DF shape:", augmented_df.shape, flush=True)
-        # Train model
-        print("Training neural model...", flush=True)
-        model, user_map, item_map = train_model(augmented_df)
+        print("Updated Augmented DF shape:", augmented_df.shape, flush=True)
+        # Fine-tune or train model
+        print("Fine-tuning neural model...", flush=True)
+        if prev_model is not None and len(prev_aug_df) > 0:
+            model, user_map, item_map = fine_tune_model(fine_tune_df, prev_model, prev_user_map, prev_item_map)
+        else:
+            model, user_map, item_map = train_model(augmented_df)  # Full if no prev
         user_map = {int(k): int(v) for k, v in user_map.items()}
         item_map = {int(k): int(v) for k, v in item_map.items()}
         rev_user_map = {v: k for k, v in user_map.items()}
         rev_item_map = {v: k for k, v in item_map.items()}
-        print(f"Model trained: {len(user_map)} users, {len(item_map)} items")
+        print(f"Model fine-tuned: {len(user_map)} users, {len(item_map)} items")
         # Save augmented_df
         aug_json = augmented_df.to_json(orient="split")
         # Save maps
@@ -611,8 +738,7 @@ async def rebuild_matrices(
         )
     except Exception as e:
         print("=== REBUILD ERROR ===", e, flush=True)
-        raise HTTPException(status_code=500, detail=f"Rebuild failed: {str(e)}")
-# Recommendation endpoint
+        raise HTTPException(status_code=500, detail=f"Rebuild failed: {str(e)}")# Recommendation endpoint
 @app.post("/recommendations", response_model=RecResponse)
 async def get_recs(request: RecRequest):
     if model is None or user_map is None or item_map is None or augmented_df is None:
@@ -622,11 +748,15 @@ async def get_recs(request: RecRequest):
     print(f"Top {request.n} products recommended for customer {request.customer_id}:")
     print(recs)
     return RecResponse(recommendations=recs)
-
 # Health check
 @app.get("/health")
 def health():
     return {"status": "healthy", "model_loaded": model is not None}
-
-
-
+def fetch_artifact(artifact_type: str):
+    conn = get_pg_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT data FROM recommendation_artifacts WHERE artifact_type = %s ORDER BY version DESC LIMIT 1", (artifact_type,))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    return result[0] if result else None

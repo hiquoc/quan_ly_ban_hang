@@ -28,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -292,7 +293,7 @@ public class ProductReviewService {
                 .build();
     }
 
-    public List<ProductReview> getAllReviews(LocalDateTime startDate, LocalDateTime endDate) {
+    public List<ProductReview> getAllReviews(OffsetDateTime startDate, OffsetDateTime endDate) {
         return productReviewRepository.getAllReviews(startDate, endDate);
     }
 }

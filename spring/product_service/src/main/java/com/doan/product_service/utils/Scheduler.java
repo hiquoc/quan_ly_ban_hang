@@ -11,7 +11,7 @@ public class Scheduler {
     public Scheduler (ProductService productService){
         this.productService=productService;
     }
-    @Scheduled(cron = "0 0 0 * * ?")
+    @Scheduled(cron = "0 0 2 * * ?")
     public void rebuildRecommendations(){
         try{
             productService.rebuildRecommendations();

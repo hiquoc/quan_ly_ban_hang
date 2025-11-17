@@ -19,8 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,20 +126,37 @@ public class ProductReviewController {
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
 
-        LocalDate yesterday = LocalDate.now().minusDays(1);
+        ZoneId appZone = ZoneId.of("Asia/Ho_Chi_Minh");
+
+        LocalDate yesterday = LocalDate.now(appZone).minusDays(1);
         if (startDate == null) startDate = yesterday;
         if (endDate == null) endDate = yesterday;
 
-        LocalDateTime startDateTime = startDate.atStartOfDay();
-        LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
+        ZonedDateTime startZdt = startDate.atStartOfDay(appZone);
+        OffsetDateTime startDateTime = startZdt.toOffsetDateTime();
+
+        ZonedDateTime endZdt = endDate.plusDays(1).atStartOfDay(appZone);
+        OffsetDateTime endDateTime = endZdt.toOffsetDateTime();
 
         return productReviewService.getAllReviews(startDateTime, endDateTime);
     }
 
     @GetMapping("/secure/reviews/recommend")
-    public List<ProductReview> getProductRecommendDataSecure(@RequestParam(required = false) LocalDateTime startDate,
-                                                       @RequestParam(required = false) LocalDateTime endDate) {
-        return productReviewService.getAllReviews(startDate,endDate);
+    public List<ProductReview> getProductRecommendDataSecure(@RequestParam(required = false) LocalDate startDate,
+                                                       @RequestParam(required = false) LocalDate endDate) {
+        ZoneId appZone = ZoneId.of("Asia/Ho_Chi_Minh");
+
+        LocalDate yesterday = LocalDate.now(appZone).minusDays(1);
+        if (startDate == null) startDate = yesterday;
+        if (endDate == null) endDate = yesterday;
+
+        ZonedDateTime startZdt = startDate.atStartOfDay(appZone);
+        OffsetDateTime startDateTime = startZdt.toOffsetDateTime();
+
+        ZonedDateTime endZdt = endDate.plusDays(1).atStartOfDay(appZone);
+        OffsetDateTime endDateTime = endZdt.toOffsetDateTime();
+
+        return productReviewService.getAllReviews(startDateTime, endDateTime);
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
