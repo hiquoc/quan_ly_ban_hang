@@ -32,6 +32,7 @@ export default function ProductVariantManager() {
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
 
     const [form, setForm] = useState({
+        id:0,
         productId: 0,
         name: "",
         sku: "",
@@ -149,6 +150,7 @@ export default function ProductVariantManager() {
         const firstWord = v.name?.split(" ")[0] || "";
         handleLoadProducts(firstWord);
         setForm({
+            id:v.id,
             productId: v.productId,
             name: v.name,
             sku: v.sku,
@@ -213,7 +215,7 @@ export default function ProductVariantManager() {
             setPopup({ message: "Cập nhật biến thể thành công!", type: "success" });
             setShowForm(false);
             // console.log(res)
-            setVariants(prev=> prev.map(v => v.id === editingVariantId ? res.data : v))
+            setVariants(prev => prev.map(v => v.id === editingVariantId ? res.data : v))
             // handleLoadVariants();
         } finally {
             setIsSubmitting(false);
@@ -607,9 +609,12 @@ export default function ProductVariantManager() {
             {showForm && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
                     <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] my-10 relative">
-                        <h3 className="text-3xl font-bold mb-3 text-black">
-                            {editingVariantId ? "Chỉnh sửa biến thể" : "Thêm biến thể"}
-                        </h3>
+                        <div className="flex justify-between">
+                            <h3 className="text-3xl font-bold mb-3 text-black">
+                                {editingVariantId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
+                            </h3>
+                            <p className="text-gray-500 text-sm">ID: {form.id}</p>
+                        </div>
                         {isSubmitting && (
                             <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
                                 <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
@@ -847,7 +852,7 @@ export default function ProductVariantManager() {
                                     />
 
                                     {/* Image list with main selection */}
-                                    <div className="grid grid-cols-2 gap-3 mt-4 max-h-55 overflow-y-auto">
+                                    <div className="grid grid-cols-2 gap-3 mt-4 max-h-65 overflow-y-auto">
                                         {images.filter(img => (!img.deleted && img.url)).map((img) => (
                                             <div key={img.key} className="relative flex flex-col items-center border rounded p-2">
                                                 <img src={img.url} alt="" className="w-full h-32 object-contain rounded" />

@@ -4,14 +4,17 @@ import com.doan.product_service.dtos.product_variant.VariantDetailsResponse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
 @Data
 @AllArgsConstructor
-public class ProductDetailsResponse {
+@NoArgsConstructor
+public class ProductDetailsResponse implements Serializable {
     private Long id;
     private String name;
     private String productCode;

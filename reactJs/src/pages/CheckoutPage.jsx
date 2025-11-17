@@ -63,7 +63,6 @@ export default function CheckoutPage() {
         if (!selectedItems || selectedItems.length === 0) {
             showPopup("Giỏ hàng trống! Vui lòng chọn sản phẩm trước khi thanh toán!", "error", () => navigate(-1));
         }
-        console.log(selectedItems)
     }, [selectedItems, navigate]);
 
     useEffect(() => {
@@ -168,7 +167,13 @@ export default function CheckoutPage() {
         setIsProcessing(true);
         try {
             const { id, name, phone, street, ward, district, city } = editAddressForm;
-            if (!name || !phone || !street || !ward || !district || !city) return showPopup("Vui lòng điền đầy đủ thông tin");
+            if (!name?.trim()) return showPopup("Vui lòng nhập tên người nhận");
+            if (!phone?.trim()) return showPopup("Vui lòng nhập số điện thoại");
+            if (!/^\d{9,12}$/.test(phone)) return showPopup("Số điện thoại không hợp lệ");
+            if (!street?.trim()) return showPopup("Vui lòng nhập số nhà / tên đường");
+            if (!ward?.trim()) return showPopup("Vui lòng nhập phường / xã");
+            if (!district?.trim()) return showPopup("Vui lòng nhập quận / huyện");
+            if (!city?.trim()) return showPopup("Vui lòng nhập tỉnh / thành phố");
 
             if (id) {
                 const res = await updateAddress(id, name, phone, street, ward, district, city);
@@ -287,7 +292,29 @@ export default function CheckoutPage() {
                             <h2 className="text-3xl font-bold mb-5">Giỏ hàng</h2>
                             <div className="max-h-[600px] overflow-y-auto space-y-4">
                                 {selectedCartItems.length === 0 ? (
-                                    <p className="text-gray-500">Chưa chọn sản phẩm</p>
+                                    <div className="flex items-center gap-2">
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-gray-700"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                            ></path>
+                                        </svg>
+                                        <p className="text-gray-500">Đang tải</p>
+                                    </div>
                                 ) : (
                                     selectedCartItems.map((item) => (
                                         <div key={item.id} className="flex p-3 border-b border-gray-300">
@@ -754,7 +781,7 @@ export default function CheckoutPage() {
                                         }`}
                                     onClick={() => setPaymentMethod("COD")}
                                 >
-                                    <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1761657344/cod_ndzav1.png" alt="COD" className="w-15 h-15" />
+                                    <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763219425/9198191_kdulyy.png" alt="COD" className="w-15 h-15" />
                                     <span className="font-medium">Thanh toán khi nhận hàng (COD)</span>
                                 </button>
 
@@ -766,7 +793,7 @@ export default function CheckoutPage() {
                                         }`}
                                     onClick={() => setPaymentMethod("VNPAY")}
                                 >
-                                    <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1761657335/vnpay_to0ipd.png" alt="VNPay" className="w-15 h-15" />
+                                    <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763219568/Icon-VNPAY-QR_ccoczd.webp" alt="VNPay" className="w-10 h-10" />
                                     <span className="font-medium">Thanh toán trực tuyến (VNPay)</span>
                                 </button>
                             </div>
@@ -776,7 +803,7 @@ export default function CheckoutPage() {
                                 <div className="flex gap-4">
                                     {/* Quay lại button */}
                                     <button
-                                        className={`px-10 py-4 rounded border border-gray-300 transition`}
+                                        className={`px-10 py-4 rounded border border-gray-300 transition cursor-pointer`}
                                         onClick={() => setStep(1)}
                                     >
                                         Quay lại
@@ -784,7 +811,7 @@ export default function CheckoutPage() {
 
                                     {/* Thanh toán button */}
                                     <button
-                                        className={`bg-black text-white px-10 py-4 rounded text-lg font-medium flex items-center justify-center gap-2 shadow transition`}
+                                        className={`bg-black text-white px-10 py-4 rounded text-lg font-medium flex items-center justify-center gap-2 shadow transition cursor-pointer`}
                                         onClick={handleCheckout}
                                     >
                                         <span>Thanh toán</span>

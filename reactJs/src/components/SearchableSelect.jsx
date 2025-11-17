@@ -40,7 +40,9 @@ export default function SearchableSelect({
         timeoutRef.current = setTimeout(async () => {
             try {
                 setIsLoading(true);
-                await onInputChange(val);
+                if (onInputChange) {
+                    await onInputChange(val); 
+                }
             } finally {
                 setIsLoading(false);
             }

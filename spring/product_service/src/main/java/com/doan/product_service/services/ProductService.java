@@ -1,5 +1,7 @@
 package com.doan.product_service.services;
 
+import com.doan.product_service.dtos.other.HomeRequest;
+import com.doan.product_service.dtos.other.HomeResponse;
 import com.doan.product_service.dtos.product.ProductDetailsResponse;
 import com.doan.product_service.dtos.product.ProductRequest;
 import com.doan.product_service.dtos.product.ProductResponse;
@@ -23,6 +25,9 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.AllArgsConstructor;
@@ -47,8 +52,7 @@ public class ProductService {
     private final RecServiceClient recServiceClient;
     private final CloudinaryService cloudinaryService;
 
-
-
+    @CacheEvict(value = "homeProducts", allEntries = true)
     public ProductResponse createProduct(ProductRequest productRequest, MultipartFile image) {
         Category category= categoryRepository.findById(productRequest.getCategoryId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy doanh mục với id: "+productRequest.getCategoryId()));
@@ -206,8 +210,13 @@ public class ProductService {
         return productRepository.findByIsActiveIsTrue();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#productRequest.slug + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#productRequest.slug + ':false'")
+    })
     @Transactional(rollbackFor = IOException.class)
-    public void updateProduct(Long id, ProductRequest productRequest,MultipartFile image){
+    public ProductResponse updateProduct(Long id, ProductRequest productRequest,MultipartFile image){
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -217,7 +226,10 @@ public class ProductService {
                 productRepository.existsByNameAndIdNot(productRequest.getName(), id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên sản phẩm đã tồn tại!");
         }
-
+        if (!Objects.equals(product.getProductCode(), productRequest.getProductCode()) &&
+                productRepository.existsByProductCodeAndIdNot(productRequest.getProductCode(), id)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slug sản phẩm đã tồn tại!");
+        }
         if (!Objects.equals(product.getSlug(), productRequest.getSlug()) &&
                 productRepository.existsBySlugAndIdNot(productRequest.getSlug(), id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slug sản phẩm đã tồn tại!");
@@ -236,6 +248,7 @@ public class ProductService {
             }
         }
         product.setName(productRequest.getName());
+        product.setProductCode(productRequest.getProductCode());
         product.setSlug(productRequest.getSlug());
         product.setShortDescription(productRequest.getShortDescription());
         product.setDescription(productRequest.getDescription());
@@ -260,7 +273,15 @@ public class ProductService {
             product.setBrand(brand);
         }
         WebhookUtils.postToWebhook(product.getId(),"update");
+        return fromEntity(product);
     }
+
+
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':false'")
+    })
     @Transactional
     public void changeProductActive(Long id){
         Product product = productRepository.findById(id)
@@ -287,6 +308,11 @@ public class ProductService {
         WebhookUtils.postToWebhook(product.getId(),"update");
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':false'")
+    })
     public void changeProductFeatured(Long id){
         Product product=productRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy sản phẩm với id: "+id));
@@ -296,6 +322,12 @@ public class ProductService {
         productRepository.save(product);
         WebhookUtils.postToWebhook(product.getId(),"update");
     }
+
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':false'")
+    })
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Product not found with id: "+id));
@@ -315,31 +347,7 @@ public class ProductService {
         WebhookUtils.postToWebhook(product.getId(),"delete");
     }
 
-    @Transactional
-    public ProductResponse fromEntity(Product product) {
-        return new ProductResponse(
-                product.getId(),
-                product.getName(),
-                product.getProductCode(),
-                product.getSlug(),
-                product.getDescription(),
-                product.getShortDescription(),
-                product.getCategory().getName(),
-                product.getBrand().getName(),
-                product.getTechnicalSpecs(),
-                product.getImageUrl(),
-                product.getIsActive(),
-                product.getIsFeatured(),
-                product.getTotalSold(),
-                product.getRatingAvg(),
-                product.getRatingCount(),
-                product.getMainVariantId(),
-                product.getVariants().stream().map(this::toVariantDetailsResponse).toList(),
-                product.getCreatedAt(),
-                product.getUpdatedAt()
-        );
-    }
-
+    @Cacheable(value = "productDetails", key = "#slug + ':' + #showInActive")
     public ProductDetailsResponse getActiveProductDetails(String slug,boolean showInActive) {
         Product product =productRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -372,23 +380,92 @@ public class ProductService {
         return product.getVariants().stream().map(this::toVariantResponse).toList();
     }
 
+
     public List<ProductResponse> getProductsByIds(List<Long> ids) {
         return productRepository.findAllById(ids).stream().map(this::fromEntity).toList();
     }
 
-    public List<ProductResponse> getRecommendations(Long customerId) {
-        RecResponse response= recServiceClient.getRecommendations(customerId,4,12);
-        if(response==null)
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Có lỗi xảy ra khi lấy dữ liệu recommendations");
-        List<Long> productIds = response.getRecommendations().stream()
-                .map(v -> (long) v.getProduct_id())
+    @Cacheable(
+            value = "recommendedProducts",
+            key = "(#customerId == null) ? 'DEFAULT' : #customerId"
+    )
+    public Map<String, List<ProductResponse>> getRecommendations(Long customerId) {
+        RecResponse response = recServiceClient.getRecommendations(customerId, 6);
+        if (response == null)
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Có lỗi xảy ra khi lấy dữ liệu recommendations");
+
+        List<Recommendation> recs = response.getRecommendations();
+        Map<Long, Double> scoreMap = recs.stream()
+                .collect(Collectors.toMap(
+                        r -> (long) r.getProduct_id(),
+                        Recommendation::getScore
+                ));
+
+        List<Long> productIds = recs.stream()
+                .map(r -> (long) r.getProduct_id())
                 .toList();
+
         List<Product> products = productRepository.findAllById(productIds);
-        return products.stream().map(this::fromEntity).toList();
+
+        List<Product> sorted = products.stream()
+                .sorted((a, b) -> Double.compare(
+                        scoreMap.get(b.getId()),
+                        scoreMap.get(a.getId())
+                ))
+                .toList();
+
+        List<ProductResponse> list = sorted.stream()
+                .map(this::fromEntity)
+                .toList();
+        return Collections.singletonMap("list", list);
     }
 
+    @CacheEvict(
+            value = "recommendedProducts",
+            key = "(#customerId == null) ? 'DEFAULT' : #customerId"
+    )
     public void rebuildRecommendations() {
         recServiceClient.rebuildRecommendations();
+    }
+
+    @Cacheable(value = "homeProducts", key = "#request.newProduct + ':' + #request.discountProduct")
+    public HomeResponse getHomeProduct(HomeRequest request) {
+        Page<ProductResponse> newProductList = getAllProducts(
+                0, request.getNewProduct(), null, null, null, true, null, null, null, null, null, null, true);
+
+        Page<ProductResponse> discountProductList =getAllProducts(
+                0, request.getDiscountProduct(), null, null, null, true, null, null, null, true, null, null, true);
+
+        return new HomeResponse(
+                newProductList.getContent(),
+                discountProductList.getContent()
+        );
+    }
+
+    @Transactional
+    public ProductResponse fromEntity(Product product) {
+        return new ProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getProductCode(),
+                product.getSlug(),
+                product.getDescription(),
+                product.getShortDescription(),
+                product.getCategory().getName(),
+                product.getBrand().getName(),
+                product.getTechnicalSpecs(),
+                product.getImageUrl(),
+                product.getIsActive(),
+                product.getIsFeatured(),
+                product.getTotalSold(),
+                product.getRatingAvg(),
+                product.getRatingCount(),
+                product.getMainVariantId(),
+                product.getVariants().stream().map(this::toVariantDetailsResponse).toList(),
+                product.getCreatedAt(),
+                product.getUpdatedAt()
+        );
     }
 
     private VariantResponse toVariantResponse(ProductVariant productVariant) {

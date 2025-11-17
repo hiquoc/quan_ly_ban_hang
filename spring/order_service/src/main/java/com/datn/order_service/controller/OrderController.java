@@ -1,6 +1,7 @@
 package com.datn.order_service.controller;
 
 import com.datn.order_service.client.AuthServiceClient;
+import com.datn.order_service.dto.PageCacheWrapper;
 import com.datn.order_service.dto.request.*;
 import com.datn.order_service.dto.response.*;
 import com.datn.order_service.dto.response.dashboard.OrderDashboardResponse;
@@ -167,11 +168,11 @@ public class OrderController {
      * Lấy danh sách đơn hàng của khách hàng
      */
     @GetMapping("/customer")
-    public ResponseEntity<ApiResponse<Page<OrderDetailResponse>>> getCustomerOrders(
+    public ResponseEntity<ApiResponse<PageCacheWrapper<OrderDetailResponse>>> getCustomerOrders(
             @RequestHeader("X-Owner-Id") Long customerId,
             @RequestParam(required = false) String statusName,
             Pageable pageable) {
-        Page<OrderDetailResponse> response = orderService.getCustomerOrders(customerId,statusName, pageable);
+        PageCacheWrapper<OrderDetailResponse> response = orderService.getCustomerOrders(customerId,statusName, pageable);
         return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách đơn hàng thành công!", true, response));
     }
 
@@ -232,6 +233,39 @@ public class OrderController {
 
     @GetMapping("/internal/recommend")
     public ResponseEntity<?> getOrdersDetailsAdvanced(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        try {
+            LocalDate start = null;
+            LocalDate end = null;
+            if (startDate != null && !startDate.isBlank()) {
+                try {
+                    start = LocalDate.parse(startDate);
+                } catch (DateTimeParseException ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày bắt đầu không hợp lệ!");
+                }
+            }
+            if (endDate != null && !endDate.isBlank()) {
+                try {
+                    end = LocalDate.parse(endDate);
+                } catch (DateTimeParseException ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày kết thúc không hợp lệ!");
+                }
+            }
+            Page<OrderDetailResponse> orders = orderService.getOrdersDetailsAdvanced(page, size, status,keyword,
+                    start, end);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu đơn hàng thành công!", true, orders));
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode()).body(new ApiResponse<>(ex.getReason(), false, null));
+        }
+    }
+
+    @GetMapping("/secure/recommend")
+    public ResponseEntity<?> getOrdersDetailsAdvancedSecure(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String status,

@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +35,13 @@ public class CartService {
     private final CartRepository cartRepository;
     private final ProductServiceClient productServiceClient;
     private final InventoryServiceClient inventoryServiceClient;
-
+    @Autowired
+    private CacheManager cacheManager;
     /**
      * Thêm variant vào giỏ hàng
      * CHỈ cho phép thêm variant có isAvailable = true
      */
+    @CacheEvict(value = "customerCart",key = "#customerId")
     @Transactional
     public CartItemResponse addToCart(AddToCartRequest request, Long customerId) {
         log.info("Thêm vào giỏ - Khách hàng: {}, Variant: {}, Số lượng: {}",
@@ -101,6 +104,10 @@ public class CartService {
         }
 
         cart = cartRepository.save(cart);
+        Cache cache = cacheManager.getCache("customerCart");
+        if (cache != null) {
+            cache.evict(cart.getCustomerId());
+        }
         return mapToCartItemResponse(cart);
     }
 
@@ -109,6 +116,7 @@ public class CartService {
      * Lấy giỏ hàng của khách hàng
      * Hiển thị tất cả variant kể cả không available với trạng thái tương ứng
      */
+    @Cacheable(value = "customerCart",key = "#customerId")
     public CartResponse getCustomerCart(Long customerId) {
         log.info("Lấy giỏ hàng cho khách hàng: {}", customerId);
 
@@ -139,12 +147,14 @@ public class CartService {
                 .build();
     }
 
+    @CacheEvict(value = "customerCart",key = "#customerId")
     @Transactional
     public void removeByCustomerAndVariant(Long customerId, Long variantId) {
         log.info("Xóa variant - Khách hàng: {}, Variant: {}", customerId, variantId);
         cartRepository.deleteByCustomerIdAndVariantId(customerId, variantId);
     }
 
+    @CacheEvict(value = "customerCart",key = "#customerId")
     @Transactional
     public void clearCart(Long customerId) {
         log.info("Xóa toàn bộ giỏ hàng của khách hàng: {}", customerId);

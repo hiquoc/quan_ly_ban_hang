@@ -4,12 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 
 export default function LogoutPage() {
-    const { setUsername, setAccountId, setRole ,setOwnerId } = useContext(AuthContext);
+    const { setUsername, setAccountId, setRole, setOwnerId } = useContext(AuthContext);
     const navigate = useNavigate();
 
     useEffect(() => {
         localStorage.removeItem("token");
-
+        sessionStorage.removeItem("token");
         setUsername(null);
         setAccountId(null);
         setRole(null);

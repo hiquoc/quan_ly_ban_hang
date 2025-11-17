@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -122,8 +123,23 @@ public class ProductReviewController {
         }
     }
     @GetMapping("/internal/reviews/recommend")
-    public List<ProductReview> getProductRecommendData(@RequestParam(required = false) LocalDateTime startDate,
-                                                             @RequestParam(required = false) LocalDateTime endDate) {
+    public List<ProductReview> getProductRecommendData(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        if (startDate == null) startDate = yesterday;
+        if (endDate == null) endDate = yesterday;
+
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
+
+        return productReviewService.getAllReviews(startDateTime, endDateTime);
+    }
+
+    @GetMapping("/secure/reviews/recommend")
+    public List<ProductReview> getProductRecommendDataSecure(@RequestParam(required = false) LocalDateTime startDate,
+                                                       @RequestParam(required = false) LocalDateTime endDate) {
         return productReviewService.getAllReviews(startDate,endDate);
     }
 

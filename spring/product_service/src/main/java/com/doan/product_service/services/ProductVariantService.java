@@ -14,6 +14,8 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -174,6 +176,11 @@ public class ProductVariantService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id)));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
+    })
     @Transactional
     public VariantResponse updateVariantInfo(Long id, VariantRequest request) {
         ProductVariant variant = productVariantRepository.findById(id)
@@ -212,6 +219,11 @@ public class ProductVariantService {
         return toVariantResponse(variant);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
+    })
     @Transactional
     public VariantResponse updateVariantImages(Long id, List<MultipartFile> newImages, List<String> deletedKeys, String newMainKey) {
         ProductVariant variant = productVariantRepository.findById(id)
@@ -236,7 +248,7 @@ public class ProductVariantService {
         if (newImages != null) {
             for (int i = 0; i < newImages.size(); i++) {
                 MultipartFile file = newImages.get(i);
-                String key = "side_" + System.nanoTime() + "_" + i;
+                String key = "side" + variant.getImageUrls().size() + i;
                 try {
                     String url = cloudinaryService.uploadFile(file);
                     currentImages.put(key, url);
@@ -265,7 +277,11 @@ public class ProductVariantService {
         return toVariantResponse(variant);
     }
 
-
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
+    })
     @Transactional
     public void changeProductVariantActive(Long id) {
         ProductVariant variant = productVariantRepository.findById(id)
@@ -287,6 +303,11 @@ public class ProductVariantService {
         WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "homeProducts", allEntries = true),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
+            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
+    })
     public void deleteProductVariant(Long id) {
         ProductVariant variant = productVariantRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id));

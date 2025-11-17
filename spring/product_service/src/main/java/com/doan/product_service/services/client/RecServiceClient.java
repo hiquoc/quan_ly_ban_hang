@@ -22,9 +22,9 @@ public class RecServiceClient {
     private final RecommendationRepository recommendationRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public RecResponse getRecommendations(Long customerId,int k,int n) {
+    public RecResponse getRecommendations(Long customerId,int n) {
         try {
-            return recommendationRepository.getRecommendations(new RecRequest(customerId!=null?Math.toIntExact(customerId):null,k,n));
+            return recommendationRepository.getRecommendations(new RecRequest(customerId!=null?Math.toIntExact(customerId):-1,n));
         } catch (FeignException ex) {
             throw parseFeignException(ex);
         }

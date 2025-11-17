@@ -77,7 +77,12 @@ export default function PurchaseOrderManager() {
         try {
             const res = await getAllProducts(0, 5, keyword);
             if (!res.error) {
-                setProducts(res.data.content || []);
+                const newProducts = res.data.content || [];
+                setProducts(prev => {
+                    const existingIds = new Set(prev.map(p => p.id));
+                    const uniqueNewProducts = newProducts.filter(p => !existingIds.has(p.id));
+                    return [...prev, ...uniqueNewProducts];
+                });
             } else {
                 setPopup({ message: res.error, type: "error" });
             }
@@ -90,7 +95,12 @@ export default function PurchaseOrderManager() {
         try {
             const res = await getProductVariantByProductId(productId);
             if (!res.error) {
-                setVariants(res.data);
+                const newVariants = res.data || [];
+                setVariants(prev => {
+                    const existingIds = new Set(prev.map(v => v.id));
+                    const uniqueNewVariants = newVariants.filter(v => !existingIds.has(v.id));
+                    return [...prev, ...uniqueNewVariants];
+                });
             } else {
                 setPopup({ message: res.error, type: "error" });
             }
@@ -99,15 +109,46 @@ export default function PurchaseOrderManager() {
         }
     };
 
-
     const openDetailsForm = async (order) => {
         setIsLoadingDetails(true);
-        const items = (order.items || []).map((i) => ({
+        let items = (order.items || []).map((i) => ({
             variantId: i.variantId,
             quantity: i.quantity || 0,
             importPrice: i.importPrice || 0
         }));
 
+        const variantIds = items.map(i => Number(i.variantId));
+
+        const res = await getVariantsByIds(variantIds);
+        if (res.error) {
+            setIsLoadingDetails(false);
+            return setPopup({ message: res.error, type: "error" });
+        }
+        setVariants(res.data);
+        items = items.map(i => {
+            const variant = res.data.find(p => p.id === i.variantId);
+            return {
+                ...i,
+                productId: variant ? variant.productId : null
+            };
+        });
+        setProducts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+
+            const productMap = new Map();
+            res.data.forEach(v => {
+                if (!existingIds.has(v.productId) && !productMap.has(v.productId)) {
+                    productMap.set(v.productId, {
+                        id: v.productId,
+                        name: v.productName,
+                        productCode: v.productCode
+                    });
+                }
+            });
+
+            const newProducts = Array.from(productMap.values());
+            return [...newProducts, ...prev];
+        });
         setForm({
             supplierId: order.supplier?.id || "",
             warehouseId: order.warehouse?.id || "",
@@ -118,20 +159,10 @@ export default function PurchaseOrderManager() {
             updatedAt: order.updatedAt,
             items: items
         });
-
-        const variantIds = items.map(i => Number(i.variantId));
-
-        const res = await getVariantsByIds(variantIds);
-        if (res.error) {
-            setIsLoadingDetails(false);
-            return setPopup({ message: res.error, type: "error" });
-        }
-        setVariants(res.data);
         setEditingOrderId(order.id);
         setShowForm(true);
         setIsLoadingDetails(false);
     };
-
 
     const handleSaveOrder = async () => {
         if (!form.supplierId) {
@@ -170,7 +201,7 @@ export default function PurchaseOrderManager() {
             }
 
             // loadOrders(0);
-            setOrders(prev => editingOrderId ? prev.map(o => (o.id === editingOrderId ? res.data : o)) : [ res.data,...prev]);
+            setOrders(prev => editingOrderId ? prev.map(o => (o.id === editingOrderId ? res.data : o)) : [res.data, ...prev]);
             setPopup({ message: res.message || (editingOrderId ? "Cập nhật đơn mua hàng thành công!" : "Tạo đơn mua hàng hàng thành công!"), type: "success" });
             closeAndResetForm();
         } finally {
@@ -189,7 +220,7 @@ export default function PurchaseOrderManager() {
                         setOrders(prev => prev.map(o => o.id === editingOrderId ? res.data : o));
                         setForm(prev => ({ ...prev, status: newStatus, updatedBy: res.data.updatedBy, updatedAt: res.data.updatedAt }));
                         setPopup({ message: "Cập nhật trạng thái thành công!", type: "success" });
-                        loadData();
+                        closeConfirmPanel();
                     } else {
                         setPopup({ message: res.error, type: "error" });
                     }
@@ -558,29 +589,31 @@ export default function PurchaseOrderManager() {
                             <h4 className="text-gray-800 font-semibold mb-2">Danh sách sản phẩm</h4>
                             {form.items.map((item, idx) => (
                                 <div key={idx} className="mb-4 border p-2 rounded bg-white shadow-sm">
-                                    {!editingOrderId &&
-                                        (<div className="mb-2">
-                                            <SearchableSelect
-                                                options={products.map(p => ({ label: `${p.name}`, value: p.id }))}
-                                                value={item.productId}
-                                                onChange={id => updateItem(idx, "productId", id)}
-                                                placeholder="Tìm hoặc chọn sản phẩm..."
-                                                disabled={editingOrderId && form.status !== "PENDING"}
-                                                onInputChange={(keyword) => loadProducts(keyword)}
-                                            />
-                                        </div>)}
+
+                                    <div className="mb-2">
+                                        <SearchableSelect
+                                            options={products
+                                                .map(p => ({ label: `${p.productCode} | ${p.name}`, value: p.id }))}
+                                            value={item.productId}
+                                            onChange={id => updateItem(idx, "productId", id)}
+                                            placeholder="Tìm hoặc chọn sản phẩm..."
+                                            disabled={editingOrderId && form.status !== "PENDING"}
+                                            onInputChange={(keyword) => loadProducts(keyword)}
+                                        />
+                                    </div>
 
                                     {/* Variant Dropdown */}
                                     <div className="mb-2">
                                         <SearchableSelect
-                                            options={variants.map(v => ({ label: `${v.sku} | ${v.name}`, value: v.id }))}
+                                            options={variants
+                                                .filter(v => v.productId === item.productId)
+                                                .map(v => ({ label: `${v.sku} | ${v.name}`, value: v.id }))}
                                             value={item.variantId}
                                             onChange={id => updateItem(idx, "variantId", id)}
                                             placeholder="Chọn biến thể..."
                                             disabled={!item.productId || (editingOrderId && form.status !== "PENDING")}
                                             filterOutValues={form.items.filter((_, i) => i !== idx).map(it => String(it.variantId))}
                                         />
-
                                     </div>
 
                                     {/* Quantity & Import Price */}
@@ -590,7 +623,7 @@ export default function PurchaseOrderManager() {
                                             placeholder="Số lượng"
                                             value={item.quantity === 0 ? "" : item.quantity}
                                             onChange={e => updateItem(idx, "quantity", Number(e.target.value))}
-                                            className="border p-2 rounded w-32"
+                                            className={`border p-2 rounded w-32 ${editingOrderId && form.status !== "PENDING" ? "bg-gray-100" : ""}`}
                                             disabled={editingOrderId && form.status !== "PENDING"}
                                             min={1}
                                         />
@@ -599,7 +632,7 @@ export default function PurchaseOrderManager() {
                                             placeholder="Giá nhập"
                                             value={(item.importPrice)}
                                             onChange={e => updateItem(idx, "importPrice", Number(e.target.value))}
-                                            className="border p-2 rounded w-32"
+                                            className={`border p-2 rounded w-32 ${editingOrderId && form.status !== "PENDING" ? "bg-gray-100" : ""}`}
                                             disabled={editingOrderId && form.status !== "PENDING"}
                                         />
                                         <div className="flex-1 text-right font-medium">{item.quantity} x {item.importPrice.toLocaleString()}₫</div>

@@ -92,14 +92,13 @@ export default function SearchPage() {
     async function executeLoad(
         newPage = 0,
         currentSort = sort,
-        currentDiscount = discountSort,
+        currentDiscount = discountSort, 
         currentCatSlugs = selectedCats,
         currentBrandSlugs = selectedBrands,
         currentPrice = priceRange,
         requestId
     ) {
         setIsLoadingProducts(true);
-        console.log(Date.now())
         const selectedCatNames = currentCatSlugs.map(slug => categoryMap[slug]).filter(Boolean);
         const selectedBrandNames = currentBrandSlugs.map(slug => brandMap[slug]).filter(Boolean);
 
@@ -208,7 +207,7 @@ export default function SearchPage() {
             </Helmet>
             <div className="pb-10">
                 {/* Breadcrumb */}
-                <div className="px-40 py-4 text-base text-gray-600 flex flex-wrap items-center gap-2">
+                <div className="px-40 py-5 text-base text-gray-600 flex flex-wrap items-center gap-2">
                     <a href="/" className="hover:text-black hover:underline transition-colors">Trang chủ</a>
                     <span className="text-gray-400">›</span>
                     <a href="/search" className="hover:text-black hover:underline transition-colors">Tìm kiếm</a>
@@ -217,10 +216,10 @@ export default function SearchPage() {
                 </div>
 
 
-                <div className="flex px-40 pt-10 gap-15">
+                <div className="flex px-40 pt-3 gap-15">
                     {/* Sidebar */}
                     <div className="w-80 flex-shrink-0">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-4">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-20">
                             {/* Categories */}
                             <div className="mb-6">
                                 <div
@@ -384,7 +383,7 @@ export default function SearchPage() {
                                 <span className="text-black font-bold">{totalProducts}</span> sản phẩm
                             </span>
                             <select
-                                className="border border-gray-300 py-2 px-4 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-black focus:outline-none transition-all cursor-pointer bg-white"
+                                className="border border-gray-300 py-2 px-4 rounded-lg text-base focus:ring-1 focus:ring-gray-500 focus:border-black focus:outline-none transition-all cursor-pointer bg-white"
                                 value={sort}
                                 onChange={(e) => setSort(e.target.value)}
                             >

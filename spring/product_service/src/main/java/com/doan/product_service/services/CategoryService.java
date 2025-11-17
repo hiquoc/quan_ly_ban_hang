@@ -1,6 +1,7 @@
 package com.doan.product_service.services;
 
 import com.doan.product_service.dtos.category.CategoryRequest;
+import com.doan.product_service.dtos.other.PageCacheWrapper;
 import com.doan.product_service.models.Brand;
 import com.doan.product_service.models.Category;
 import com.doan.product_service.repositories.CategoryRepository;
@@ -8,6 +9,8 @@ import com.doan.product_service.repositories.ProductRepository;
 import com.doan.product_service.services.cloud.CloudinaryService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +55,10 @@ public class CategoryService {
         );
         categoryRepository.save(category);
     }
+    @CacheEvict(
+            value = "categories",
+            allEntries = true
+    )
     @Transactional
     public void updateCategory(Long id,CategoryRequest categoryRequest,MultipartFile image){
         Category category = categoryRepository.findById(id)
@@ -86,16 +93,17 @@ public class CategoryService {
         }
         categoryRepository.save(category);
     }
-    public Page<Category> getAllCategories(Integer page, Integer size, String keyword, Boolean active){
-        Pageable pageable;
-        if (page == null || size == null) {
-            pageable = Pageable.unpaged();
-        } else {
-            if (page < 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số trang phải lớn hơn 0");
-            if (size < 0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số lượng dữ liệu mỗi trang phải lớn hơn 0");
-            pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        }
+    @Cacheable(
+            value = "categories",
+            key = "#p1 != null ? #p1 : 'default'",
+            condition = "(#p2 == null || #p2.isBlank()) && #p3 == true && (#p0==null||#p0 == 0)"
+    )
+    public PageCacheWrapper<Category> getAllCategories(Integer page, Integer size, String keyword, Boolean active){
+        Pageable pageable = PageRequest.of(
+                page != null && page >= 0 ? page : 0,
+                size != null && size > 0 ? size : 50,
+                Sort.by("createdAt").descending()
+        );
 
         Specification<Category> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -117,8 +125,20 @@ public class CategoryService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return categoryRepository.findAll(spec,pageable);
+        Page<Category> pageResult = categoryRepository.findAll(spec, pageable);
+
+        return new PageCacheWrapper<>(
+                pageResult.getContent(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.getNumber(),
+                pageResult.getSize()
+        );
     }
+    @CacheEvict(
+            value = "categories",
+            allEntries = true
+    )
     public void changeCategoryActive(Long id){
         Category category = categoryRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Category not found with id: "+id));
@@ -128,6 +148,10 @@ public class CategoryService {
         category.setIsActive(!category.getIsActive());
         categoryRepository.save(category);
     }
+    @CacheEvict(
+            value = "categories",
+            allEntries = true
+    )
     public void deleteCategory(Long id){
         if(productRepository.existsByCategoryIdAndIsActiveIsTrue(id)){
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Có sản phẩm đang hoạt động thuộc doanh mục này!");

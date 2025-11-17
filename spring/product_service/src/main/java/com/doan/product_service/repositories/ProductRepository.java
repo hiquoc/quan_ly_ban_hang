@@ -1,6 +1,7 @@
 package com.doan.product_service.repositories;
 
 import com.doan.product_service.models.Product;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,11 +29,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     boolean existsByCategoryIdAndIsActiveIsTrue(Long id);
 
-    Page<Product> findByNameContainingIgnoreCaseAndIsActive(String name, boolean isActive, Pageable pageable);
+    boolean existsByProductCodeAndIdNot(String productCode, Long id);
 
-    Page<Product> findByNameContainingIgnoreCase(String name, Pageable pageable);
-
-    Page<Product> findByIsActive(boolean isActive, Pageable pageable);
 
     @Query(value = """
             SELECT p.*
@@ -67,4 +65,5 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             """, nativeQuery = true)
     List<Product> getRandomActiveProductByCategorySlug(@Param("categorySlug") String categorySlug,
                                                        @Param("size") int size);
+
 }

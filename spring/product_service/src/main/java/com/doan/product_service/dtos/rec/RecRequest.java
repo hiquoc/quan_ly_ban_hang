@@ -6,8 +6,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class RecRequest {
-    private int customer_id;
-    private int k;
+    private Integer customer_id;
     private int n;
-
 }

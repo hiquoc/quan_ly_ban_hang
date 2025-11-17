@@ -44,7 +44,7 @@ export const updateProduct = (id, name, productCode, slug, description, shortDes
     technicalSpecs,
     mainVariantId
   };
-
+  // console.log(productData)
   formData.append(
     "product",
     new Blob([JSON.stringify(productData)], { type: "application/json" })
@@ -79,7 +79,7 @@ export const getHomeProducts = (newProduct, discountProduct) =>
     if (discountProduct) params.discountProduct = discountProduct;
     return api.get("product/public/home", { params });
   });
- 
+
 
 export const getProductVariantByProductId = (id) =>
   safeApiCall(() => api.get(`product/secure/products/${id}/variants`));
@@ -153,15 +153,17 @@ export const createVariant = (productId, name, sku, attributes, images) => {
     "variant",
     new Blob([JSON.stringify(variantData)], { type: "application/json" })
   );
+  const validImages = images.filter(img => !img.deleted);
 
-  const mainImage = images.find(image => image.isMain);
+  const mainImage = validImages.find(img => img.isMain);
   if (mainImage) {
     formData.append("images", mainImage.file);
   }
-  images.forEach(img => {
+
+  validImages.forEach(img => {
     if (!img.isMain) formData.append("images", img.file);
   });
-
+  
   return safeApiCall(() =>
     api.post(`product/secure/variants`, formData, {
       headers: {
@@ -171,10 +173,10 @@ export const createVariant = (productId, name, sku, attributes, images) => {
   );
 }
 
-export const updateVariantInfo = (id, { productId, name, sku, basePrice, discountPercent,importPrice, attributes }) => {
+export const updateVariantInfo = (id, { productId, name, sku, basePrice, discountPercent, importPrice, attributes }) => {
   return safeApiCall(() =>
     api.put(`product/secure/variants/${id}`, {
-      productId, name, sku, basePrice, discountPercent,importPrice, attributes
+      productId, name, sku, basePrice, discountPercent, importPrice, attributes
     })
   );
 };
@@ -200,7 +202,7 @@ export const updateVariantImages = (id, images) => {
 };
 
 export const updateVariant = async (
-  id, productId, name, sku, basePrice, discountPercent,importPrice, attributes, images = []
+  id, productId, name, sku, basePrice, discountPercent, importPrice, attributes, images = []
 ) => {
   const resInfo = await updateVariantInfo(id, {
     productId,
@@ -221,10 +223,10 @@ export const updateVariant = async (
   if (hasNewImages || hasDeletedImages || hasMainChange) {
     const resImages = await updateVariantImages(id, images);
     if (resImages?.error) return { error: resImages.error };
-    return { success: true ,data:resImages.data};
+    return { success: true, data: resImages.data };
   }
 
-  return { success: true ,data:resInfo.data};
+  return { success: true, data: resInfo.data };
 };
 
 
@@ -253,8 +255,8 @@ export const getAllVariants = ({ page, size, productId, keyword, active, status,
     return api.get("product/secure/variants", { params });
   });
 
-export const getVariantsByIds=async(ids)=>
-  safeApiCall(()=>api.get(`product/secure/variants/by-ids`, {params: { ids } }))
+export const getVariantsByIds = async (ids) =>
+  safeApiCall(() => api.get(`product/secure/variants/by-ids`, { params: { ids } }))
 
 //////////////
 export const createCategory = (name, slug, imageFile) => {
@@ -397,9 +399,9 @@ export const updateBrand = (id, name, slug, description, imageFile) => {
   );
 }
 
-export const getActiveBrands = (page, size, keyword,featured) => {
+export const getActiveBrands = (page, size, keyword, featured) => {
   const params = new URLSearchParams();
-  
+
   if (page !== undefined) params.append("page", page);
   if (size !== undefined) params.append("size", size);
   if (keyword !== undefined && keyword !== "") params.append("keyword", keyword);
@@ -502,8 +504,8 @@ export const getCustomerReviews = () => {
   return safeApiCall(() => api.get(`/product/secure/reviews/customer`))
 }
 
-export const getRandomActiveProductByCategory=async(categorySlug)=>
-  safeApiCall(()=>api.get(`/product/public/products-random/category/${categorySlug}`))
+export const getRandomActiveProductByCategory = async (categorySlug) =>
+  safeApiCall(() => api.get(`/product/public/products-random/category/${categorySlug}`))
 
-export const getRecommendedProducts=async(customerId)=>
-  safeApiCall(()=>api.get(`/product/public/recommendations?customerId=${customerId}`))
+export const getRecommendedProducts = async (customerId) =>
+  safeApiCall(() => api.get(`/product/public/recommendations?customerId=${customerId}`))

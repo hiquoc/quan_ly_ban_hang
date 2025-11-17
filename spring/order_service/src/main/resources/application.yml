@@ -8,7 +8,7 @@ spring:
       max-file-size: 20MB
       max-request-size: 50MB
   redis:
-    host: ${SPRING_REDIS_HOST}
+    host: ${SPRING_REDIS_HOST:redis}
     port: ${SPRING_REDIS_PORT:6379}
     connect-timeout: 15000ms
     lettuce:

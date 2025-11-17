@@ -102,6 +102,7 @@ export function CartProvider({ children }) {
 
                 return recalcCart({ ...prevCart, items: updatedItems });
             });
+            localStorage.setItem("cartData", JSON.stringify(recalcCart({ ...prevCart, items: updatedItems })));
         } finally {
             setIsProcessing(false);
         }
@@ -129,6 +130,7 @@ export function CartProvider({ children }) {
 
                 return recalcCart({ ...prevCart, items: updatedItems });
             });
+            localStorage.setItem("cartData", JSON.stringify(recalcCart({ ...prevCart, items: updatedItems })));
         } finally {
             setIsProcessing(false);
         }
@@ -148,6 +150,8 @@ export function CartProvider({ children }) {
                 showPopup(res.error);
                 const freshCart = await getCart(username);
                 setCart(freshCart.data);
+            } else {
+                localStorage.setItem("cartData", JSON.stringify(recalcCart({ ...prevCart, items: updatedItems })));
             }
         } finally {
             setIsProcessing(false);
@@ -159,9 +163,17 @@ export function CartProvider({ children }) {
         try {
             const existingItem = cart.items.find(i => i.variantId === variantId);
             if (!existingItem) {
-                await addItemToCart(variantId, quantity);
+                const addRes = await addItemToCart(variantId, quantity);
+                if (addRes.error) {
+                    showPopup(addRes.error);
+                    return;
+                }
+                setCart(prevCart => {
+                    const updatedItems = [...prevCart.items, addRes.data];
+                    return recalcCart({ ...prevCart, items: updatedItems });
+                });
+                localStorage.setItem("cartData", JSON.stringify(cart));
             }
-
             localStorage.setItem("selectedItems", JSON.stringify([variantId]));
             navigate("/checkout");
         } finally {

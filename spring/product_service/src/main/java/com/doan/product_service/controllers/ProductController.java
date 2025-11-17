@@ -12,6 +12,7 @@ import com.doan.product_service.services.ProductDashboardService;
 import com.doan.product_service.services.ProductService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -50,13 +51,8 @@ public class ProductController {
     @GetMapping("/public/home")
     public ResponseEntity<?> getHomeProduct(@ModelAttribute HomeRequest request) {
         try {
-            Page<ProductResponse> newProductList = productService.getAllProducts(0, request.getNewProduct(), null, null, null, true, null, null, null, null, null, null, true);
-            Page<ProductResponse> discountProductList = productService.getAllProducts(0, request.getDiscountProduct(), null, null, null, true, null, null, null, true, null, null, true);
 
-            HomeResponse response = new HomeResponse(
-                    newProductList.getContent(),
-                    discountProductList.getContent()
-            );
+            HomeResponse response = productService.getHomeProduct(request);
 
             return ResponseEntity.ok(
                     new ApiResponse<>("Lấy dữ liệu thành công!", true, response));
@@ -66,9 +62,10 @@ public class ProductController {
     }
 
     @GetMapping("/public/recommendations")
-    public ResponseEntity<?> getRecommendations(@RequestParam(required = false) Long customerId){
+    public ResponseEntity<?> getRecommendations(@RequestParam(required = false) String customerId){
         try {
-            List<ProductResponse> response=productService.getRecommendations(customerId);
+            Map<String, List<ProductResponse>> response=productService.
+                    getRecommendations(customerId==null||customerId.equals("undefined")||customerId.isBlank()?null:Long.valueOf(customerId));
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -163,8 +160,8 @@ public class ProductController {
     public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestPart("product") @Valid ProductRequest productRequest,
                                            @RequestPart(value = "image", required = false) MultipartFile image) {
         try {
-            productService.updateProduct(id, productRequest, image);
-            return ResponseEntity.ok(new ApiResponse<>("Cập nhật sản phẩm thành công!", true, null));
+            ProductResponse response= productService.updateProduct(id, productRequest, image);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -215,6 +212,7 @@ public class ProductController {
             return errorResponse(ex);
         }
     }
+
 
     @GetMapping("/internal/dashboard")
     public ResponseEntity<Object> getDashboard(

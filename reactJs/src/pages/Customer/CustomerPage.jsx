@@ -159,7 +159,13 @@ export default function CustomerPage() {
 
   const handleSaveAddress = async () => {
     const { id, name, phone, street, ward, district, city } = editAddressForm;
-    if (!name || !phone || !street || !ward || !district || !city) return showPopup("Vui lòng điền đầy đủ thông tin");
+    if (!name?.trim()) return showPopup("Vui lòng nhập tên người nhận");
+    if (!phone?.trim()) return showPopup("Vui lòng nhập số điện thoại");
+    if (!/^\d{9,12}$/.test(phone)) return showPopup("Số điện thoại không hợp lệ");
+    if (!street?.trim()) return showPopup("Vui lòng nhập số nhà / tên đường");
+    if (!ward?.trim()) return showPopup("Vui lòng nhập phường / xã");
+    if (!district?.trim()) return showPopup("Vui lòng nhập quận / huyện");
+    if (!city?.trim()) return showPopup("Vui lòng nhập tỉnh / thành phố");
     try {
       setIsProcessing(true);
       if (id) {
@@ -320,7 +326,7 @@ export default function CustomerPage() {
               ) : (orders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16">
                   <img
-                    src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1761657389/emptyOrder_xt8frf.webp"
+                    src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763266848/girl-holding-empty-shopping-cart-illustration-svg-download-png-10018095_adkwbf.png"
                     alt="Empty Orders"
                     className="w-64 h-64 mb-6 opacity-80"
                   />
@@ -829,11 +835,11 @@ export default function CustomerPage() {
             if (confirmPanel.onConfirm) {
               await confirmPanel.onConfirm();
             }
-           setConfirmPanel({ visible: false, message: "", onConfirm: null })
+            setConfirmPanel({ visible: false, message: "", onConfirm: null })
           }}
           onCancel={() => setConfirmPanel({ visible: false, message: "", onConfirm: null })}
         />
-        
+
         {showVerifyPanel && (
           <VerificationSection
             email={editForm.email}

@@ -157,7 +157,7 @@ function LoginPage() {
                             href="http://localhost:8080/oauth2/authorization/google"
                             className="flex justify-center items-center gap-2 border border-gray-300 w-full py-2.5 rounded hover:bg-gray-50 transition-all duration-200"
                         >
-                            <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1761657385/google_gjtbri.jpg" alt="Google" className="h-5 w-5" />
+                            <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763208448/Google__G__logo.svg_cwv6jj.webp" alt="Google" className="h-5 w-5" />
                             <span className="text-gray-700 font-medium">Google</span>
                         </a>
                     </div>

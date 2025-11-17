@@ -1,6 +1,7 @@
 package com.doan.product_service.services;
 
 import com.doan.product_service.dtos.brand.BrandRequest;
+import com.doan.product_service.dtos.other.PageCacheWrapper;
 import com.doan.product_service.models.Brand;
 import com.doan.product_service.models.Product;
 import com.doan.product_service.repositories.BrandRepository;
@@ -8,6 +9,8 @@ import com.doan.product_service.repositories.ProductRepository;
 import com.doan.product_service.services.cloud.CloudinaryService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -54,6 +57,10 @@ public class BrandService {
         brandRepository.save(brand);
     }
 
+    @CacheEvict(
+            value = "featuredBrands",
+            allEntries = true
+    )
     @Transactional
     public void updateBrand(Long id, BrandRequest brandRequest, MultipartFile image) {
         Brand brand = brandRepository.findById(id)
@@ -91,17 +98,17 @@ public class BrandService {
                     "Có lỗi khi cập nhật hình ảnh", ex);
         }
     }
-
-    public Page<Brand> getAllBrands(Integer page, Integer size, String keyword, Boolean active,Boolean featured) {
-        Pageable pageable;
-        if (page == null || size == null) {
-            pageable = Pageable.unpaged();
-        } else {
-            if (page < 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số trang phải lớn hơn 0");
-            if (size < 0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số lượng dữ liệu mỗi trang phải lớn hơn 0");
-            pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
-        }
+    @Cacheable(
+            value = "featuredBrands",
+            key = "(#p1 != null ? #p1 : 'null') + ':' + (#p4 != null ? #p4 : 'null')",
+            condition = "(#p2 == null || #p2.isBlank()) && #p3 == true && (#p0==null||#p0 == 0)"
+    )
+    public PageCacheWrapper<Brand> getAllBrands(Integer page, Integer size, String keyword, Boolean active, Boolean featured) {
+        Pageable pageable = PageRequest.of(
+                page != null && page >= 0 ? page : 0,
+                size != null && size > 0 ? size : 50,
+                Sort.by("updatedAt").descending()
+        );
 
         Specification<Brand> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -126,9 +133,21 @@ public class BrandService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return brandRepository.findAll(spec, pageable);
+        Page<Brand> pageResult = brandRepository.findAll(spec, pageable);
+
+        return new PageCacheWrapper<>(
+                pageResult.getContent(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.getNumber(),
+                pageResult.getSize()
+        );
     }
 
+    @CacheEvict(
+            value = "featuredBrands",
+            allEntries = true
+    )
     public void changeBrandActive(Long id) {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Brand not found with id: " + id));
@@ -138,6 +157,10 @@ public class BrandService {
         brand.setIsActive(!brand.getIsActive());
         brandRepository.save(brand);
     }
+    @CacheEvict(
+            value = "featuredBrands",
+            allEntries = true
+    )
     public void changeBrandFeatured(Long id) {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Brand not found with id: " + id));
@@ -145,7 +168,10 @@ public class BrandService {
         brand.setIsFeatured(!brand.getIsFeatured());
         brandRepository.save(brand);
     }
-
+    @CacheEvict(
+            value = "featuredBrands",
+            allEntries = true
+    )
     public void deleteBrand(Long id) {
         if (productRepository.existsByBrandIdAndIsActiveIsTrue(id)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Đang có sản phẩm thuộc thương hiệu này!");

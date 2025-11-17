@@ -2,9 +2,10 @@
 services:
   redis:
     image: redis:7.2
-    container_name: redis
     ports:
       - "6379:6379"
+    container_name: redis
+    command: ["redis-server", "--protected-mode", "no"]
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -190,9 +191,6 @@ services:
       - "timeout:2"
       - "attempts:3"
     environment:
-#      - AUTH_URL=http://auth-service:8080/public/login
-#      - ORDERS_API=http://order-service:8080/internal/recommend
-#      - PRODUCT_API=http://product-service:8080/internal/reviews/recommend
       - SERVICE_NAME=rec-service
     env_file:
       - .env
@@ -202,12 +200,12 @@ services:
     restart: unless-stopped
 
 # ==================== VOLUMES (ONLY INIT SCRIPTS) ====================
-volumes:
-  auth-init-scripts:
-  staff-init-scripts:
-  customer-init-scripts:
-  product-init-scripts:
-  inventory-init-scripts:
-  cart-init-scripts:
-  order-init-scripts:
-  promotion-init-scripts:
+#volumes:
+#  auth-init-scripts:
+#  staff-init-scripts:
+#  customer-init-scripts:
+#  product-init-scripts:
+#  inventory-init-scripts:
+#  cart-init-scripts:
+#  order-init-scripts:
+#  promotion-init-scripts:

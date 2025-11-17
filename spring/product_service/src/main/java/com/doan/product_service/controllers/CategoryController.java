@@ -3,6 +3,7 @@ package com.doan.product_service.controllers;
 import com.doan.product_service.dtos.ApiResponse;
 import com.doan.product_service.dtos.brand.BrandRequest;
 import com.doan.product_service.dtos.category.CategoryRequest;
+import com.doan.product_service.dtos.other.PageCacheWrapper;
 import com.doan.product_service.models.Category;
 import com.doan.product_service.models.Product;
 import com.doan.product_service.services.BrandService;
@@ -35,11 +36,8 @@ public class CategoryController {
                                             @RequestParam(required = false) Integer size,
                                             @RequestParam(required = false) String keyword){
         try{
-            Page<Category> categoryPage = categoryService.getAllCategories(page, size, keyword, true);
-            List<Category> safeContent = new ArrayList<>(categoryPage.getContent());
-            Page<Category> safePage = new PageImpl<>(safeContent, categoryPage.getPageable(), categoryPage.getTotalElements());
-
-            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách danh mục thành công!", true, safePage));
+            PageCacheWrapper<Category> categoryPage = categoryService.getAllCategories(page, size, keyword, true);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách danh mục thành công!", true, categoryPage));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -51,7 +49,7 @@ public class CategoryController {
                                             @RequestParam(required = false) String keyword,
                                             @RequestParam(required = false) Boolean active){
         try{
-            Page<Category> categoryList=categoryService.getAllCategories(page,size,keyword,active);
+            PageCacheWrapper<Category> categoryList=categoryService.getAllCategories(page,size,keyword,active);
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách danh mục thành công!",true,categoryList));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);

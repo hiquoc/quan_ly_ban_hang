@@ -10,6 +10,7 @@ import com.datn.order_service.client.dto.request.ReleaseStockRequest;
 import com.datn.order_service.client.dto.request.ReserveStockRequest;
 import com.datn.order_service.client.dto.request.ValidatePromotionRequest;
 import com.datn.order_service.client.dto.response.PromotionValidationResponse;
+import com.datn.order_service.dto.PageCacheWrapper;
 import com.datn.order_service.dto.request.*;
 import com.datn.order_service.dto.response.*;
 import com.datn.order_service.entity.*;
@@ -32,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
@@ -69,6 +71,10 @@ public class OrderService {
     /**
      * Create order from cart (checkout all or selected items)
      */
+    @CacheEvict(
+            value = "customerOrders",
+            key = "#request.customerId + ':ALL:'"
+    )
     @Transactional
     public OrderDetailResponse createOrderFromCart(CreateOrderRequest request) {
         log.info("Creating order from cart for customer: {} (clearCart={})",
@@ -390,15 +396,28 @@ public class OrderService {
         return mapToDetailResponse(order, items, showRevenue);
     }
 
-    public Page<OrderDetailResponse> getCustomerOrders(Long customerId, String statusName, Pageable pageable) {
+    @Cacheable(
+            value = "customerOrders",
+            key = "#customerId + ':ALL:'",
+            condition = "(#statusName == null || #statusName == 'ALL') && #pageable.pageNumber == 0"
+    )
+    public PageCacheWrapper<OrderDetailResponse> getCustomerOrders(Long customerId, String statusName, Pageable pageable) {
         log.info("Getting orders for customer: {}", customerId);
 
         Page<Order> orders = orderRepository.findByCustomerIdAndStatus(customerId, statusName, pageable);
 
-        return orders.map(order -> {
+        Page<OrderDetailResponse> pageResult=orders.map(order -> {
             List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
             return mapToDetailResponse(order, items, false);
         });
+
+        return new PageCacheWrapper<>(
+                pageResult.getContent(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.getNumber(),
+                pageResult.getSize()
+        );
     }
 
     public Page<OrderResponse> getAllOrders(Pageable pageable) {

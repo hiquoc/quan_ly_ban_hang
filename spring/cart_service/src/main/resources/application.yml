@@ -7,7 +7,7 @@ spring:
     password: ${SUPABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   redis:
-    host: ${SPRING_REDIS_HOST}
+    host: ${SPRING_REDIS_HOST:redis}
     port: ${SPRING_REDIS_PORT:6379}
     connect-timeout: 15000ms
     lettuce:

@@ -62,9 +62,9 @@ export default function ProductManager() {
     if (!isCodeManuallyEdited) {
       setForm((prev) => ({ ...prev, productCode: generateCode(prev.name) }));
     }
-    if (form.name === ""){
+    if (form.name === "") {
       setIsCodeManuallyEdited(false);
-       setIsSlugManuallyEdited(false);
+      setIsSlugManuallyEdited(false);
     }
   }, [form.name]);
 
@@ -211,6 +211,7 @@ export default function ProductManager() {
     const brand = brands.find(b => b.name === product.brandName);
 
     setIsSlugManuallyEdited(true);
+    setIsCodeManuallyEdited(true);
     setForm({
       id: product.id,
       name: product.name,
@@ -280,7 +281,9 @@ export default function ProductManager() {
       });
       setImageFile(null)
       setEditingProductId(null);
-      handleLoadProducts();
+      console.log(response.data)
+      setProducts(prev => prev.map(p => p.id === editingProductId ? response.data : p))
+      // handleLoadProducts();
     } finally {
       setIsProcessing(false)
     }
@@ -329,6 +332,7 @@ export default function ProductManager() {
     setShowForm(false);
     setSpecs(null)
     setIsSlugManuallyEdited(false);
+    setIsCodeManuallyEdited(false)
   };
 
   const toggleProductActive = (id, isActive, name) => {
@@ -779,9 +783,13 @@ export default function ProductManager() {
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 overflow-y-auto p-4">
           <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] my-10 relative">
-            <h3 className="text-3xl font-bold mb-5 text-black">
-              {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
-            </h3>
+            <div className="flex justify-between">
+              <h3 className="text-3xl font-bold mb-5 text-black">
+                {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
+              </h3>
+              <p className="text-gray-500 text-sm">ID: {form.id}</p>
+            </div>
+
             {isProcessing && (
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">
                 <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">

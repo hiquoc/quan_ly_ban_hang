@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState,useRef } from "react";
 import { useParams, useLocation, useNavigate, NavLink } from "react-router-dom";
 import { createProductReview, deleteProductReview, getActiveProductDetails, getProductDetails, getProductReviews, getRandomActiveProductByCategory, updateProductReview } from "../../apis/productApi";
 import {
@@ -6,7 +6,9 @@ import {
     FiChevronDown, FiChevronUp, FiX, FiEdit, FiCpu, FiHardDrive, FiDroplet, FiBox,
     FiMonitor, FiBattery, FiZap, FiWifi, FiCamera,
     FiPackage, FiShield, FiTrendingUp, FiLayers,
-    FiActivity, FiAperture, FiDisc
+    FiActivity, FiAperture, FiDisc,
+    FiChevronLeft,
+    FiChevronRight
 } from "react-icons/fi";
 import ColorMap from "../../components/ColorMap";
 import { PopupContext } from "../../contexts/PopupContext";
@@ -29,9 +31,9 @@ export default function ProductDetails() {
     const { ownerId, role } = useContext(AuthContext)
 
     const [product, setProduct] = useState(null);
-    const [randomProducts, setRandomProducts] = useState(null)
+    const [relativeProducts, setRelativeProducts] = useState(null)
     const [isLoadingProduct, setIsLoadingProduct] = useState(false)
-    const [isLoadingRandomProducts, setIsLoadingRandomProducts] = useState(false)
+    const [isLoadingRelativeProducts, setIsLoadingRelativeProducts] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
 
     const [variant, setVariant] = useState({});
@@ -63,13 +65,17 @@ export default function ProductDetails() {
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
     const [hasUserReview, setHasUserReview] = useState(false);
 
+    const relativeRef = useRef(null);
+    const [canScrollRelativeLeft, setCanScrollRelativeLeft] = useState(false);
+    const [canScrollRelativeRight, setCanScrollRelativeRight] = useState(true);
+
     useEffect(() => {
         handleLoadProduct();
     }, [slug]);
 
     useEffect(() => {
         if (product === null) return;
-        handleLoadRandomProducts();
+        handleLoadRelativeProducts();
     }, [product])
 
     useEffect(() => {
@@ -79,6 +85,42 @@ export default function ProductDetails() {
     useEffect(() => {
         setSku(variant.sku)
     }, [variant])
+
+    useEffect(() => {
+        const refs = [relativeRef];
+
+        const handleScroll = (container, setLeft, setRight) => {
+            const { scrollLeft, scrollWidth, clientWidth } = container;
+            setLeft(scrollLeft > 0);
+            setRight(scrollLeft + clientWidth < scrollWidth - 1);
+        };
+
+        const scrollHandlers = refs.map((ref) => {
+            const container = ref.current;
+            if (!container) return null;
+
+            const listener = () => {
+                // if (ref === relativeRef) 
+                handleScroll(container, setCanScrollRelativeLeft, setCanScrollRelativeRight);
+            };
+
+            const timeout = setTimeout(listener, 100);
+
+            container.addEventListener("scroll", listener);
+            window.addEventListener("resize", listener);
+
+            return { container, listener, timeout };
+        });
+
+        return () => {
+            scrollHandlers.forEach((h) => {
+                if (!h) return;
+                h.container.removeEventListener("scroll", h.listener);
+                window.removeEventListener("resize", h.listener);
+                clearTimeout(h.timeout);
+            });
+        };
+    }, [relativeProducts]);
 
     async function handleLoadProduct() {
         try {
@@ -109,14 +151,14 @@ export default function ProductDetails() {
             setIsLoadingProduct(false)
         }
     }
-    async function handleLoadRandomProducts() {
+    async function handleLoadRelativeProducts() {
         try {
-            setIsLoadingRandomProducts(true)
+            setIsLoadingRelativeProducts(true)
             const res = await getRandomActiveProductByCategory(product.categorySlug);
             if (res.error) return showPopup(res.error)
-            setRandomProducts(res.data);
+            setRelativeProducts(res.data.filter(p => p.id !== product.id));
         } finally {
-            setIsLoadingRandomProducts(false)
+            setIsLoadingRelativeProducts(false)
         }
     }
 
@@ -368,7 +410,16 @@ export default function ProductDetails() {
         ...(variant?.technicalSpecs || product?.technicalSpecs || {}),
         ...selectedAttributes,
     };
-
+    const scrollNextRecommend = () => {
+        const container = relativeRef.current;
+        if (!container) return;
+        container.scrollBy({ left: container.firstChild.offsetWidth + 26, behavior: "smooth" });
+    };
+    const scrollPrevRecommend = () => {
+        const container = relativeRef.current;
+        if (!container) return;
+        container.scrollBy({ left: -container.firstChild.offsetWidth - 26, behavior: "smooth" });
+    };
     return (
         <>
             <Helmet>
@@ -491,10 +542,10 @@ export default function ProductDetails() {
                                                     <button
                                                         key={value}
                                                         className={`transition-all duration-150 hover:cursor-pointer ${isColor
-                                                                ? `flex items-center gap-2 px-3 py-2 rounded border bg-white ${selected ? "border-black" : "border-gray-300"
-                                                                } hover:scale-105`
-                                                                : `px-6 py-2 rounded border text-base font-medium ${selected ? "border-black text-black" : "text-gray-500 border-gray-300 hover:bg-gray-50"
-                                                                } hover:scale-105`
+                                                            ? `flex items-center gap-2 px-3 py-2 rounded border bg-white ${selected ? "border-black" : "border-gray-300"
+                                                            } hover:scale-105`
+                                                            : `px-6 py-2 rounded border text-base font-medium ${selected ? "border-black text-black" : "text-gray-500 border-gray-300 hover:bg-gray-50"
+                                                            } hover:scale-105`
                                                             }`}
                                                         onClick={() => handleAttributeSelect(attrName, value)}
                                                     >
@@ -671,7 +722,7 @@ export default function ProductDetails() {
                             {/* <p className="text-gray-600 mt-2">Săn sale ngay kẻo lỡ</p> */}
                         </div>
                     </div>
-                    {isLoadingRandomProducts ? (
+                    {isLoadingRelativeProducts ? (
                         <div className="col-span-full flex justify-center items-center py-12">
                             <div className="text-center">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -679,14 +730,56 @@ export default function ProductDetails() {
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-6 gap-6">
-                            {randomProducts && randomProducts.map((product) => (
-                                <ProductCard
-                                    key={product.id}
-                                    product={product}
-                                    priceRange={[]}
-                                />
-                            ))}
+                        <div className="relative">
+                            {canScrollRelativeLeft && (
+                                <button
+                                    onClick={scrollPrevRecommend}
+                                    className="absolute -left-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
+                                >
+                                    <FiChevronLeft className="text-2xl text-gray-800" />
+                                </button>
+                            )}
+
+                            {canScrollRelativeRight && (
+                                <button
+                                    onClick={scrollNextRecommend}
+                                    className="absolute -right-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
+                                >
+                                    <FiChevronRight className="text-2xl text-gray-800" />
+                                </button>
+                            )}
+                            {isLoadingRelativeProducts ? (
+                                <div className="col-span-full flex justify-center items-center py-12"
+                                    style={{ height: "420px" }}>
+                                    <div className="text-center">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                        <p className="text-gray-600">Đang tải...</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div
+                                    ref={relativeRef}
+                                    className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
+                                >
+                                    {relativeProducts && relativeProducts.map((product, idx) => (
+                                        <div
+                                            key={`relative-${product.id}-${idx}`}
+                                            className="flex-shrink-0 pb-12 overflow-visible"
+                                            style={{
+                                                width: `calc((100% - 5 * 1.5rem) / 6)`
+                                            }}
+                                        >
+                                            <ProductCard
+                                                key={product.id}
+                                                product={product}
+                                                priceRange={[]}
+                                            />
+                                        </div>
+                                    ))}
+
+
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

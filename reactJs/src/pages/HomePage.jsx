@@ -107,7 +107,7 @@ export default function HomePage() {
       setIsLoadingRecommended(false);
       return;
     }
-    setRecommendedProducts(res.data);
+    setRecommendedProducts(res.data.list);
     // setRecommendedProducts(Array(5).fill(res.data).flat());
     setIsLoadingRecommended(false);
   }
@@ -255,7 +255,7 @@ export default function HomePage() {
         clearTimeout(h.timeout);
       });
     };
-  }, [categories, brands, discountProducts]);
+  }, [categories, brands, discountProducts,recommendedProducts]);
 
   return (
     <>
@@ -485,65 +485,67 @@ export default function HomePage() {
         </div>
 
         {/* Recommended Products Section */}
-        <div className="px-40 py-12 bg-gradient-to-br from-purple-50 to-blue-50">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">Dành riêng cho bạn ✨</h2>
-              <p className="text-gray-600 mt-2">Những sản phẩm phù hợp với sở thích của bạn</p>
+        {recommendedProducts && (
+          <div className="px-40 py-12 bg-gradient-to-br from-purple-50 to-blue-50">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">Dành riêng cho bạn ✨</h2>
+                {/* <p className="text-gray-600 mt-2">Những sản phẩm phù hợp với sở thích của bạn</p> */}
+              </div>
+            </div>
+            <div className="relative">
+              {canScrollRecommendLeft && (
+                <button
+                  onClick={scrollPrevRecommend}
+                  className="absolute -left-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
+                >
+                  <FiChevronLeft className="text-2xl text-gray-800" />
+                </button>
+              )}
+
+              {canScrollRecommendRight && (
+                <button
+                  onClick={scrollNextRecommend}
+                  className="absolute -right-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
+                >
+                  <FiChevronRight className="text-2xl text-gray-800" />
+                </button>
+              )}
+              {isLoadingRecommended ? (
+                <div className="col-span-full flex justify-center items-center py-12"
+                  style={{ height: "420px" }}>
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Đang tải...</p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  ref={recommendRef}
+                  className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
+                >
+                  {recommendedProducts.map((product, idx) => (
+                    <div
+                      key={`recommended-${product.id}-${idx}`}
+                      className="flex-shrink-0 pb-12 overflow-visible"
+                      style={{
+                        width: `calc((100% - 5 * 1.5rem) / 6)`
+                      }}
+                    >
+                      <ProductCard
+                        product={product}
+                        preferDiscounted={true}
+                        priceRange={emptyRange}
+                      />
+                    </div>
+                  ))}
+
+
+                </div>
+              )}
             </div>
           </div>
-          <div className="relative">
-            {canScrollRecommendLeft && (
-              <button
-                onClick={scrollPrevRecommend}
-                className="absolute -left-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
-              >
-                <FiChevronLeft className="text-2xl text-gray-800" />
-              </button>
-            )}
-
-            {canScrollRecommendRight && (
-              <button
-                onClick={scrollNextRecommend}
-                className="absolute -right-15 top-40 -translate-y-1/2 z-20 p-3 bg-white rounded-full shadow hover:bg-gray-100 transition transform hover:scale-110"
-              >
-                <FiChevronRight className="text-2xl text-gray-800" />
-              </button>
-            )}
-            {isLoadingRecommended ? (
-              <div className="col-span-full flex justify-center items-center py-12"
-                style={{ height: "420px" }}>
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Đang tải...</p>
-                </div>
-              </div>
-            ) : (
-              <div
-                ref={recommendRef}
-                className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
-              >
-                {recommendedProducts && recommendedProducts.map((product, idx) => (
-                  <div
-                    key={`recommended-${product.id}-${idx}`}
-                    className="flex-shrink-0 pb-12 overflow-visible"
-                    style={{
-                      width: `calc((100% - 5 * 1.5rem) / 6)`
-                    }}
-                  >
-                    <ProductCard
-                      product={product}
-                      preferDiscounted={true}
-                      priceRange={emptyRange}
-                    />
-                  </div>
-                ))}
-
-
-              </div>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Mid Promotional Banner */}
         <div className="relative h-80 overflow-hidden">
@@ -553,7 +555,7 @@ export default function HomePage() {
               {/* Image on top of gradient */}
               <img
                 className="absolute right-100 max-h-full"
-                src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1762272034/illustration-beautiful-woman-shopping_149195-343_y5igck.png"
+                src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763266806/illustration-beautiful-woman-shopping_149195-343_t6afsj.png"
                 alt="shopping"
               />
             </div>

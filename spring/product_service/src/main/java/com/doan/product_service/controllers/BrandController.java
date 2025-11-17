@@ -3,6 +3,7 @@ package com.doan.product_service.controllers;
 import com.doan.product_service.dtos.ApiResponse;
 import com.doan.product_service.dtos.brand.BrandRequest;
 import com.doan.product_service.dtos.category.CategoryRequest;
+import com.doan.product_service.dtos.other.PageCacheWrapper;
 import com.doan.product_service.models.Brand;
 import com.doan.product_service.models.Category;
 import com.doan.product_service.models.Product;
@@ -13,6 +14,8 @@ import com.doan.product_service.services.ProductVariantService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -38,8 +41,8 @@ public class BrandController {
                                                            @RequestParam(required = false) String keyword,
                                                             @RequestParam(required = false) Boolean featured){
         try{
-            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,true,featured);
-            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thương hiệu thành công!",true,brandList));
+            PageCacheWrapper<Brand> brands = brandService.getAllBrands(page, size, keyword, true, featured);
+            return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thương hiệu thành công!",true,brands));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -52,7 +55,7 @@ public class BrandController {
                                                            @RequestParam(required = false) Boolean active,
                                                            @RequestParam(required = false) Boolean featured){
         try{
-            Page<Brand> brandList=brandService.getAllBrands(page,size,keyword,active,featured);
+            PageCacheWrapper<Brand> brandList=brandService.getAllBrands(page,size,keyword,active,featured);
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thương hiệu thành công!",true,brandList));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);

@@ -31,10 +31,10 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, Lo
     List<ProductReview> findByCustomerId(Long id);
 
     @Query("""
-            SELECT pr
-            FROM ProductReview pr
-            WHERE (pr.createdAt >= COALESCE(:startDate, pr.createdAt))
-              AND (pr.createdAt <= COALESCE(:endDate, pr.createdAt))
+                SELECT pr
+                FROM ProductReview pr
+                WHERE pr.createdAt >= :startDate
+                  AND pr.createdAt < :endDate
             """)
     List<ProductReview> getAllReviews(
             @Param("startDate") LocalDateTime startDate,
