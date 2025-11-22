@@ -581,7 +581,7 @@ export default function ProductDetails() {
                                             title={`${key}: ${value}`}
                                         >
                                             {getSpecIcon(key)}
-                                            <div className="min-w-0">
+                                            <div className="max-w-27">
                                                 <p className="text-sm font-semibold text-gray-700" title={key}>
                                                     {key}
                                                 </p>

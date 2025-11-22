@@ -26,14 +26,18 @@ public class VerificationService {
     private final VerificationCodeRepository repository;
     private final CustomerServiceClient customerServiceClient;
     private final StaffServiceClient staffServiceClient;
+    private final DeliveryServiceClient deliveryServiceClient;
     private final EmailService emailService;
 
     @Transactional
     public void sendVerificationCode(String email, String role) {
         try {
             Long ownerId;
-            if (role != null && (role.equals("ADMIN") || role.equals("MANAGER"))) {
-                ownerId = staffServiceClient.getStaffIdByEmail(email).getOwnerId();
+            if (role != null) {
+                if(role.equals("STAFF") || role.equals("ADMIN") || role.equals("MANAGER"))
+                    ownerId = staffServiceClient.getStaffIdByEmail(email).getOwnerId();
+                else
+                    ownerId= deliveryServiceClient.getShipperIdByEmail(email).getOwnerId();
             } else {
                 ownerId = customerServiceClient.getCustomerIdByEmail(email).getOwnerId();
             }

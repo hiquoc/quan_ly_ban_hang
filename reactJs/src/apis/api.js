@@ -60,7 +60,7 @@ export const safeApiCall = async (apiCall) => {
             err.message ||                 // network/axios error
             "Unknown error";
         const status = err.response?.status || null;
-        return { error: message, status };
+        return { error:message,  status };
     }
 };
 

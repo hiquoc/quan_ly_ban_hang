@@ -7,6 +7,8 @@ import com.datn.order_service.dto.response.ApiResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @FeignClient(name = "inventory-service")
 public interface InventoryServiceClient {
 
@@ -18,4 +20,7 @@ public interface InventoryServiceClient {
 
     @PostMapping("/internal/transactions")
     ApiResponse<Void> createOrderTransaction(@RequestBody OrderTransactionRequest request);
+
+    @GetMapping("/internal/orders/{orderNumber}/warehouse-ids")
+    List<Long> getItemsWarehouseId(@PathVariable String orderNumber);
 }

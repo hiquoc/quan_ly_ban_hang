@@ -760,3 +760,174 @@ def fetch_artifact(artifact_type: str):
     cur.close()
     conn.close()
     return result[0] if result else None
+
+@app.post("/rebuildAll", response_model=RebuildResponse)
+async def rebuildAll_matrices():
+    global model, user_map, item_map, rev_user_map, rev_item_map, augmented_df
+    try:
+        print("=== REBUILDALL START ===", flush=True)
+        create_table_if_not_exists()
+        
+        # Calculate dates for last 90 days
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=90)
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+        
+        print(f"Fetching orders from {start_date_str} to {end_date_str}...", flush=True)
+        orders_raw = fetch_orders(start_date=start_date_str, end_date=end_date_str)
+        print(f"Orders fetched: {len(orders_raw)}", flush=True)
+        
+        print(f"Fetching reviews from {start_date_str} to {end_date_str}...", flush=True)
+        reviews_raw = fetch_reviews(start_date=start_date_str, end_date=end_date_str)
+        print(f"Reviews fetched: {len(reviews_raw)}", flush=True)
+        
+        # Process orders & reviews
+        print("Processing orders...", flush=True)
+        orders_agg = process_orders(orders_raw)
+        print("Orders agg shape:", orders_agg.shape, flush=True)
+        print("Processing reviews...", flush=True)
+        reviews_agg = process_reviews(reviews_raw)
+        print("Reviews agg shape:", reviews_agg.shape, flush=True)
+        
+        # Merge datasets
+        print("Merging datasets...", flush=True)
+        merged = pd.merge(orders_agg, reviews_agg, on=['customerId', 'productId'], how='outer')
+        merged['final_rating'] = np.where(merged['rating'].notna(), merged['rating'], merged['implicit_rating'])
+        merged['source'] = merged['source_y'].fillna(merged['source_x'])
+        interactions_df = merged[['customerId', 'productId', 'final_rating', 'source', 'quantity']].copy()
+        interactions_df = interactions_df.dropna(subset=['final_rating'])
+        print("Interactions shape:", interactions_df.shape, flush=True)
+        interactions_df['customerId'] = interactions_df['customerId'].astype(int)
+        interactions_df['productId'] = interactions_df['productId'].astype(int)
+        
+        # Build initial user-item matrix
+        user_item_matrix = interactions_df.pivot_table(
+            index='customerId',
+            columns='productId',
+            values='final_rating',
+            fill_value=0
+        )
+        print("User-item matrix shape:", user_item_matrix.shape, flush=True)
+        
+        print("Loading previous artifacts...", flush=True)
+        prev_aug_str = fetch_artifact("augmented_df")
+        prev_aug_df = pd.read_json(StringIO(prev_aug_str), orient="split") if prev_aug_str else pd.DataFrame()
+        prev_user_map_str = fetch_artifact("user_map")
+        prev_user_map = {int(k): int(v) for k, v in json.loads(prev_user_map_str).items()} if prev_user_map_str else {}
+        prev_item_map_str = fetch_artifact("item_map")
+        prev_item_map = {int(k): int(v) for k, v in json.loads(prev_item_map_str).items()} if prev_item_map_str else {}
+        prev_state_str = fetch_artifact("model_state")
+        prev_model = None
+        if prev_state_str and prev_user_map and prev_item_map:
+            try:
+                prev_state_serialized = json.loads(prev_state_str)
+                prev_state_dict = {k: torch.tensor(v) for k, v in prev_state_serialized.items()}
+                old_num_users = len(prev_user_map)
+                old_num_items = len(prev_item_map)
+                prev_model = RecModel(old_num_users, old_num_items)
+                prev_model.load_state_dict(prev_state_dict)
+                print("Previous model loaded for fine-tuning")
+            except Exception as load_err:
+                print(f"Previous model load error: {load_err}", flush=True)
+                prev_model = None
+        
+        if len(prev_aug_df) > 0:
+            old_sample_size = min(int(0.1 * len(prev_aug_df)), 1000)
+            old_sample = prev_aug_df.sample(n=old_sample_size, random_state=42)
+            # Exclude pairs in new to avoid overlap
+            new_pairs = set(zip(interactions_df['customerId'], interactions_df['productId']))
+            old_sample = old_sample[~old_sample[['customerId', 'productId']].apply(tuple, axis=1).isin(new_pairs)]
+            fine_tune_df = pd.concat([interactions_df, old_sample], ignore_index=True)
+            print(f"Delta size: {len(interactions_df)}, Old sample: {len(old_sample)}, Fine-tune total: {len(fine_tune_df)}")
+        else:
+            fine_tune_df = interactions_df
+            print("No previous data; full training on new interactions")
+        
+        # Update full augmented_df: concat new with prev, drop dups (new overrides)
+        if len(prev_aug_df) > 0:
+            full_augmented = pd.concat([prev_aug_df, interactions_df], ignore_index=True)
+            full_augmented = full_augmented.drop_duplicates(subset=['customerId', 'productId'], keep='last')
+        else:
+            full_augmented = interactions_df
+        
+        augmented_df = full_augmented.sort_values(['customerId', 'productId']).reset_index(drop=True)
+        augmented_df['customerId'] = augmented_df['customerId'].astype(int)
+        augmented_df['productId'] = augmented_df['productId'].astype(int)
+        print("Updated Augmented DF shape:", augmented_df.shape, flush=True)
+        
+        # Fine-tune or train model
+        print("Fine-tuning neural model...", flush=True)
+        if prev_model is not None and len(prev_aug_df) > 0:
+            model, user_map, item_map = fine_tune_model(fine_tune_df, prev_model, prev_user_map, prev_item_map)
+        else:
+            model, user_map, item_map = train_model(augmented_df)  # Full if no prev
+        user_map = {int(k): int(v) for k, v in user_map.items()}
+        item_map = {int(k): int(v) for k, v in item_map.items()}
+        rev_user_map = {v: k for k, v in user_map.items()}
+        rev_item_map = {v: k for k, v in item_map.items()}
+        print(f"Model fine-tuned: {len(user_map)} users, {len(item_map)} items")
+        
+        # Save augmented_df
+        aug_json = augmented_df.to_json(orient="split")
+        # Save maps
+        user_map_json = json.dumps(user_map)
+        item_map_json = json.dumps(item_map)
+        # Save model state
+        state_dict = model.state_dict()
+        state_serialized = {}
+        for k, v in state_dict.items():
+            if isinstance(v, torch.Tensor):
+                state_serialized[k] = v.cpu().tolist()
+            else:
+                state_serialized[k] = v
+        state_json = json.dumps(state_serialized)
+        
+        # Save to Supabase PG
+        print("Connecting to Postgres...", flush=True)
+        conn = get_pg_connection()
+        cur = conn.cursor()
+        print("Fetching current version...", flush=True)
+        cur.execute("SELECT version FROM recommendation_artifacts WHERE artifact_type = %s", ("model_state",))
+        version_row = cur.fetchone()
+        new_version = 1 if version_row is None else version_row[0] + 1
+        print("New version:", new_version, flush=True)
+        
+        # Upsert augmented_df
+        cur.execute("""
+            INSERT INTO recommendation_artifacts (artifact_type, data, version, updated_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (artifact_type) DO UPDATE SET data = EXCLUDED.data, version = EXCLUDED.version, updated_at = NOW()
+        """, ("augmented_df", Json(aug_json), new_version))
+        # Upsert user_map
+        cur.execute("""
+            INSERT INTO recommendation_artifacts (artifact_type, data, version, updated_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (artifact_type) DO UPDATE SET data = EXCLUDED.data, version = EXCLUDED.version, updated_at = NOW()
+        """, ("user_map", Json(user_map_json), new_version))
+        # Upsert item_map
+        cur.execute("""
+            INSERT INTO recommendation_artifacts (artifact_type, data, version, updated_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (artifact_type) DO UPDATE SET data = EXCLUDED.data, version = EXCLUDED.version, updated_at = NOW()
+        """, ("item_map", Json(item_map_json), new_version))
+        # Upsert model_state
+        cur.execute("""
+            INSERT INTO recommendation_artifacts (artifact_type, data, version, updated_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (artifact_type) DO UPDATE SET data = EXCLUDED.data, version = EXCLUDED.version, updated_at = NOW()
+        """, ("model_state", Json(state_json), new_version))
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Postgres save complete.", flush=True)
+        print("=== REBUILDALL FINISHED SUCCESSFULLY ===", flush=True)
+        return RebuildResponse(
+            status="success",
+            num_users=len(user_map),
+            num_items=len(item_map),
+            version=new_version
+        )
+    except Exception as e:
+        print("=== REBUILDALL ERROR ===", e, flush=True)
+        raise HTTPException(status_code=500, detail=f"RebuildAll failed: {str(e)}")

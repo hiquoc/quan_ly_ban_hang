@@ -1,0 +1,284 @@
+package com.doan.delivery_service.sevices;
+
+import com.doan.delivery_service.dtos.delivery.*;
+import com.doan.delivery_service.dtos.inventory.ReturnedOrderTransactionRequest;
+import com.doan.delivery_service.dtos.order.UpdateOrderStatusRequest;
+import com.doan.delivery_service.enums.DeliveryStatus;
+import com.doan.delivery_service.models.DeliveryOrder;
+import com.doan.delivery_service.models.DeliveryOrderItem;
+import com.doan.delivery_service.models.Shipper;
+import com.doan.delivery_service.repositories.DeliveryOrderRepository;
+import com.doan.delivery_service.repositories.ShipperRepository;
+import com.doan.delivery_service.repositories.feign.InventoryRepositoryClient;
+import com.doan.delivery_service.repositories.feign.OrderRepositoryClient;
+import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
+@Service
+@AllArgsConstructor
+public class DeliveryOrderService {
+    private final DeliveryOrderRepository deliveryOrderRepository;
+    private final ShipperRepository shipperRepository;
+    private final InventoryRepositoryClient inventoryRepositoryClient;
+    private final OrderRepositoryClient orderRepositoryClient;
+
+    private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
+            DeliveryStatus.ASSIGNED, DeliveryStatus.SHIPPING,DeliveryStatus.FAILED
+    );
+    private static final List<DeliveryStatus> ALLOW_REASSIGN_STATUSES = List.of(
+            DeliveryStatus.PENDING, DeliveryStatus.ASSIGNED,DeliveryStatus.FAILED
+    );
+
+
+    public Page<DeliveryOrderResponse> getAllDeliveryOrders(Integer page, Integer size, String keyword, String status, Long warehouseId) {
+        Page<DeliveryOrder> data= deliveryOrderRepository.findAllByKeywordAndWarehouseId(
+                (keyword != null && !keyword.isBlank()) ? keyword : null,
+                (status != null && !status.isBlank()) ? status : null,
+                (warehouseId != null && warehouseId > 0) ? warehouseId : null,
+                PageRequest.of(page, size));
+        return data.map(this::mapToResponse);
+    }
+
+    @Transactional
+    public void createDeliveryOrder(DeliveryOrderRequest request) {
+        DeliveryOrder deliveryOrder = DeliveryOrder.builder()
+                .deliveryNumber(generateDeliveryNumber())
+                .orderId(request.getOrderId())
+                .orderNumber(request.getOrderNumber())
+                .shippingName(request.getShippingName())
+                .shippingAddress(request.getShippingAddress())
+                .shippingPhone(request.getShippingPhone())
+                .paymentMethod(request.getPaymentMethod())
+                .warehouseId(request.getWarehouseId())
+                .status(DeliveryStatus.PENDING)
+                .codAmount(request.getCodAmount())
+                .build();
+        deliveryOrder.setItemList(request.getItemList().stream().map(
+                it -> DeliveryOrderItem.builder()
+                        .deliveryOrder(deliveryOrder)
+                        .orderItemId(it.getOrderItemId())
+                        .variantId(it.getVariantId())
+                        .variantName(it.getVariantName())
+                        .unitPrice(it.getUnitPrice())
+                        .imageUrl(it.getImageUrl())
+                        .quantity(it.getQuantity())
+                        .build()
+        ).toList());
+        deliveryOrderRepository.save(deliveryOrder);
+    }
+
+    public void deleteDeliveryOrder(Long id) {
+        deliveryOrderRepository.deleteById(id);
+    }
+
+    public String generateDeliveryNumber() {
+        String prefix = "GH";
+        String datePart = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+
+        OffsetDateTime startOfDay = OffsetDateTime.now()
+                .toLocalDate()
+                .atStartOfDay()
+                .atOffset(ZoneOffset.UTC);
+        OffsetDateTime endOfDay = startOfDay.plusDays(1);
+
+        long countToday = deliveryOrderRepository.countByCreatedAtBetween(startOfDay, endOfDay);
+
+        return prefix + "-" + datePart + "-" + (countToday + 1);
+    }
+
+    @Transactional
+    public List<DeliveryOrderResponse> assignDeliveryOrders(AssignDeliveryOrderRequest request) {
+        Shipper newShipper = shipperRepository.findById(request.getShipperId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy shipper với id: " + request.getShipperId()));
+
+        if (!Boolean.TRUE.equals(newShipper.getIsActive()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipper đang bị khóa!");
+
+//        if (!"ONLINE".equals(newShipper.getStatus()))
+//            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipper không online!");
+
+        long activeCount = deliveryOrderRepository.countByAssignedShipper_IdAndStatusIn(
+                newShipper.getId(), ACTIVE_STATUSES
+        );
+        int MAX_ALLOWED = 10;
+        if (activeCount >= MAX_ALLOWED)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipper đang có quá nhiều đơn hoạt động!");
+
+        List<DeliveryOrder> ordersToSave = new ArrayList<>();
+        List<Shipper> oldShippersToSave = new ArrayList<>();
+
+        for (Long deliveryId : request.getDeliveryIds()) {
+
+            DeliveryOrder order = deliveryOrderRepository.findById(deliveryId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với id: " + deliveryId));
+
+            if (!ALLOW_REASSIGN_STATUSES.contains(order.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gán đơn giao hàng không hợp lệ!");
+            }
+            if (!Objects.equals(order.getWarehouseId(), newShipper.getWarehouseId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Kho đơn hàng và shipper không trùng nhau!");
+            }
+
+            if (order.getAssignedShipper() != null) {
+                Shipper oldShipper = order.getAssignedShipper();
+
+                oldShipper.getAssignedOrders()
+                        .removeIf(o -> Objects.equals(o.getId(), deliveryId));
+
+                oldShippersToSave.add(oldShipper);
+            }
+
+            order.setAssignedShipper(newShipper);
+            order.setAssignedAt(OffsetDateTime.now());
+            if(order.getStatus()!=DeliveryStatus.FAILED)
+                changeDeliveryOrderStatus(order,DeliveryStatus.ASSIGNED ,null);
+
+            ordersToSave.add(order);
+        }
+
+        shipperRepository.saveAll(oldShippersToSave);
+        deliveryOrderRepository.saveAll(ordersToSave);
+
+        return deliveryOrderRepository
+                .findByAssignedShipper_IdAndStatusIn(newShipper.getId(), ACTIVE_STATUSES)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+
+    @Transactional
+    public void handleChangeDeliveryOrderStatus(ChangeDeliveryOrderStatusRequest request, Long shipperId) {
+        DeliveryOrder order = deliveryOrderRepository.findById(request.getDeliveryId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với id: " + request.getDeliveryId()));
+        if(order.getStatus()==request.getStatus())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Trạng thái không hợp lệ!");
+        if(!order.getAssignedShipper().getId().equals(shipperId))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Bạn không có quyền cập nhật trạng thái!");
+        changeDeliveryOrderStatus(order, request.getStatus(),request.getReason());
+//        deliveryOrderRepository.save(order);
+    }
+    @Transactional
+    public void handleCancelDeliveryOrderStatusFromInternal(CancelDeliveryOrderRequest request) {
+        DeliveryOrder order = deliveryOrderRepository.findByOrderId(request.getOrderId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với orderId: " + request.getOrderId()));
+
+        changeDeliveryOrderStatus(order, DeliveryStatus.CANCELLED, request.getReason());
+    }
+
+    private void changeDeliveryOrderStatus(DeliveryOrder order, DeliveryStatus newStatus,String reason) {
+        DeliveryStatus currentStatus = order.getStatus();
+
+        if (!canChangeStatus(currentStatus, newStatus)) {
+            throw new IllegalStateException("Không thể thay đổi trạng thái từ "
+                    + currentStatus + " sang " + newStatus);
+        }
+        if(newStatus==DeliveryStatus.PENDING){
+            Shipper shipper=order.getAssignedShipper();
+            if(shipper!=null){
+                shipper.getAssignedOrders()
+                        .removeIf(o -> Objects.equals(o.getId(), order.getOrderId()));
+                shipperRepository.save(shipper);
+            }
+        }
+        if(newStatus==DeliveryStatus.CANCELLED){
+            try {
+                order.setFailedReason(reason==null?"":reason);
+                if(currentStatus==DeliveryStatus.SHIPPING ||currentStatus==DeliveryStatus.FAILED)
+                    inventoryRepositoryClient.createReturnOrderTransaction(
+                        new ReturnedOrderTransactionRequest(order.getOrderNumber(),order.getAssignedShipper().getId(),
+                                DeliveryStatus.CANCELLED.toString(),"Phiếu trả hàng tạo bởi shipper",order.getWarehouseId()));
+            }catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Lỗi khi tạo phiếu trả hàng cho shipper! " + e.getMessage(), e);
+            }
+        }
+        if(newStatus==DeliveryStatus.DELIVERED){
+            order.setDeliveredAt(OffsetDateTime.now());
+            Long shipperId=order.getAssignedShipper().getId();
+            try {
+                orderRepositoryClient.updateOrderStatus(
+                        new UpdateOrderStatusRequest(List.of(order.getOrderNumber()), shipperId,5L,"Giao hàng thành công bởi SP"+shipperId));
+            }catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Lỗi khi tạo phiếu cập nhật trạng thái thành Đã giao cho shipper! " + e.getMessage(), e);
+            }
+        }
+        order.setStatus(newStatus);
+//        deliveryOrderRepository.save(order);
+    }
+
+    private boolean canChangeStatus(DeliveryStatus current, DeliveryStatus target) {
+        return allowedTransitions().getOrDefault(current, Set.of()).contains(target);
+    }
+    private Map<DeliveryStatus, Set<DeliveryStatus>> allowedTransitions() {
+        Map<DeliveryStatus, Set<DeliveryStatus>> map = new EnumMap<>(DeliveryStatus.class);
+        map.put(DeliveryStatus.PENDING, Set.of(DeliveryStatus.ASSIGNED, DeliveryStatus.CANCELLED));
+        map.put(DeliveryStatus.ASSIGNED, Set.of(DeliveryStatus.PENDING,DeliveryStatus.ASSIGNED,DeliveryStatus.SHIPPING));
+        map.put(DeliveryStatus.SHIPPING, Set.of(DeliveryStatus.DELIVERED, DeliveryStatus.FAILED, DeliveryStatus.CANCELLED));
+        map.put(DeliveryStatus.DELIVERED, Set.of());
+        map.put(DeliveryStatus.FAILED, Set.of(DeliveryStatus.ASSIGNED,DeliveryStatus.SHIPPING, DeliveryStatus.CANCELLED));
+        map.put(DeliveryStatus.CANCELLED, Set.of());
+        return map;
+    }
+    private DeliveryOrderResponse mapToResponse(DeliveryOrder order) {
+        if (order == null) return null;
+
+        return DeliveryOrderResponse.builder()
+                .id(order.getId())
+                .deliveryNumber(order.getDeliveryNumber())
+                .orderId(order.getOrderId())
+                .orderNumber(order.getOrderNumber())
+                .shippingName(order.getShippingName())
+                .shippingAddress(order.getShippingAddress())
+                .shippingPhone(order.getShippingPhone())
+                .paymentMethod(order.getPaymentMethod())
+                .warehouseId(order.getWarehouseId())
+                .status(order.getStatus())
+                .assignedShipperId(order.getAssignedShipper() != null ? order.getAssignedShipper().getId() : null)
+                .assignedAt(order.getAssignedAt())
+                .deliveredAt(order.getDeliveredAt())
+                .failedReason(order.getFailedReason())
+                .codAmount(order.getCodAmount())
+                .itemList(order.getItemList() != null
+                        ? order.getItemList().stream()
+                        .map(this::mapToItemResponse)
+                        .toList()
+                        : null)
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .build();
+    }
+
+    private DeliveryOrderItemResponse mapToItemResponse(DeliveryOrderItem item) {
+        if (item == null) return null;
+
+        return DeliveryOrderItemResponse.builder()
+                .id(item.getId())
+                .orderItemId(item.getOrderItemId())
+                .variantId(item.getVariantId())
+                .variantName(item.getVariantName())
+                .unitPrice(item.getUnitPrice())
+                .quantity(item.getQuantity())
+                .imageUrl(item.getImageUrl())
+                .build();
+    }
+
+}

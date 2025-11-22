@@ -23,9 +23,9 @@ import java.util.Objects;
 @AllArgsConstructor
 public class StaffService {
     private final StaffRepository staffRepository;
-    public Staff createStaff(StaffRequest staffRequest){
-        Staff staff =new Staff(staffRequest.getFullName().trim(),
-                staffRequest.getPhone().trim(), staffRequest.getEmail().trim());
+    public Staff createStaff(StaffRequest request){
+        Staff staff =new Staff(request.getFullName()!=null? request.getFullName().trim():null
+                ,request.getEmail()!=null?request.getEmail().trim():null, request.getPhone()!=null?request.getPhone().trim():null);
         staffRepository.save(staff);
         return staff;
     }

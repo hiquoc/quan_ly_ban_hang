@@ -350,12 +350,11 @@ public class OrderController {
 //    public ResponseEntity<ApiResponse<List<ReturnOrderResponse>>> getAllReturnOrder(){
 //        return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách yêu cầu trả hàng thành công!", true, orderService.getAllReturnOrders()));
 //    }
-    //Nhan yeu cau cap nhat trang thai thanh shipped tu transaction service
-    @PostMapping("/internal/order/{orderNumber}/status")
+    //Nhan yeu cau cap nhat trang thai thanh shipped tu transaction service va delivery service
+    @PostMapping("/internal/order/status")
     public ResponseEntity<ApiResponse<Void>> updateOrderStatusInternal(
-            @PathVariable String orderNumber,
             @Valid @RequestBody UpdateOrderStatusFromInvRequest request) {
-        orderService.updateOrderStatusFromInv(orderNumber,request);
+        orderService.updateOrderStatusFromInternal(request);
         return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái đơn hàng thành công!", true, null));
     }
     @GetMapping("/internal/order/{orderId}")

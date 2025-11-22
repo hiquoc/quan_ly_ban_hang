@@ -22,9 +22,6 @@ export default function InventoryManagement() {
         <title>Kho hàng</title></Helmet>
       <div className="p-6 bg-white min-h-screen">
         {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold text-gray-800">Quản lý kho hàng</h2>
-        </div>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-gray-300">

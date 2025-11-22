@@ -7,7 +7,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateOrderStatusRequest {
-
     @NotNull(message = "Status ID is required")
     private Long statusId;
 

@@ -3,7 +3,7 @@ import { FiX, FiUser, FiLock, FiUserPlus, FiPhone, FiMail } from "react-icons/fi
 import { staffRegister } from "../../../apis/authApi";
 import VerificationSection from "../../../components/VerificationSection";
 
-function AddAccountForm({ onClose, onSuccess,showPopup }) {
+function AddAccountForm({ onClose, onSuccess, showPopup }) {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [rePassword, setRePassword] = useState("");
@@ -13,8 +13,6 @@ function AddAccountForm({ onClose, onSuccess,showPopup }) {
     const [isVerified, setIsVerified] = useState(false);
     const [showVerifyPanel, setShowVerifyPanel] = useState(false);
     const [errors, setErrors] = useState({});
-
-    const inputBaseClass = "w-full pl-9 pr-3 py-2.5 border rounded focus:outline-none focus:ring-2 focus:ring-gray-800";
 
     const validateInputs = () => {
         const newErrors = {};
@@ -46,102 +44,161 @@ function AddAccountForm({ onClose, onSuccess,showPopup }) {
         onSuccess && onSuccess(res.data);
     };
 
+    const inputClasses = (hasError) => `
+        w-full pl-10 pr-4 py-3 border-2 rounded-lg
+        transition-all duration-200
+        focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent
+        ${hasError ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300'}
+    `;
+
     return (
-        <div className="fixed inset-0 z-38 flex items-center justify-center bg-black/60">
-            <div className="bg-white p-10 rounded-lg shadow w-[400px] relative transition-all duration-300 hover:shadow-xl">
-                <button type="button" onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-xl">
-                    <FiX />
-                </button>
-
-                <h2 className="text-3xl font-semibold text-center mb-8 text-gray-800">Thêm tài khoản</h2>
-
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    {/* Username */}
-                    <div className="relative flex items-center">
-                        <FiUser className="absolute left-3 text-gray-400 pointer-events-none" />
-                        <input
-                            type="text"
-                            placeholder="Tên tài khoản"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className={`${inputBaseClass} border-gray-300 ${errors.username ? "border-red-500" : ""}`}
-                        />
-                    </div>
-                    {errors.username && <p className="text-red-500 text-sm">{errors.username}</p>}
-
-                    {/* Password */}
-                    <div className="relative flex items-center">
-                        <FiLock className="absolute left-3 text-gray-400 pointer-events-none" />
-                        <input
-                            type="password"
-                            placeholder="Mật khẩu"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className={`${inputBaseClass} border-gray-300 ${errors.password ? "border-red-500" : ""}`}
-                        />
-                    </div>
-                    {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
-
-                    {/* Confirm Password */}
-                    <div className="relative flex items-center">
-                        <FiLock className="absolute left-3 text-gray-400 pointer-events-none" />
-                        <input
-                            type="password"
-                            placeholder="Nhập lại mật khẩu"
-                            value={rePassword}
-                            onChange={(e) => setRePassword(e.target.value)}
-                            className={`${inputBaseClass} border-gray-300 ${errors.rePassword ? "border-red-500" : ""}`}
-                        />
-                    </div>
-                    {errors.rePassword && <p className="text-red-500 text-sm">{errors.rePassword}</p>}
-
-                    {/* Full Name */}
-                    <div className="relative flex items-center">
-                        <FiUserPlus className="absolute left-3 text-gray-400 pointer-events-none" />
-                        <input
-                            type="text"
-                            placeholder="Họ và tên"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            className={`${inputBaseClass} border-gray-300`}
-                        />
-                    </div>
-
-                    {/* Email */}
-                    <div className="relative flex items-center">
-                        <FiMail className="absolute left-3 text-gray-400 pointer-events-none" />
-                        <input
-                            type="email"
-                            placeholder="Email (tuỳ chọn)"
-                            value={email}
-                            onChange={(e) => {
-                                setEmail(e.target.value);
-                                setIsVerified(false);
-                            }}
-                            className={`${inputBaseClass} border-gray-300 ${errors.email ? "border-red-500" : ""}`}
-                            autoComplete="off"
-                            spellCheck={false}
-                        />
-                    </div>
-                    {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
-
-                    {/* Phone */}
-                    <div className="relative flex items-center">
-                        <FiPhone className="absolute left-3 text-gray-400 pointer-events-none" />
-                        <input
-                            type="text"
-                            placeholder="Số điện thoại (tuỳ chọn)"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className={`${inputBaseClass} border-gray-300 ${errors.phone ? "border-red-500" : ""}`}
-                        />
-                    </div>
-                    {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
-
-                    <button type="submit" className="w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200">
-                        Tạo tài khoản
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 pb-20">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl relative transform transition-all duration-300 hover:shadow-3xl">
+                {/* Header */}
+                <div className="rounded-t-2xl px-8 pt-6 relative">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="absolute text-gray-500 cursor-pointer hover:text-black top-4 right-4 rounded-full p-2 transition-all duration-200"
+                    >
+                        <FiX size={20} />
                     </button>
-                </form>
+                    <h2 className="text-2xl font-bold">Thêm tài khoản mới</h2>
+                    <p className="text-gray-700 text-sm mt-1">Tạo tài khoản nhân viên</p>
+                </div>
+
+                {/* Form */}
+                <div className="px-8 py-6">
+                    <div className="flex gap-6">
+                        <div className="flex w-full flex-col gap-y-4">
+                            {/* Username */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Tên tài khoản <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Nhập tên tài khoản"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className={inputClasses(errors.username)}
+                                    />
+                                </div>
+                                {errors.username && <p className="text-red-500 text-xs mt-1 ml-1 -mb-1">{errors.username}</p>}
+                            </div>
+
+                            {/* Password */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Mật khẩu <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="password"
+                                        placeholder="Nhập mật khẩu"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className={inputClasses(errors.password)}
+                                    />
+                                </div>
+                                {errors.password && <p className="text-red-500 text-xs mt-1 ml-1 -mb-1">{errors.password}</p>}
+                            </div>
+
+                            {/* Confirm Password */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Xác nhận mật khẩu <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="password"
+                                        placeholder="Nhập lại mật khẩu"
+                                        value={rePassword}
+                                        onChange={(e) => setRePassword(e.target.value)}
+                                        className={inputClasses(errors.rePassword)}
+                                    />
+                                </div>
+                                {errors.rePassword && <p className="text-red-500 text-xs mt-1 ml-1 -mb-1">{errors.rePassword}</p>}
+                            </div>
+                        </div>
+
+                        <div className="flex w-full flex-col gap-y-4">
+                            {/* Full Name */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Họ và tên
+                                </label>
+                                <div className="relative">
+                                    <FiUserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Nhập họ và tên (tuỳ chọn)"
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)}
+                                        className={inputClasses(errors.fullName)}
+                                    />
+                                </div>
+                                {errors.fullName && <p className="text-red-500 text-xs mt-1 ml-1 -mb-1">{errors.fullName}</p>}
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Email
+                                </label>
+                                <div className="relative">
+                                    <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="email"
+                                        placeholder="Nhập email (tuỳ chọn)"
+                                        value={email}
+                                        onChange={(e) => {
+                                            setEmail(e.target.value);
+                                            setIsVerified(false);
+                                        }}
+                                        className={inputClasses(errors.email)}
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                    />
+                                </div>
+                                {errors.email && <p className="text-red-500 text-xs mt-1 ml-1 -mb-1">{errors.email}</p>}
+                            </div>
+
+                            {/* Phone */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Số điện thoại
+                                </label>
+                                <div className="relative">
+                                    <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Nhập số điện thoại (tuỳ chọn)"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        className={inputClasses(errors.phone)}
+                                    />
+                                </div>
+                                {errors.phone && <p className="text-red-500 text-xs mt-1 ml-1 -mb-1">{errors.phone}</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="pt-4">
+                        <button
+                            type="button"
+                            onClick={handleSubmit}
+                            className="w-full bg-black text-white py-3.5 rounded-lg font-semibold text-base hover:from-gray-700 hover:to-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl mt-2"
+                        >
+                            Tạo tài khoản
+                        </button>
+                    </div>
+                </div>
 
                 {/* Verification Modal */}
                 {showVerifyPanel && (

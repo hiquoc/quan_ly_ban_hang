@@ -1,11 +1,7 @@
 package com.datn.order_service.service;
 
-import com.datn.order_service.client.CartServiceClient;
-import com.datn.order_service.client.InventoryServiceClient;
-import com.datn.order_service.client.ProductServiceClient;
-import com.datn.order_service.client.PromotionServiceClient;
+import com.datn.order_service.client.*;
 import com.datn.order_service.client.dto.VariantDTO;
-import com.datn.order_service.client.dto.request.OrderTransactionRequest;
 import com.datn.order_service.client.dto.request.ReleaseStockRequest;
 import com.datn.order_service.client.dto.request.ReserveStockRequest;
 import com.datn.order_service.client.dto.request.ValidatePromotionRequest;
@@ -13,13 +9,16 @@ import com.datn.order_service.client.dto.response.PromotionValidationResponse;
 import com.datn.order_service.dto.PageCacheWrapper;
 import com.datn.order_service.dto.request.*;
 import com.datn.order_service.dto.response.*;
-import com.datn.order_service.entity.*;
+import com.datn.order_service.entity.Order;
+import com.datn.order_service.entity.OrderItem;
+import com.datn.order_service.entity.OrderStatus;
 import com.datn.order_service.enums.PaymentStatus;
-import com.datn.order_service.enums.ReturnStatus;
 import com.datn.order_service.exception.OrderNotFoundException;
 import com.datn.order_service.repository.*;
 import com.datn.order_service.service.cloud.CloudinaryService;
 import com.datn.order_service.utils.WebhookUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -30,16 +29,12 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -61,6 +56,7 @@ public class OrderService {
     private final ReturnOrderRepository returnOrderRepository;
     private final ReturnOrderItemRepository returnOrderItemRepository;
 
+    private final DeliveryServiceClient deliveryServiceClient;
     private final InventoryServiceClient inventoryServiceClient;
     private final PromotionServiceClient promotionServiceClient;
     private final ProductServiceClient productServiceClient;
@@ -210,7 +206,7 @@ public class OrderService {
 
         log.info("Order created with number: {}", orderNumber);
 
-        // === TRACK SUCCESSFULLY RESERVED STOCKS ===
+        // === TRACK SUCCESSFULLY RESERVED STOCKS AND DELIVERY ORDERS===
         List<ReserveStockRequest> reservedStocks = new ArrayList<>();
 
         // 6. Create order items and calculate revenue
@@ -300,7 +296,7 @@ public class OrderService {
             BigDecimal revenue = itemsProfit.subtract(fee).subtract(discountAmount != null ? discountAmount : BigDecimal.ZERO);
             order.setRevenue(revenue);
             orderRepository.save(order);
-            WebhookUtils.postToWebhook(order.getId(),"insert");
+
 
             // 7. Record promotion usage if applicable
             if (promotionId != null && discountAmount != null && discountAmount.compareTo(BigDecimal.ZERO) > 0) {
@@ -330,23 +326,31 @@ public class OrderService {
             log.info("Order created successfully - OrderNumber: {}, TotalAmount: {}",
                     orderNumber, totalAmount);
 
+            WebhookUtils.postToWebhook(order.getId(), "insert");
             return mapToDetailResponse(order, orderItems, false);
 
         } catch (Exception e) {
             log.warn("Order creation failed. Releasing {} successfully reserved stocks.", reservedStocks.size());
-            for (ReserveStockRequest reserved : reservedStocks) {
+            if (!reservedStocks.isEmpty()) {
                 try {
-                    inventoryServiceClient.releaseStock(orderNumber,new ReleaseStockRequest("Loi he thong"));
-                    log.info("Stock released on rollback - VariantId: {}, Quantity: {}",
-                            reserved.getVariantId(), reserved.getQuantity());
+                    inventoryServiceClient.releaseStock(orderNumber, new ReleaseStockRequest("Loi he thong"));
+                    log.info("All stocks released on rollback for order {}. Affected variants: {}",
+                            orderNumber,
+                            reservedStocks.stream()
+                                    .map(rs -> rs.getVariantId() + "(" + rs.getQuantity() + ")")
+                                    .collect(Collectors.joining(", ")));
                 } catch (Exception releaseEx) {
-                    log.error("Failed to release stock during rollback for variant: {}",
-                            reserved.getVariantId(), releaseEx);
+                    log.error("Failed to release stocks for order: {}", orderNumber, releaseEx);
+                    reservedStocks.forEach(rs ->
+                            log.warn("Note: Variant {} qty {} was intended for release but op failed",
+                                    rs.getVariantId(), rs.getQuantity())
+                    );
                 }
             }
             throw e;
         }
     }
+
     private void handleCartAfterCheckout(Long customerId, Boolean clearCart, Set<Long> variantIds) {
         try {
             if (Boolean.TRUE.equals(clearCart)) {
@@ -406,7 +410,7 @@ public class OrderService {
 
         Page<Order> orders = orderRepository.findByCustomerIdAndStatus(customerId, statusName, pageable);
 
-        Page<OrderDetailResponse> pageResult=orders.map(order -> {
+        Page<OrderDetailResponse> pageResult = orders.map(order -> {
             List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
             return mapToDetailResponse(order, items, false);
         });
@@ -534,6 +538,7 @@ public class OrderService {
                 total
         );
     }
+
     public Page<OrderDetailResponse> getOrdersDetailsAdvanced(
             Integer page,
             Integer size,
@@ -628,8 +633,8 @@ public class OrderService {
 
         return new PageImpl<>(
                 results.stream().map(order -> {
-                    List<OrderItem> orderItems=orderItemRepository.findByOrderId(order.getId());
-                    return mapToDetailResponse(order,orderItems,false);
+                    List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+                    return mapToDetailResponse(order, orderItems, false);
                 }).toList(),
                 pageable,
                 total
@@ -647,7 +652,7 @@ public class OrderService {
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
-        if(Objects.equals(order.getPaymentStatus().toString(), "PENDING") && !Objects.equals(order.getPaymentMethod(), "COD"))
+        if (Objects.equals(order.getPaymentStatus().toString(), "PENDING") && !Objects.equals(order.getPaymentMethod(), "COD"))
             throw new IllegalStateException("Đơn hàng phải được thanh toán trước khi xác nhận!");
 
         OrderStatus newStatus = orderStatusRepository.findById(statusId)
@@ -692,9 +697,18 @@ public class OrderService {
             } catch (Exception e) {
                 log.error("Failed to release stock for orderNumber: {}", order.getOrderNumber(), e);
             }
+            if(oldStatusName.equals("PROCESSING")){
+                try {
+                    deliveryServiceClient.cancelDeliveryOrderStatus(new CancelDeliveryOrderRequest(orderId,staffId,"Đơn hàng bị hủy bởi nhân viên NV"+staffId+"\nLý do: "+notes));
+                } catch (FeignException e) {
+                    log.error("Feign error canceling delivery order: Status={}", e.status());
+                } catch (Exception e) {
+                    log.error("Failed to canceling delivery order: {}", order.getOrderNumber(), e);
+                }
+            }
         }
         order = orderRepository.save(order);
-        WebhookUtils.postToWebhook(order.getId(),"update");
+        WebhookUtils.postToWebhook(order.getId(), "update");
         log.info("Order status updated successfully - OrderId: {}, NewStatus: {}", orderId, newStatus.getName());
         return mapToResponse(order);
     }
@@ -718,7 +732,7 @@ public class OrderService {
                 log.info("Order status updated to PENDING after payment");
             }
         }
-        WebhookUtils.postToWebhook(order.getId(),"update");
+        WebhookUtils.postToWebhook(order.getId(), "update");
         return mapToResponse(order);
     }
 
@@ -771,7 +785,7 @@ public class OrderService {
         }
 
         order = orderRepository.save(order);
-        WebhookUtils.postToWebhook(order.getId(),"update");
+        WebhookUtils.postToWebhook(order.getId(), "update");
         log.info("Order cancelled successfully - OrderId: {}", orderId);
 
         return mapToResponse(order);
@@ -872,28 +886,66 @@ public class OrderService {
             case "PROCESSING":
                 log.info("Order processing started - OrderId: {}", order.getId());
 
-                List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-                List<OrderItemTransactionRequest> stockItemRequestList = items.stream()
-                        .map(item -> OrderItemTransactionRequest.builder()
-                                .variantId(item.getVariantId())
-                                .pricePerItem(item.getUnitPrice())
-                                .quantity(item.getQuantity())
-                                .build())
-                        .toList();
-
-                OrderTransactionRequest orderRequest = OrderTransactionRequest.builder()
-                        .orderNumber(order.getOrderNumber())
-                        .orderItems(stockItemRequestList)
-                        .staffId(staffId)
-                        .note("ORDER_PROCESSING")
-                        .build();
-
+//                List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+//                List<OrderItemTransactionRequest> stockItemRequestList = items.stream()
+//                        .map(item -> OrderItemTransactionRequest.builder()
+//                                .variantId(item.getVariantId())
+//                                .pricePerItem(item.getUnitPrice())
+//                                .quantity(item.getQuantity())
+//                                .build())
+//                        .toList();
+//
+//                OrderTransactionRequest orderRequest = OrderTransactionRequest.builder()
+//                        .orderNumber(order.getOrderNumber())
+//                        .orderItems(stockItemRequestList)
+//                        .staffId(staffId)
+//                        .note("ORDER_PROCESSING")
+//                        .build();
+//
+//                try {
+//                    inventoryServiceClient.createOrderTransaction(orderRequest);
+//                    log.info("Created order transaction for OrderNumber: {}", order.getOrderNumber());
+//                } catch (Exception e) {
+//                    log.error("Failed to create order transaction for OrderNumber: {}", order.getOrderNumber(), e);
+//                    throw new RuntimeException("Cannot process inventory for OrderNumber: " + order.getOrderNumber(), e);
+//                }
                 try {
-                    inventoryServiceClient.createOrderTransaction(orderRequest);
-                    log.info("Created order transaction for OrderNumber: {}", order.getOrderNumber());
+                    List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+                    List<Long> usedWarehouseIds = inventoryServiceClient.getItemsWarehouseId(order.getOrderNumber());
+                    for (Long warehouseId : usedWarehouseIds) {
+                        deliveryServiceClient.createDeliveryOrder(new DeliveryOrderRequest(
+                                order.getId(), order.getOrderNumber(), order.getShippingName(),
+                                order.getShippingAddress(), order.getShippingPhone(),
+                                order.getPaymentMethod(), warehouseId,
+                                order.getPaymentMethod().equals("COD") ? order.getTotalAmount() : BigDecimal.ZERO,
+                                orderItems.stream().map(it -> {
+                                    Map<String,Object> snapshot=it.getProductSnapshot();
+                                    ObjectMapper mapper = new ObjectMapper();
+
+                                    Map<String, Object> imageUrls = mapper.convertValue(
+                                            it.getProductSnapshot().get("imageUrls"),
+                                            new TypeReference<Map<String, Object>>() {}
+                                    );
+                                    String mainImage = imageUrls.get("main").toString();
+
+                                    return new DeliveryOrderItemRequest(
+                                            it.getId(),
+                                            it.getVariantId(),
+                                            snapshot.get("name").toString(),
+                                            snapshot.get("sku").toString(),
+                                            it.getUnitPrice(),
+                                            mainImage,
+                                            it.getQuantity()
+                                    );
+                                }).toList()
+                        ));
+                    }
+                } catch (FeignException e) {
+                    log.error("Lỗi nội bộ khi tạo đơn giao hàng: Status={}, Message={}", e.status(), e.getMessage());
+                    throw new RuntimeException("Không thể kết nối tới hệ thống giao hàng, vui lòng thử lại sau.");
                 } catch (Exception e) {
-                    log.error("Failed to create order transaction for OrderNumber: {}", order.getOrderNumber(), e);
-                    throw new RuntimeException("Cannot process inventory for OrderNumber: " + order.getOrderNumber(), e);
+                    log.error("Lỗi không xác định khi tạo đơn giao hàng", e);
+                    throw new RuntimeException("Đã xảy ra lỗi trong quá trình tạo đơn giao hàng.");
                 }
                 break;
 
@@ -921,23 +973,38 @@ public class OrderService {
 
 
     @Transactional
-    public void updateOrderStatusFromInv(String orderNumber, UpdateOrderStatusFromInvRequest request) {
-        Order order = orderRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new OrderNotFoundException("Order not found with orderNumber: " + orderNumber));
-        OrderStatus newStatus = orderStatusRepository.findById(request.getStatusId())
-                .orElseThrow(() -> new RuntimeException("Status not found with ID: " + request.getStatusId()));
-        if (newStatus.getName().equals("SHIPPED")) {
-            order.setShippedDate(OffsetDateTime.now());
-            log.info("Order shipped - OrderId: {}", order.getId());
-        } else if (newStatus.getName().equals("CANCELLED")) {
-            order.setCancelledDate(OffsetDateTime.now());
-            log.info("Order cancelled - OrderId: {}", order.getId());
-        } else
-            throw new RuntimeException("Status change with name: " + newStatus.getName() + " is not allowed!");
-        order.setStatus(newStatus);
-        order.setNotes(request.getNotes());
-        orderRepository.save(order);
-        WebhookUtils.postToWebhook(order.getId(),"update");
+    public void updateOrderStatusFromInternal(UpdateOrderStatusFromInvRequest request) {
+        List<Order> pendingOrdersToSave=new ArrayList<>();
+        for(String orderNumber:request.getOrderNumbers()){
+            Order order = orderRepository.findByOrderNumber(orderNumber)
+                    .orElseThrow(() -> new OrderNotFoundException("Order not found with orderNumber: " + orderNumber));
+            OrderStatus newStatus = orderStatusRepository.findById(request.getStatusId())
+                    .orElseThrow(() -> new RuntimeException("Status not found with ID: " + request.getStatusId()));
+            if (newStatus.getName().equals("SHIPPED")) {
+                order.setShippedDate(OffsetDateTime.now());
+                log.info("Order shipped - OrderId: {}", order.getId());
+            }else if(newStatus.getName().equals("DELIVERED")){
+                order.setDeliveredDate(OffsetDateTime.now());
+                log.info("Order delivered - OrderId: {}", order.getId());
+                if ("COD".equalsIgnoreCase(order.getPaymentMethod()) &&
+                        order.getPaymentStatus() == PaymentStatus.PENDING) {
+                    order.setPaymentStatus(PaymentStatus.PAID);
+                    log.info("Auto-updated payment status to PAID for COD order");
+                }
+            }else if (newStatus.getName().equals("PROCESSING")) {
+                log.info("Order processing - OrderId: {}", order.getId());
+            }
+            else if (newStatus.getName().equals("CANCELLED")) {
+                order.setCancelledDate(OffsetDateTime.now());
+                log.info("Order cancelled - OrderId: {}", order.getId());
+            } else
+                throw new RuntimeException("Status change with name: " + newStatus.getName() + " is not allowed!");
+            order.setStatus(newStatus);
+            order.setNotes(request.getNotes());
+            pendingOrdersToSave.add(order);
+            WebhookUtils.postToWebhook(order.getId(), "update");
+        }
+        orderRepository.saveAll(pendingOrdersToSave);
     }
 
     private OrderResponse mapToResponse(Order order) {

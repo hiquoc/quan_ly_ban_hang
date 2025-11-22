@@ -28,26 +28,18 @@
         </processorPath>
         <module name="auth_service" />
       </profile>
-      <profile name="Annotation profile for product_service" enabled="true">
+      <profile name="Annotation profile for delivery_service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.34/lombok-1.18.34.jar" />
-        </processorPath>
-        <module name="product_service" />
-      </profile>
-      <profile name="Annotation profile for customer_service" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.34/lombok-1.18.34.jar" />
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.34/lombok-1.18.34.jar" />
         </processorPath>
         <module name="inventory_service" />
         <module name="customer_service" />
         <module name="staff_service" />
+        <module name="delivery_service" />
+        <module name="product_service" />
         <module name="gateway_service" />
       </profile>
     </annotationProcessing>
@@ -67,6 +59,7 @@
       <module name="cart_service" options="-parameters" />
       <module name="customer_service" options="-parameters" />
       <module name="dashboard_service" options="-parameters" />
+      <module name="delivery_service" options="-parameters" />
       <module name="eureka-server" options="-parameters" />
       <module name="eureka_service" options="-parameters" />
       <module name="gateway_service" options="-parameters" />

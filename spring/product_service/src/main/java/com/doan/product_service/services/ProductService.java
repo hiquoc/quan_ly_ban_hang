@@ -25,6 +25,8 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -51,6 +53,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final RecServiceClient recServiceClient;
     private final CloudinaryService cloudinaryService;
+    private final CacheManager cacheManager;
 
     @CacheEvict(value = "homeProducts", allEntries = true)
     public ProductResponse createProduct(ProductRequest productRequest, MultipartFile image) {
@@ -210,11 +213,6 @@ public class ProductService {
         return productRepository.findByIsActiveIsTrue();
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#productRequest.slug + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#productRequest.slug + ':false'")
-    })
     @Transactional(rollbackFor = IOException.class)
     public ProductResponse updateProduct(Long id, ProductRequest productRequest,MultipartFile image){
         Product product = productRepository.findById(id)
@@ -273,15 +271,18 @@ public class ProductService {
             product.setBrand(brand);
         }
         WebhookUtils.postToWebhook(product.getId(),"update");
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
+
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = product.getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
         return fromEntity(product);
     }
 
-
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':false'")
-    })
     @Transactional
     public void changeProductActive(Long id){
         Product product = productRepository.findById(id)
@@ -306,13 +307,17 @@ public class ProductService {
         product.setIsActive(!product.getIsActive());
         productRepository.save(product);
         WebhookUtils.postToWebhook(product.getId(),"update");
-    }
 
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':false'")
-    })
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
+
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = product.getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
+    }
     public void changeProductFeatured(Long id){
         Product product=productRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy sản phẩm với id: "+id));
@@ -321,13 +326,18 @@ public class ProductService {
         product.setIsFeatured(!product.getIsFeatured());
         productRepository.save(product);
         WebhookUtils.postToWebhook(product.getId(),"update");
+
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
+
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = product.getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#product.getSlug() + ':false'")
-    })
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Product not found with id: "+id));
@@ -345,6 +355,16 @@ public class ProductService {
         }
         productRepository.delete(product);
         WebhookUtils.postToWebhook(product.getId(),"delete");
+
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
+
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = product.getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
     }
 
     @Cacheable(value = "productDetails", key = "#slug + ':' + #showInActive")
@@ -390,7 +410,7 @@ public class ProductService {
             key = "(#customerId == null) ? 'DEFAULT' : #customerId"
     )
     public Map<String, List<ProductResponse>> getRecommendations(Long customerId) {
-        RecResponse response = recServiceClient.getRecommendations(customerId, 6);
+        RecResponse response = recServiceClient.getRecommendations(customerId, 12);
         if (response == null)
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Có lỗi xảy ra khi lấy dữ liệu recommendations");
@@ -413,6 +433,8 @@ public class ProductService {
                         scoreMap.get(b.getId()),
                         scoreMap.get(a.getId())
                 ))
+                .filter(product -> product.getVariants().stream().anyMatch(
+                        productVariant -> !productVariant.getStatus().equals("OUT_OF_STOCK")))
                 .toList();
 
         List<ProductResponse> list = sorted.stream()
@@ -427,6 +449,9 @@ public class ProductService {
     )
     public void rebuildRecommendations() {
         recServiceClient.rebuildRecommendations();
+    }
+    public void rebuildAll() {
+        recServiceClient.rebuildAll();
     }
 
     @Cacheable(value = "homeProducts", key = "#request.newProduct + ':' + #request.discountProduct")

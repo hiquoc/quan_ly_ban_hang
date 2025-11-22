@@ -18,4 +18,7 @@ public interface RecommendationRepository {
 
     @PostMapping("/rebuild")
     void rebuildRecommendations();
+
+    @PostMapping("/rebuildAll")
+    void rebuildAll();
 }

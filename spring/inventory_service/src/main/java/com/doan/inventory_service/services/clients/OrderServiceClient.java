@@ -17,9 +17,9 @@ public class OrderServiceClient {
     private final OrderRepository orderRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public void updateOrderStatus(String orderNumber, UpdateOrderStatusFromInvRequest request) {
+    public void updateOrderStatus(UpdateOrderStatusFromInvRequest request) {
         try {
-            orderRepository.updateOrderStatus(orderNumber, request);
+            orderRepository.updateOrderStatus(request);
         } catch (FeignException ex) {
             throw parseFeignException(ex);
         }

@@ -68,14 +68,15 @@ public class InventoryController {
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String keywordType,
-            @RequestParam(required = false) Boolean ignoreReserveRelease
+            @RequestParam(required = false) Boolean ignoreReserveRelease,
+            @RequestParam(required = false) Long warehouseId
     ) {
         try {
             LocalDate start = (startDate != null && !startDate.isBlank()) ? LocalDate.parse(startDate) : null;
             LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : null;
 
             Page<InventoryTransactionResponse> transactions = inventoryService.getTransactions(
-                    page, size, status, type, start, end, keyword, keywordType, ignoreReserveRelease);
+                    page, size, status, type, start, end, keyword, keywordType, ignoreReserveRelease,warehouseId);
 
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu phiếu thành công!", true, transactions));
         } catch (ResponseStatusException ex) {
@@ -174,9 +175,18 @@ public class InventoryController {
     }
 
     @PostMapping("/internal/transactions")
-    public ResponseEntity<?> createOrderTransaction(@RequestBody OrderTransactionRequest request) {
+    public ResponseEntity<?> createOrderTransaction(@RequestBody List<OrderTransactionRequest> request) {
         try {
             inventoryService.createOrderTransaction(request);
+            return ResponseEntity.ok(new ApiResponse<>("Tạo phiếu thành công!", true, null));
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
+    }
+    @PostMapping("/internal/transactions/return/")
+    public ResponseEntity<?> createReturnOrderTransaction(@RequestBody ReturnedOrderTransactionRequest request) {
+        try {
+            inventoryService.createTransactionForReturnedDelivery(request);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái phiếu thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -224,6 +234,10 @@ public class InventoryController {
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
+    }
+    @GetMapping("/internal/orders/{orderNumber}/warehouse-ids")
+    public List<Long> getItemsWarehouseId(@PathVariable String orderNumber) {
+        return inventoryService.getItemsWarehouseId(orderNumber);
     }
 
 

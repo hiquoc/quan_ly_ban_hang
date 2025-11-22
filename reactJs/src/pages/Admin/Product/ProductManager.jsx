@@ -787,7 +787,9 @@ export default function ProductManager() {
               <h3 className="text-3xl font-bold mb-5 text-black">
                 {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
               </h3>
-              <p className="text-gray-500 text-sm">ID: {form.id}</p>
+              {editingProductId && (
+                <p className="text-gray-500 text-sm">ID: {form.id}</p>
+              )}
             </div>
 
             {isProcessing && (

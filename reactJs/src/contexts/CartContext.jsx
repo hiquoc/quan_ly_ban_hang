@@ -20,7 +20,11 @@ export function CartProvider({ children }) {
             return { id: null, items: [], totalItems: 0, subtotal: 0, estimatedTotal: 0 };
         }
     });
-    // console.log(cart)
+
+    useEffect(() => {
+        localStorage.setItem("cartData", JSON.stringify(cart));
+    }, [cart]);
+
     useEffect(() => {
         loadCart();
     }, [username]);
@@ -32,21 +36,18 @@ export function CartProvider({ children }) {
             return;
         }
         try {
-            // setIsProcessing(true);
             const res = await getCart(username);
             if (res.error) {
                 console.log(res.error)
-                // showPopup(res.error);
                 return;
             }
             setCart(res.data);
             localStorage.setItem("cartData", JSON.stringify(res.data));
         } catch (err) {
             console.error("Failed to fetch cart", err);
-        } finally {
-            // setIsProcessing(false);
         }
     }
+
     function checkLoggedIn() {
         if (!username) {
             showPopup("Bạn chưa đăng nhập!", () => navigate(`/login`));
@@ -54,6 +55,7 @@ export function CartProvider({ children }) {
         }
         return true;
     }
+
     function recalcCart(cartData) {
         const items = cartData.items || [];
         const totalItems = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
@@ -64,7 +66,6 @@ export function CartProvider({ children }) {
     async function addToCart(variantId, quantity = 1) {
         if (!checkLoggedIn()) return;
         setIsProcessing(true);
-
         try {
             const savedCart = localStorage.getItem("cartData");
             let cartExistsInStorage = false;
@@ -76,33 +77,25 @@ export function CartProvider({ children }) {
                     cartExistsInStorage = false;
                 }
             }
-
             const existingItem = cart.items.find(item => item.variantId === variantId);
             let res;
-
             if (!cartExistsInStorage || !existingItem) {
                 res = await addItemToCart(variantId, quantity);
             } else {
                 res = await updateCartItem(existingItem.id, existingItem.quantity + quantity);
             }
-
             if (res.error) {
                 showPopup(res.error);
                 return;
             }
-
-            setCart(prevCart => {
-                const updatedItems = prevCart.items.map(item =>
-                    item.variantId === res.data.variantId ? { ...item, ...res.data } : item
-                );
-
-                if (!updatedItems.some(item => item.variantId === res.data.variantId)) {
-                    updatedItems.push(res.data);
-                }
-
-                return recalcCart({ ...prevCart, items: updatedItems });
-            });
-            localStorage.setItem("cartData", JSON.stringify(recalcCart({ ...prevCart, items: updatedItems })));
+            const updatedItems = cart.items.map(item =>
+                item.variantId === res.data.variantId ? { ...item, ...res.data } : item
+            );
+            if (!updatedItems.some(item => item.variantId === res.data.variantId)) {
+                updatedItems.push(res.data);
+            }
+            const updatedCart = recalcCart({ ...cart, items: updatedItems });
+            setCart(updatedCart);
         } finally {
             setIsProcessing(false);
         }
@@ -118,19 +111,14 @@ export function CartProvider({ children }) {
                 showPopup(res.error);
                 return;
             }
-
-            setCart(prevCart => {
-                const updatedItems = prevCart.items.map(item =>
-                    item.id === res.data.id ? { ...item, ...res.data } : item
-                );
-
-                if (!updatedItems.some(item => item.id === res.data.id)) {
-                    updatedItems.push(res.data);
-                }
-
-                return recalcCart({ ...prevCart, items: updatedItems });
-            });
-            localStorage.setItem("cartData", JSON.stringify(recalcCart({ ...prevCart, items: updatedItems })));
+            const updatedItems = cart.items.map(item =>
+                item.id === res.data.id ? { ...item, ...res.data } : item
+            );
+            if (!updatedItems.some(item => item.id === res.data.id)) {
+                updatedItems.push(res.data);
+            }
+            const updatedCart = recalcCart({ ...cart, items: updatedItems });
+            setCart(updatedCart);
         } finally {
             setIsProcessing(false);
         }
@@ -140,23 +128,21 @@ export function CartProvider({ children }) {
         if (!checkLoggedIn()) return;
         setIsProcessing(true);
         try {
-            setCart(prevCart => {
-                const updatedItems = prevCart.items.filter(item => item.variantId !== variantId);
-                return recalcCart({ ...prevCart, items: updatedItems });
-            });
+            const updatedItems = cart.items.filter(item => item.variantId !== variantId);
+            const updatedCart = recalcCart({ ...cart, items: updatedItems });
+            setCart(updatedCart); // Optimistic update
 
             const res = await removeItemFromCart(variantId);
             if (res.error) {
                 showPopup(res.error);
                 const freshCart = await getCart(username);
                 setCart(freshCart.data);
-            } else {
-                localStorage.setItem("cartData", JSON.stringify(recalcCart({ ...prevCart, items: updatedItems })));
             }
         } finally {
             setIsProcessing(false);
         }
     }
+
     const buyNow = async (variantId, quantity = 1) => {
         if (!checkLoggedIn()) return;
         setIsProcessing(true);
@@ -168,11 +154,9 @@ export function CartProvider({ children }) {
                     showPopup(addRes.error);
                     return;
                 }
-                setCart(prevCart => {
-                    const updatedItems = [...prevCart.items, addRes.data];
-                    return recalcCart({ ...prevCart, items: updatedItems });
-                });
-                localStorage.setItem("cartData", JSON.stringify(cart));
+                const updatedItems = [...cart.items, addRes.data];
+                const updatedCart = recalcCart({ ...cart, items: updatedItems });
+                setCart(updatedCart);
             }
             localStorage.setItem("selectedItems", JSON.stringify([variantId]));
             navigate("/checkout");
@@ -180,15 +164,18 @@ export function CartProvider({ children }) {
             setIsProcessing(false);
         }
     };
+
     const reloadCart = async () => {
         await loadCart();
     }
+
     const clearSelectedItems = () => {
         localStorage.removeItem("selectedItems");
     };
-    const clearCart = () =>
-        localStorage.removeItem("cartData")
 
+    const clearCart = () => {
+        setCart({ id: null, items: [], totalItems: 0, subtotal: 0, estimatedTotal: 0 });
+    };
 
     return (
         <CartContext.Provider
@@ -206,7 +193,6 @@ export function CartProvider({ children }) {
             }}
         >
             {children}
-
             {isProcessing && (
                 <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 rounded pointer-events-auto">
                     <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
@@ -227,7 +213,7 @@ export function CartProvider({ children }) {
                             <path
                                 className="opacity-75"
                                 fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                d="M4 12a8 8 0 018-8v4a4 4 00-4 4H4z"
                             ></path>
                         </svg>
                         <span className="text-gray-700 font-medium">Đang xử lý...</span>

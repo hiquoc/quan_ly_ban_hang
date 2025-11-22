@@ -40,7 +40,7 @@ public class Staff {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    public Staff(String fullName, String phone, String email) {
+    public Staff(String fullName, String email, String phone) {
         this.fullName = fullName;
         this.phone = phone;
         this.email=email;

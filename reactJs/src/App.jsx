@@ -23,6 +23,7 @@ import AdminPromotion from "./pages/Admin/Promotion/AdminPromotion";
 import AdminDashboard from "./pages/Admin/Dashboard/AdminDasboard";
 import PaymentCheck from "./pages/PaymentCheck";
 import ScrollToTop from "./components/ScrollToTop";
+import AdminDelivery from "./pages/Admin/Delivery/AdminDelivery";
 
 function App() {
   return (
@@ -34,7 +35,7 @@ function App() {
       <PopupProvider>
         <AuthProvider>
           <Router>
-            <ScrollToTop /> {/* ✅ Move here */}
+            <ScrollToTop />
 
             <Routes>
               {/* Public Routes */}
@@ -129,6 +130,16 @@ function App() {
                   <ProtectedRoute>
                     <AdminLayout>
                       <AdminOrder />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/deliveries"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <AdminDelivery />
                     </AdminLayout>
                   </ProtectedRoute>
                 }

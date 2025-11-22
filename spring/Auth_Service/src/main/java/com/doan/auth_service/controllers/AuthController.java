@@ -2,18 +2,14 @@ package com.doan.auth_service.controllers;
 
 import com.doan.auth_service.dtos.Account.AccountResponse;
 import com.doan.auth_service.dtos.Account.ChangePasswordRequest;
-import com.doan.auth_service.dtos.Customer.CustomerRequest;
+import com.doan.auth_service.dtos.ApiResponse;
 import com.doan.auth_service.dtos.Login.LoginRequest;
 import com.doan.auth_service.dtos.Login.LoginResponse;
 import com.doan.auth_service.dtos.Login.RegisterRequest;
-import com.doan.auth_service.dtos.ApiResponse;
-import com.doan.auth_service.dtos.Staff.StaffRequest;
-import com.doan.auth_service.dtos.Staff.OwnerIdResponse;
 import com.doan.auth_service.models.Account;
-import com.doan.auth_service.models.PendingAction;
 import com.doan.auth_service.models.Role;
-import com.doan.auth_service.models.VerificationCode;
 import com.doan.auth_service.repositories.PendingActionRepository;
+import com.doan.auth_service.repositories.DeliveryRepository;
 import com.doan.auth_service.repositories.VerificationCodeRepository;
 import com.doan.auth_service.services.AccountService;
 import com.doan.auth_service.services.CustomerServiceClient;
@@ -28,7 +24,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 
 @RestController
@@ -41,13 +39,14 @@ public class AuthController {
     private final StaffServiceClient staffServiceClient;
     private final CustomerServiceClient customerServiceClient;
     private final VerificationCodeRepository verificationCodeRepository;
+    private final DeliveryRepository deliveryRepository;
 
     @PostMapping("/public/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest){
-        try{
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
             LoginResponse loginResponse = accountService.login(loginRequest.getUsername().trim(), loginRequest.getPassword().trim());
             return ResponseEntity.ok(loginResponse);
-        }catch (ResponseStatusException ex) {
+        } catch (ResponseStatusException ex) {
             Map<String, Object> error = new HashMap<>();
             error.put("message", ex.getReason());
             error.put("success", false);
@@ -58,53 +57,14 @@ public class AuthController {
     @PostMapping("/public/register")
     public ResponseEntity<Map<String, Object>> customerRegister(
             @Valid @RequestBody RegisterRequest registerRequest) {
-
-        accountService.checkRegisterRequest(registerRequest);
-        CustomerRequest body = new CustomerRequest(
-                registerRequest.getFullName().trim(),
-                registerRequest.getPhone().trim(),
-                null
-        );
-        boolean emailVerified = false;
-        if(registerRequest.getEmail() != null && !registerRequest.getEmail().isBlank()) {
-            if(!verificationCodeRepository.existsByEmailAndIsVerified(registerRequest.getEmail(), true)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email chưa được xác thực!");
-            }
-            body.setEmail(registerRequest.getEmail().trim());
-            emailVerified = true;
-        }
-
-        OwnerIdResponse response = null;
-        Long ownerId = null;
-
         try {
-            response = customerServiceClient.createCustomer(body);
-            ownerId = response.getOwnerId();
-
-            Role role = roleService.getRoleById(4L);
-            accountService.createAccount(
-                    registerRequest.getUsername().trim(),
-                    registerRequest.getPassword().trim(),
-                    ownerId,
-                    role,
-                    emailVerified
-            );
-
+            accountService.createCustomer(registerRequest);
             Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("message", "Đăng kí thành công!\nVui lòng đăng nhập.");
             responseBody.put("success", true);
             responseBody.put("data", null);
             return ResponseEntity.ok(responseBody);
-
         } catch (Exception ex) {
-            if (ownerId != null) {
-                PendingAction pending = new PendingAction();
-                pending.setService("CUSTOMER_SERVICE");
-                pending.setEntityId(ownerId);
-                pending.setActionType("DELETE");
-                pendingActionRepository.save(pending);
-            }
-
             HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
             String message = "Đăng kí thất bại: " + ex.getMessage();
 
@@ -124,53 +84,15 @@ public class AuthController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/register")
     public ResponseEntity<Map<String, Object>> staffRegister(@Valid @RequestBody RegisterRequest registerRequest) {
-
-        accountService.checkRegisterRequest(registerRequest);
-
-        StaffRequest body = new StaffRequest(
-                registerRequest.getFullName().trim(),
-                registerRequest.getPhone().trim(),
-                null
-        );
-        boolean emailVerified = false;
-        if(registerRequest.getEmail() != null && !registerRequest.getEmail().isBlank()) {
-            if(!verificationCodeRepository.existsByEmailAndIsVerified(registerRequest.getEmail(), true)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email chưa được xác thực!");
-            }
-            body.setEmail(registerRequest.getEmail().trim());
-            emailVerified = true;
-        }
-        OwnerIdResponse response = null;
-        Long ownerId = null;
-
-        try {
-            response = staffServiceClient.createStaff(body);
-            ownerId = response.getOwnerId();
-
-            Role role = roleService.getRoleById(3L);
-            accountService.createAccount(
-                    registerRequest.getUsername().trim(),
-                    registerRequest.getPassword().trim(),
-                    ownerId,
-                    role,
-                    emailVerified
-            );
+        try{
+            accountService.createStaff(registerRequest);
 
             Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("message", "Đăng kí thành công!\nVui lòng đăng nhập.");
+            responseBody.put("message", "Đăng kí thành công!.");
             responseBody.put("success", true);
             responseBody.put("data", null);
             return ResponseEntity.ok(responseBody);
-
         } catch (Exception ex) {
-            if (ownerId != null) {
-                PendingAction pending = new PendingAction();
-                pending.setService("STAFF_SERVICE");
-                pending.setEntityId(ownerId);
-                pending.setActionType("DELETE");
-                pendingActionRepository.save(pending);
-            }
-
             HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
             String message = "Đăng kí thất bại: " + ex.getMessage();
 
@@ -184,27 +106,30 @@ public class AuthController {
             error.put("success", false);
             return ResponseEntity.status(status).body(error);
         }
+
     }
+
     @PatchMapping("/secure/accounts")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request,
-                                            @RequestHeader("X-Account-Id")Long accountId){
-        try{
-            accountService.changePassword(accountId,request);
-            return ResponseEntity.ok(new ApiResponse<>("Thay đổi mật khẩu thành công!",true,null));
-        }catch(ResponseStatusException ex){
+                                            @RequestHeader("X-Account-Id") Long accountId) {
+        try {
+            accountService.changePassword(accountId, request);
+            return ResponseEntity.ok(new ApiResponse<>("Thay đổi mật khẩu thành công!", true, null));
+        } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/secure/accounts")
-    public Page<AccountResponse> getAllAccounts(@RequestParam(required = false) Integer page,
-                                                @RequestParam(required = false) Integer size,
-                                                @RequestParam(required = false) String keyword,
-                                                @RequestParam(required = false) String type,
-                                                @RequestParam(required = false) Boolean active,
-                                                @RequestParam(required = false) Long roleId){
-        return accountService.getAllAccounts(page, size, keyword, type, active,roleId);
+    public ResponseEntity<ApiResponse<Page<AccountResponse>>> getAllAccounts(@RequestParam(required = false) Integer page,
+                                                                             @RequestParam(required = false) Integer size,
+                                                                             @RequestParam(required = false) String keyword,
+                                                                             @RequestParam(required = false) String type,
+                                                                             @RequestParam(required = false) Boolean active,
+                                                                             @RequestParam(required = false) Long roleId) {
+        return ResponseEntity.ok(
+                new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, accountService.getAllAccounts(page, size, keyword, type, active, roleId)));
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
@@ -217,16 +142,16 @@ public class AuthController {
         if (accountId.equals(tokenAccountId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi quyền của chính mình!");
         }
-        Role role=roleService.getRoleById(roleId);
-        if(role.getId()==4L){
+        Role role = roleService.getRoleById(roleId);
+        if (role.getId() == 4L) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi quyền thành CUSTOMER!");
         }
-        if(Objects.equals(tokenRole, "MANAGER") ){
-            if(Objects.equals(role.getName(), "ADMIN")){
+        if (Objects.equals(tokenRole, "MANAGER")) {
+            if (Objects.equals(role.getName(), "ADMIN")) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi quyền lên mức ADMIN!");
             }
-            Account account=accountService.getAccountById(accountId);
-            if(Objects.equals(account.getRole().getName(), "ADMIN")){
+            Account account = accountService.getAccountById(accountId);
+            if (Objects.equals(account.getRole().getName(), "ADMIN")) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi quyền của tài khoản này!");
             }
         }
@@ -243,14 +168,14 @@ public class AuthController {
         if (id.equals(tokenAccountId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi trạng thái của chính mình!");
         }
-        if(Objects.equals(tokenRole, "MANAGER") ){
-            Account account=accountService.getAccountById(id);
-            if(Objects.equals(account.getRole().getName(), "ADMIN")){
+        if (Objects.equals(tokenRole, "MANAGER")) {
+            Account account = accountService.getAccountById(id);
+            if (Objects.equals(account.getRole().getName(), "ADMIN")) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền khóa tài khoản này!");
             }
         }
         accountService.changeAccountActive(id);
-        return new ApiResponse<>("Cập nhật trạng thái thành công!",true,null);
+        return new ApiResponse<>("Cập nhật trạng thái thành công!", true, null);
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
@@ -281,7 +206,7 @@ public class AuthController {
     }
 
     @GetMapping("/internal/accounts/{id}/isVerified")
-    public ResponseEntity<?> checkAccountIsVerified(@PathVariable Long id){
+    public ResponseEntity<?> checkAccountIsVerified(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(accountService.checkAccountIsVerified(id));
         } catch (Exception e) {

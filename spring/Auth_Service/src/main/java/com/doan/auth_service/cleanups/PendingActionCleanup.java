@@ -5,6 +5,7 @@ import com.doan.auth_service.models.VerificationCode;
 import com.doan.auth_service.repositories.PendingActionRepository;
 import com.doan.auth_service.repositories.VerificationCodeRepository;
 import com.doan.auth_service.services.CustomerServiceClient;
+import com.doan.auth_service.services.DeliveryServiceClient;
 import com.doan.auth_service.services.StaffServiceClient;
 import lombok.AllArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,6 +21,7 @@ public class PendingActionCleanup {
     private final PendingActionRepository repository;
     private final CustomerServiceClient customerServiceClient;
     private final StaffServiceClient staffServiceClient;
+    private final DeliveryServiceClient deliveryServiceClient;
     private final VerificationCodeRepository verificationCodeRepository;
 
     @Scheduled(fixedRate = 300000) // every 5m
@@ -32,9 +34,10 @@ public class PendingActionCleanup {
                         customerServiceClient.deleteCustomer(action.getEntityId());
                     } else if ("STAFF_SERVICE".equals(action.getService())) {
                         staffServiceClient.deleteStaff(action.getEntityId());
+                    } else if ("DELIVERY_SERVICE".equals(action.getService())) {
+                        deliveryServiceClient.deleteShipper(action.getEntityId());
                     }
                 }
-                //add more
 
 
                 repository.delete(action); // remove completed actions from DB

@@ -76,7 +76,7 @@ function AdminOrder() {
     const handleGetOrderDetails = async (ownerNumber) => {
         const res = await getOrderDetails(ownerNumber);
         if (res.error) return showPopup(res.error);
-        console.log(res.data)
+        // console.log(res.data)
         setOrderDetails(res.data);
         setIsDetailOpen(true);
     }
@@ -131,7 +131,7 @@ function AdminOrder() {
         PENDING: ["CONFIRMED", "CANCELLED"],
         CONFIRMED: ["PROCESSING", "CANCELLED"],
         PROCESSING: ["CANCELLED"],
-        SHIPPED: ["DELIVERED"],
+        SHIPPED: [],
         DELIVERED: [],
         CANCELLED: [],
         RETURNED: []

@@ -20,6 +20,7 @@ export default function InventoryTransactionManager() {
     const [variants, setVariants] = useState([]);
     const [size, setSize] = useState(10);
 
+    const [warehouseSort, setWarehouseSort] = useState(null)
     const [status, setStatus] = useState(null);
     const [transactionType, setTransactionType] = useState(null);
     const [keyword, setKeyword] = useState("");
@@ -110,13 +111,18 @@ export default function InventoryTransactionManager() {
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
-        loadTransactions(0)
+        loadWarehouse();
     }, []);
 
     useEffect(() => {
         if (warehouses.length === 0) return;
         loadInventoriesBaseOnWarehouseId();
     }, [form.warehouseId])
+
+    useEffect(() => {
+        if (warehouses.length === 0) return;
+        loadTransactions(0);
+    },[warehouseSort])
 
     async function loadTransactions(page,
         status = null,
@@ -125,7 +131,7 @@ export default function InventoryTransactionManager() {
         end = endDate,
         searchKeyword = keyword,
         searchType = keywordType,
-        ignore = ignoreReserveRelease,
+        ignore = ignoreReserveRelease
     ) {
         setLoading(true);
         setTransactionPage(page);
@@ -142,7 +148,8 @@ export default function InventoryTransactionManager() {
                 end,
                 keywordToSend,
                 typeToSend,
-                ignore
+                ignore,
+                warehouseSort
             );
 
             if (transactionsRes?.error) {
@@ -162,6 +169,7 @@ export default function InventoryTransactionManager() {
         const res = await getAllWarehouses();
         if (res.error) return setPopup({ message: res.error })
         setWarehouses(res.data);
+        setWarehouseSort(res.data[0].id)
         setFilteredWarehouses(res.data)
     }
     async function loadInventoriesBaseOnWarehouseId(keyword = "") {
@@ -173,7 +181,6 @@ export default function InventoryTransactionManager() {
     const closeConfirmPanel = () => setConfirmPanel({ visible: false, message: "", onConfirm: null });
 
     function handleOpenForm() {
-        loadWarehouse();
         setForm({
             warehouseId: "",
             variantId: "",
@@ -255,7 +262,6 @@ export default function InventoryTransactionManager() {
                             >
                                 <option value="ma_phieu">Mã phiếu</option>
                                 <option value="ma_sku">SKU</option>
-                                <option value="ma_kho">Kho</option>
                             </select>
                             <button
                                 onClick={() => loadTransactions(0, status, transactionType, startDate, endDate, keyword, keywordType)}
@@ -268,6 +274,19 @@ export default function InventoryTransactionManager() {
                     </div>
 
                     <div className="flex gap-2">
+                        <select
+                            value={warehouseSort}
+                            disabled={loading}
+                            onChange={e => setWarehouseSort(e.target.value)}
+                            className="p-2 border border-gray-700 rounded hover:cursor-pointer"
+                        >
+                            <option value="">Tất cả kho</option>
+                            {warehouses?.map(w =>
+                                <option key={w.id} value={w.id}>
+                                    {w.name}
+                                </option>
+                            )}
+                        </select>
                         <button
                             onClick={() => setShowSortSettings(true)}
                             className="px-3 py-2 flex gap-2 items-center border rounded hover:bg-gray-200 transition"
@@ -830,7 +849,7 @@ export default function InventoryTransactionManager() {
                                     {selectedTransaction.createdBy && (
                                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
                                             <span className="text-gray-600 font-medium">Nhân viên tạo</span>
-                                            <span className="text-black font-semibold">NV{selectedTransaction.createdBy}</span>
+                                            <span className="text-black font-semibold">{selectedTransaction.referenceType==="ORDER"?"SP":"NV"}{selectedTransaction.createdBy}</span>
                                         </div>
                                     )}
 
@@ -842,7 +861,7 @@ export default function InventoryTransactionManager() {
                                     {selectedTransaction.updatedBy && (
                                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
                                             <span className="text-gray-600 font-medium">Nhân viên cập nhật</span>
-                                            <span className="text-black font-semibold">NV{selectedTransaction.updatedBy}</span>
+                                            <span className="text-black font-semibold">{selectedTransaction.referenceType==="ORDER"?"SP":"NV"}{selectedTransaction.updatedBy}</span>
                                         </div>
                                     )}
 

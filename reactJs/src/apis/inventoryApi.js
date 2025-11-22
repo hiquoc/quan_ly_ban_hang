@@ -82,7 +82,8 @@ export const getInventoryTransactions = (
   endDate,
   keyword,
   keywordType,
-  ignoreReserveRelease
+  ignoreReserveRelease,
+  warehouseId
 ) => {
   const params = new URLSearchParams({
     page,
@@ -95,7 +96,8 @@ export const getInventoryTransactions = (
     ...(keywordType?.trim() ? { keywordType } : {}),
     ...(ignoreReserveRelease !== undefined && ignoreReserveRelease !== null
       ? { ignoreReserveRelease }
-      : {})
+      : {}),
+    ...(warehouseId ? { warehouseId } : {}),
 
   });
 

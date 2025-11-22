@@ -19,6 +19,8 @@
         <option value="$PROJECT_DIR$/spring/order_service/pom.xml" />
         <option value="$PROJECT_DIR$/spring/cart_service/pom.xml" />
         <option value="$PROJECT_DIR$/spring/dashboard_service/pom.xml" />
+        <option value="$PROJECT_DIR$/spring/delivery_serivce/pom.xml" />
+        <option value="$PROJECT_DIR$/spring/delivery_service/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

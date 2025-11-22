@@ -92,10 +92,10 @@ public class GatewayConfig {
                         .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
                         .uri("lb://PROMOTION-SERVICE"))
 
-                // DASHBOARD SERVICE
-                .route("dashboard", r -> r.path("/dashboard/**")
-                        .filters(f -> f.filter(jwtAuthFilter))
-                        .uri("lb://DASHBOARD-SERVICE"))
+                // DELIVERY SERVICE
+                .route("delivery", r -> r.path("/deliveries/**")
+                        .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
+                        .uri("lb://DELIVERY-SERVICE"))
 
                 .build();
     }

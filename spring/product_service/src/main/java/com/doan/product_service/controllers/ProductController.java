@@ -200,8 +200,6 @@ public class ProductController {
         }
     }
 
-
-
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/recommendations")
     public ResponseEntity<?> rebuildRecommendations(){
@@ -211,6 +209,11 @@ public class ProductController {
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
+    }
+
+    @PostMapping("/secure/rebuildAll")
+    public void rebuildAll(){
+        productService.rebuildAll();
     }
 
 

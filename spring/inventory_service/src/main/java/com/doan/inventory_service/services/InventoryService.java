@@ -211,45 +211,49 @@ public class InventoryService {
 
     // ---------------------- ORDER / TRANSACTIONS ----------------------
     @Transactional
-    public void createOrderTransaction(OrderTransactionRequest request) {
-        for (OrderItemTransactionRequest orderItem : request.getOrderItems()) {
-            List<InventoryTransaction> reserves = inventoryTransactionRepository
-                    .findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatus(
-                            "ORDER", request.getOrderNumber(), "RESERVE", "PENDING");
+    public void createOrderTransaction(List<OrderTransactionRequest> request) {
+        for (OrderTransactionRequest order : request) {
+            for (OrderItemTransactionRequest orderItem : order.getOrderItems()) {
+                List<InventoryTransaction> reserves = inventoryTransactionRepository
+                        .findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatus(
+                                "ORDER", order.getOrderNumber(), "RESERVE", "PENDING");
 
-            int pending = orderItem.getQuantity();
+                int pending = orderItem.getQuantity();
 
-            for (InventoryTransaction reserve : reserves) {
-                if (pending <= 0) break;
+                for (InventoryTransaction reserve : reserves) {
+                    if (pending <= 0) break;
 
-                if (!reserve.getInventory().getVariantId().equals(orderItem.getVariantId())) continue;
+                    if (!reserve.getInventory().getVariantId().equals(orderItem.getVariantId())) continue;
 
-                int reservedQty = reserve.getQuantity();
-                if (reservedQty <= 0) continue;
+                    int reservedQty = reserve.getQuantity();
+                    if (reservedQty <= 0) continue;
 
-                int exportQty = Math.min(reservedQty, pending);
+                    int exportQty = Math.min(reservedQty, pending);
 
-                InventoryTransaction exportTransaction = InventoryTransaction.builder()
-                        .code(generateTransactionCode("EXPORT"))
-                        .inventory(reserve.getInventory())  // QUAN TRỌNG: Dùng cùng inventory (cùng kho)
-                        .transactionType("EXPORT")
-                        .quantity(exportQty)
-                        .pricePerItem(orderItem.getPricePerItem())
-                        .referenceType("ORDER")
-                        .referenceCode(request.getOrderNumber())
-                        .status("PENDING")
-                        .createdBy(request.getStaffId())
-                        .build();
-                inventoryTransactionRepository.save(exportTransaction);
+                    InventoryTransaction exportTransaction = InventoryTransaction.builder()
+                            .code(generateTransactionCode("EXPORT"))
+                            .inventory(reserve.getInventory())  // QUAN TRỌNG: Dùng cùng inventory (cùng kho)
+                            .transactionType("EXPORT")
+                            .quantity(exportQty)
+                            .pricePerItem(orderItem.getPricePerItem())
+                            .referenceType("ORDER")
+                            .referenceCode(order.getOrderNumber())
+                            .status("PENDING")
+                            .createdBy(order.getShipperId())
+                            .build();
+                    inventoryTransactionRepository.save(exportTransaction);
+                    updateTransactionStatus(exportTransaction.getId(), "COMPLETED",null,exportTransaction.getCreatedBy());
 
-                pending -= exportQty;
-            }
+                    pending -= exportQty;
+                }
 
-            if (pending > 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Không đủ số lượng đã reserve cho sản phẩm! Cần: " + orderItem.getQuantity() + ", Đã reserve: " + (orderItem.getQuantity() - pending));
+                if (pending > 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Không đủ số lượng đã reserve cho sản phẩm! Cần: " + orderItem.getQuantity() + ", Đã reserve: " + (orderItem.getQuantity() - pending));
+                }
             }
         }
+
     }
 
 
@@ -395,6 +399,7 @@ public class InventoryService {
             String orderNumber = transaction.getReferenceCode();
 
             UpdateOrderStatusFromInvRequest orderUpdateRequest = new UpdateOrderStatusFromInvRequest(
+                    List.of(orderNumber),
                     staffId,
                     "COMPLETED".equals(status) ? 4L : // 4 = shipped
                             "CANCELLED".equals(status) ? 6L : null,
@@ -424,7 +429,7 @@ public class InventoryService {
                         boolean allCompleted = allTransactions.stream()
                                 .allMatch(t -> "COMPLETED".equals(t.getStatus()));
                         if (allCompleted) {
-                            orderServiceClient.updateOrderStatus(orderNumber, orderUpdateRequest);
+                            orderServiceClient.updateOrderStatus(orderUpdateRequest);
                         }
                     } else {
                         List<InventoryTransaction> pendingTransactions = allTransactions.stream()
@@ -442,7 +447,7 @@ public class InventoryService {
                             i.setStatus("CANCELLED");
                             inventoryTransactionRepository.save(i);
                         }
-                        orderServiceClient.updateOrderStatus(orderNumber, orderUpdateRequest);
+                        orderServiceClient.updateOrderStatus(orderUpdateRequest);
                     }
 
                 } catch (ResponseStatusException ex) {
@@ -469,7 +474,8 @@ public class InventoryService {
             LocalDate endDate,
             String keyword,
             String keywordType,
-            Boolean ignoreReserveRelease
+            Boolean ignoreReserveRelease,
+            Long warehouseId
     ) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
 
@@ -480,7 +486,7 @@ public class InventoryService {
         Join<Inventory, Warehouse> warehouseJoin = inventoryJoin.join("warehouse", JoinType.LEFT);
 
         List<Predicate> predicates = buildPredicates(cb, root, inventoryJoin, warehouseJoin,
-                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease);
+                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease,warehouseId);
 
         cq.where(predicates.toArray(new Predicate[0]));
         cq.orderBy(cb.desc(root.get("createdAt")));
@@ -498,7 +504,7 @@ public class InventoryService {
         Join<Inventory, Warehouse> countWarehouseJoin = countInventoryJoin.join("warehouse", JoinType.LEFT);
 
         List<Predicate> countPredicates = buildPredicates(cb, countRoot, countInventoryJoin, countWarehouseJoin,
-                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease);
+                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease,warehouseId);
 
         countQuery.select(cb.count(countRoot))
                 .where(countPredicates.toArray(new Predicate[0]));
@@ -519,10 +525,13 @@ public class InventoryService {
             LocalDate endDate,
             String keyword,
             String keywordType,
-            Boolean ignoreReserveRelease
+            Boolean ignoreReserveRelease,
+            Long warehouseId
     ) {
         List<Predicate> predicates = new ArrayList<>();
-
+        if (warehouseId != null) {
+            predicates.add(cb.equal(warehouseJoin.get("id"), warehouseId));
+        }
         if (status != null && !status.isBlank()) {
             predicates.add(cb.equal(root.get("status"), status));
         }
@@ -544,9 +553,6 @@ public class InventoryService {
             switch (keywordType) {
                 case "ma_phieu":
                     predicates.add(cb.like(cb.lower(root.get("code")), "%" + keyword.toLowerCase() + "%"));
-                    break;
-                case "ma_kho":
-                    predicates.add(cb.like(cb.lower(warehouseJoin.get("code")), "%" + keyword.toLowerCase() + "%"));
                     break;
                 case "ma_sku":
                     List<Long> variantIds = productServiceClient.searchVariantIds(keyword);
@@ -695,6 +701,13 @@ public class InventoryService {
                 .sum();
     }
 
+    public List<Long> getItemsWarehouseId(String orderNumber) {
+        List<InventoryTransaction> reserves = inventoryTransactionRepository
+                .findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatus(
+                        "ORDER", orderNumber, "RESERVE", "PENDING");
+        return reserves.stream().map(it -> it.getInventory().getWarehouse().getId()).toList();
+    }
+
     // ---------------------- TRANSACTION CODE / VARIANT STATUS ----------------------
     public String generateTransactionCode(String transactionType) {
         String prefix;
@@ -782,4 +795,38 @@ public class InventoryService {
 
         return new PageImpl<>(responses, pageable, inventories.getTotalElements());
     }
+
+    @Transactional
+    public void createTransactionForReturnedDelivery(ReturnedOrderTransactionRequest request) {
+        List<InventoryTransaction> exportTxs =
+                inventoryTransactionRepository.findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatusAndInventory_Warehouse_Id(
+                                "ORDER",
+                                request.getOrderNumber(),
+                                "EXPORT",
+                                "COMPLETED",
+                                request.getWarehouseId());
+        if(exportTxs.isEmpty())
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiếu xuất kho đã hoàn thành!");
+
+        for(InventoryTransaction exportTx:exportTxs){
+        Inventory inventory = exportTx.getInventory();
+        int exportedQty = exportTx.getQuantity();
+
+        InventoryTransaction newTx = new InventoryTransaction(
+                generateTransactionCode("IMPORT"),
+                inventory,
+                "IMPORT",
+                exportedQty,
+                exportTx.getPricePerItem(),
+                request.getNote(),
+                "ORDER",
+                request.getOrderNumber(),
+                request.getShipperId()
+        );
+
+        inventoryTransactionRepository.save(newTx);
+        updateTransactionStatus(newTx.getId(), "COMPLETED", request.getNote(), request.getShipperId());
+        }
+    }
+
 }

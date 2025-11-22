@@ -54,9 +54,10 @@ public class StaffController {
     }
     @GetMapping("/secure/staffs/{id}")
     public ResponseEntity<?> getStaffInfo(@PathVariable Long id,
-                                          @RequestHeader("X-Owner-Id") Long staffId){
+                                          @RequestHeader("X-Owner-Id") Long staffId,
+                                          @RequestHeader("X-User-Role") String role){
         try{
-           if(!Objects.equals(id, staffId)){
+           if(!Objects.equals(id, staffId) && (!role.equals("ADMIN") && !role.equals("MANAGER"))){
                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền truy vấn dữ liệu này!");
            }
            return ResponseEntity.ok(new ApiResponse<>("Lấy thông tin staff thành công!",true, staffService.getStaffById(id)));

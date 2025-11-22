@@ -14,6 +14,6 @@ public class OrderTransactionRequest {
     private String orderNumber;
     private List<OrderItemTransactionRequest> orderItems;
     @NotNull(message = "Vui lòng nhập mã nhân viên!")
-    private Long staffId;
+    private Long shipperId;
     private String note;
 }

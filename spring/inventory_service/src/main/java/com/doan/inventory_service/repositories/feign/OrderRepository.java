@@ -10,8 +10,7 @@ import org.springframework.web.bind.annotation.*;
         path = "/internal"
 )
 public interface OrderRepository {
-    @PostMapping("/order/{orderNumber}/status")
-    void updateOrderStatus( @PathVariable String orderNumber,
-                                     @Valid @RequestBody UpdateOrderStatusFromInvRequest request);
+    @PostMapping("/order/status")
+    void updateOrderStatus(@Valid @RequestBody UpdateOrderStatusFromInvRequest request);
 
 }

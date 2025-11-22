@@ -36,6 +36,13 @@ public class RecServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public void rebuildAll() {
+        try {
+            recommendationRepository.rebuildAll();
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
     private ResponseStatusException parseFeignException(FeignException ex) {
         HttpStatus status = HttpStatus.resolve(ex.status());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;

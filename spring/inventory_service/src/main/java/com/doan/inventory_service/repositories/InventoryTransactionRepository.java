@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface InventoryTransactionRepository extends JpaRepository<InventoryTransaction, Long>, JpaSpecificationExecutor<InventoryTransaction> {
     long countByCreatedAtBetween(OffsetDateTime start, OffsetDateTime end);
@@ -33,6 +34,13 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     List<InventoryTransaction> findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatus(String refType, String refCode, String type, String status);
 
+    List<InventoryTransaction> findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatusAndInventory_Warehouse_Id(
+            String refType,
+            String refCode,
+            String type,
+            String status,
+            Long warehouseId
+    );
 
     // 🔹 Base generic filter
     @Query("""

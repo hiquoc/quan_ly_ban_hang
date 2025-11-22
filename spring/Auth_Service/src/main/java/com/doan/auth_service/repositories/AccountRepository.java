@@ -65,12 +65,25 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     @Query("""
                 SELECT a FROM Account a
-                WHERE a.ownerId IN :staffIds AND a.role.id <> 4
+                WHERE a.ownerId IN :staffIds AND a.role.id NOT IN (4, 5)
                   AND (:active IS NULL OR a.isActive = :active)
                   AND (:roleId IS NULL OR a.role.id = :roleId)
             """)
     Page<Account> findStaffAccounts(
             @Param("staffIds") List<Long> staffIds,
+            @Param("active") Boolean active,
+            @Param("roleId") Long roleId,
+            Pageable pageable
+    );
+
+    @Query("""
+                SELECT a FROM Account a
+                WHERE a.ownerId IN :shipperIds AND a.role.id =5
+                  AND (:active IS NULL OR a.isActive = :active)
+                  AND (:roleId IS NULL OR a.role.id = :roleId)
+            """)
+    Page<Account> findShipperAccounts(
+            @Param("shipperIds") List<Long> shipperIds,
             @Param("active") Boolean active,
             @Param("roleId") Long roleId,
             Pageable pageable

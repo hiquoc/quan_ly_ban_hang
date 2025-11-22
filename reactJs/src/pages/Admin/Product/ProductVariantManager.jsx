@@ -32,7 +32,7 @@ export default function ProductVariantManager() {
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
 
     const [form, setForm] = useState({
-        id:0,
+        id: 0,
         productId: 0,
         name: "",
         sku: "",
@@ -150,7 +150,7 @@ export default function ProductVariantManager() {
         const firstWord = v.name?.split(" ")[0] || "";
         handleLoadProducts(firstWord);
         setForm({
-            id:v.id,
+            id: v.id,
             productId: v.productId,
             name: v.name,
             sku: v.sku,
@@ -613,7 +613,9 @@ export default function ProductVariantManager() {
                             <h3 className="text-3xl font-bold mb-3 text-black">
                                 {editingVariantId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
                             </h3>
-                            <p className="text-gray-500 text-sm">ID: {form.id}</p>
+                            {editingVariantId && (
+                                <p className="text-gray-500 text-sm">ID: {form.id}</p>
+                            )}
                         </div>
                         {isSubmitting && (
                             <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 rounded-xl pointer-events-auto">

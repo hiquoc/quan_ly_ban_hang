@@ -14,6 +14,8 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
@@ -38,6 +40,7 @@ public class ProductVariantService {
     private final ProductRepository productRepository;
     private final CloudinaryService cloudinaryService;
     private final InventoryServiceClient inventoryServiceClient;
+    private final CacheManager cacheManager;
 
     @Transactional
     public VariantResponse createProductVariant(VariantRequest request, List<MultipartFile> images) {
@@ -176,11 +179,7 @@ public class ProductVariantService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id)));
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
-    })
+
     @Transactional
     public VariantResponse updateVariantInfo(Long id, VariantRequest request) {
         ProductVariant variant = productVariantRepository.findById(id)
@@ -216,14 +215,18 @@ public class ProductVariantService {
 
         productVariantRepository.save(variant);
         WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
+
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = variant.getProduct().getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
         return toVariantResponse(variant);
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
-    })
     @Transactional
     public VariantResponse updateVariantImages(Long id, List<MultipartFile> newImages, List<String> deletedKeys, String newMainKey) {
         ProductVariant variant = productVariantRepository.findById(id)
@@ -274,14 +277,18 @@ public class ProductVariantService {
         productVariantRepository.save(variant);
 
         WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
+
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = variant.getProduct().getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
         return toVariantResponse(variant);
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
-    })
     @Transactional
     public void changeProductVariantActive(Long id) {
         ProductVariant variant = productVariantRepository.findById(id)
@@ -292,7 +299,15 @@ public class ProductVariantService {
         }
         variant.setIsActive(!variant.getIsActive());
         WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
 
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = variant.getProduct().getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
     }
 
     public void changeProductVariantStatus(Long id, String status) {
@@ -303,11 +318,6 @@ public class ProductVariantService {
         WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "homeProducts", allEntries = true),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':true'"),
-            @CacheEvict(value = "productDetails", key = "#result.product.slug + ':false'")
-    })
     public void deleteProductVariant(Long id) {
         ProductVariant variant = productVariantRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id));
@@ -315,7 +325,15 @@ public class ProductVariantService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể xóa biến thể này!");
         productVariantRepository.delete(variant);
         WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        Cache homeCache = cacheManager.getCache("homeProducts");
+        if (homeCache != null) homeCache.clear();
 
+        Cache productDetailsCache = cacheManager.getCache("productDetails");
+        if (productDetailsCache != null) {
+            String slug = variant.getProduct().getSlug();
+            productDetailsCache.evict(slug + ":true");
+            productDetailsCache.evict(slug + ":false");
+        }
     }
 
     public void updateVariantImportPrice(Long variantId, int currentStock, int newStock, BigDecimal newImportPrice) {

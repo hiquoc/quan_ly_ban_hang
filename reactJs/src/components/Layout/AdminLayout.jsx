@@ -1,10 +1,12 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { AuthContext } from "../../contexts/AuthContext";
-import { FaSignOutAlt, FaChartLine, FaShoppingCart, FaUsers, FaBox, FaTags, FaWarehouse, FaUserCircle } from "react-icons/fa";
+import { FaSignOutAlt, FaChartLine, FaShoppingCart, FaUsers, FaBox, FaTags, FaWarehouse, FaUserCircle, FaBoxOpen } from "react-icons/fa";
+import StaffDetails from "../StaffDetails";
 
 export default function AdminLayout({ children }) {
-  const { username, role } = useContext(AuthContext);
+  const { username, role, ownerId } = useContext(AuthContext);
+  const [showStaffDetails, setShowStaffDetails] = useState(false)
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -21,52 +23,56 @@ export default function AdminLayout({ children }) {
     { path: "/admin/products", label: "Sản phẩm", icon: FaBox },
     { path: "/admin/promotions", label: "Khuyến mãi", icon: FaTags },
     { path: "/admin/inventory", label: "Tồn kho", icon: FaWarehouse },
+    { path: "/admin/deliveries", label: "Giao hàng", icon: FaBoxOpen },
     { path: "/admin/dashboard", label: "Thống kê", icon: FaChartLine, hideForStaff: true },
   ];
+
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 z-50">
       {/* Header */}
-      <nav className="bg-white border-b border-gray-300 fixed top-0 left-0 right-0 z-50">        
+      <nav className="bg-white border-b border-gray-300 fixed top-0 left-0 right-0 z-50">
         <div className="max-w-8xl mx-auto px-40 py-3 flex items-center justify-between">
-        <Link to="/admin/orders" className="text-2xl font-bold tracking-tight text-gray-800">
-          Elec<span className="text-blue-500">Admin</span>
-        </Link>
+          <Link to="/admin/orders" className="text-2xl font-bold tracking-tight text-gray-800">
+            Elec<span className="text-blue-500">Admin</span>
+          </Link>
 
-        <div className="flex items-center gap-4">
-          {username ? (
-            <>
-              <div className="relative group">
-                <button onClick={()=>navigate(`/`)}
-                 className="flex items-center gap-2 bg-gray-100 px-4 py-2 cursor-pointer rounded-full text-gray-700 font-medium hover:bg-gray-200 transition">
-                  <FaUserCircle className="text-xl" />
-                  <span className="max-w-[130px] truncate">{username}</span>
+          <div className="flex items-center gap-4">
+            {username ? (
+              <>
+                <button onClick={() => setShowStaffDetails(true)} className="px-4 py-2 bg-gray-100 rounded-full hover:bg-gray-200 hover:cursor-pointer">Thông tin cá nhân</button>
+
+                <div className="relative group">
+                  <button onClick={() => navigate(`/`)}
+                    className="flex items-center gap-2 bg-gray-100 px-4 py-2 cursor-pointer rounded-full text-gray-700 font-medium hover:bg-gray-200 transition">
+                    <FaUserCircle className="text-xl" />
+                    <span className="max-w-[130px] truncate">{username}</span>
+                  </button>
+
+                  {/* Tooltip only if long */}
+                  {username.length > 12 && (
+                    <div
+                      className="absolute top-full mt-1 bg-black text-white text-sm px-3 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
+                      {username}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-full bg-gray-100 hover:bg-red-200 text-red-500 transition"
+                  title="Đăng xuất"
+                >
+                  <FaSignOutAlt />
                 </button>
-
-                {/* Tooltip only if long */}
-                {username.length > 12 && (
-                  <div
-                   className="absolute top-full mt-1 bg-black text-white text-sm px-3 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
-                    {username}
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-full bg-gray-100 hover:bg-red-200 text-red-500 transition"
-                title="Đăng xuất"
-              >
-                <FaSignOutAlt />
-              </button>
-            </>
-          ) : (
-            <Link to="/admin/login" className="px-4 py-2 rounded hover:bg-gray-100 transition">
-              Đăng nhập
-            </Link>
-          )}
+              </>
+            ) : (
+              <Link to="/admin/login" className="px-4 py-2 rounded hover:bg-gray-100 transition">
+                Đăng nhập
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
       </nav>
 
       {/* Container */}
@@ -102,13 +108,18 @@ export default function AdminLayout({ children }) {
               </nav>
             </div>
           </div>
+
         </aside>
 
         {/* Content */}
         <main className="flex-1 ml-64 mt-16">
           {children}
         </main>
-
+        {showStaffDetails && (
+          <StaffDetails
+            ownerId={ownerId}
+            onClose={() => setShowStaffDetails(false)} />
+        )}
       </div>
     </div>
   );

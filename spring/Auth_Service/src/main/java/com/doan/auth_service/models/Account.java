@@ -27,7 +27,7 @@ public class Account {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "role_id", referencedColumnName = "id")
-    private Role role; //1.ADMIN,2.MANAGER,3.STAFF,4.Customer
+    private Role role; //1.ADMIN,2.MANAGER,3.STAFF,4.CUSTOMER,5.SHIPPER
 
     @Column(name="owner_id",nullable = false)
     private Long ownerId;

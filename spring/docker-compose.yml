@@ -199,13 +199,16 @@ services:
         condition: service_started
     restart: unless-stopped
 
-# ==================== VOLUMES (ONLY INIT SCRIPTS) ====================
-#volumes:
-#  auth-init-scripts:
-#  staff-init-scripts:
-#  customer-init-scripts:
-#  product-init-scripts:
-#  inventory-init-scripts:
-#  cart-init-scripts:
-#  order-init-scripts:
-#  promotion-init-scripts:
+  delivery-service:
+    build:
+      context: ./delivery_service
+      dockerfile: Dockerfile
+    container_name: delivery-service
+    ports:
+      - "${DELIVERY_SERVICE_PORT}:8080"
+    env_file:
+      - .env
+    depends_on:
+      - service_registry
+    restart: unless-stopped
+
