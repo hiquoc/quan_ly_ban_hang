@@ -748,15 +748,7 @@ export default function ProductDetails() {
                                     <FiChevronRight className="text-2xl text-gray-800" />
                                 </button>
                             )}
-                            {isLoadingRelativeProducts ? (
-                                <div className="col-span-full flex justify-center items-center py-12"
-                                    style={{ height: "420px" }}>
-                                    <div className="text-center">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                        <p className="text-gray-600">Đang tải...</p>
-                                    </div>
-                                </div>
-                            ) : (
+
                                 <div
                                     ref={relativeRef}
                                     className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
@@ -776,10 +768,7 @@ export default function ProductDetails() {
                                             />
                                         </div>
                                     ))}
-
-
                                 </div>
-                            )}
                         </div>
                     )}
                 </div>
