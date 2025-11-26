@@ -1,9 +1,7 @@
 import { useEffect, useState, useContext } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../contexts/AuthContext";
-import AddAccountForm from "./AddAccountForm";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import CustomerDetails from "./AccountDetails";
 import {
   changeAccountActive,
   deleteAccount,
@@ -14,6 +12,7 @@ import { FiRefreshCw, FiTrash2, FiEye } from "react-icons/fi";
 import { PopupContext } from "../../../contexts/PopupContext";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Helmet } from "react-helmet-async";
+import AccountDetails from "./AccountDetails";
 
 function AdminAccounts() {
   const { role, ownerId } = useContext(AuthContext);
@@ -32,10 +31,10 @@ function AdminAccounts() {
   const [sortRole, setSortRole] = useState("");
   const [sortActive, setSortActive] = useState(true);
 
-  const [showFormModal, setShowFormModal] = useState(false);
   const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [selectedShipper, setSelectedShipper] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch accounts
@@ -62,7 +61,7 @@ function AdminAccounts() {
 
   // Handlers
   const handleRoleChange = async (accountId, newRole) => {
-    const roleMap = { ADMIN: 1, MANAGER: 2, STAFF: 3, SHIPPER: 5 };
+    const roleMap = { MANAGER: 2, STAFF: 3, SHIPPER: 5 };
     const result = await changeAccountRole(accountId, roleMap[newRole]);
     if (result?.error) return showPopup(result.error);
     showPopup("Thay đổi quyền thành công!", "success");
@@ -117,9 +116,6 @@ function AdminAccounts() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <h2 className="text-2xl font-semibold text-gray-800">Quản lý tài khoản</h2>
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={() => setShowFormModal(true)} className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 hover:cursor-pointer">Thêm tài khoản</button>
-          </div>
         </div>
 
         {/* Search & Sort */}
@@ -229,7 +225,7 @@ function AdminAccounts() {
                 accounts.map(acc => (
                   <tr key={acc.id} className="hover:bg-gray-50 transition">
                     <td className="p-3 border-b border-gray-200 text-center">{`TK${acc.id}`}</td>
-                    <td className="p-3 border-b border-gray-200 text-center">{acc.role !== "CUSTOMER" ? `NV${acc.ownerId}` : `KH${acc.ownerId}`}</td>
+                    <td className="p-3 border-b border-gray-200 text-center">{acc.role === "CUSTOMER" ? `KH` : acc.role === "SHIPPER" ? `SP` : `NV`}{acc.ownerId}</td>
                     <td className="p-3 border-b border-gray-200 text-center">{acc.username}</td>
                     <td className="p-3 border-b border-gray-200 text-center">{acc.fullName || "-"}</td>
                     <td className="p-3 border-b border-gray-200 text-center">{acc.email || "-"}</td>
@@ -250,7 +246,6 @@ function AdminAccounts() {
                         >
                           <option value="STAFF">STAFF</option>
                           <option value="MANAGER">MANAGER</option>
-                          <option value="ADMIN">ADMIN</option>
                         </select>
                       ) : acc.role}
                     </td>
@@ -275,11 +270,18 @@ function AdminAccounts() {
                           onClick={() => {
                             if (acc.role === "CUSTOMER") {
                               setSelectedStaff(null)
+                              setSelectedShipper(null)
                               setSelectedCustomer(acc.ownerId)
+                            }
+                            else if (acc.role !== "SHIPPER") {
+                              setSelectedShipper(null)
+                              setSelectedCustomer(null)
+                              setSelectedStaff(acc.ownerId)
                             }
                             else {
                               setSelectedCustomer(null)
-                              setSelectedStaff(acc.ownerId)
+                              setSelectedStaff(null)
+                              setSelectedShipper(acc.ownerId)
                             }
                           }}
                         >
@@ -305,7 +307,7 @@ function AdminAccounts() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+          <div className="flex justify-center items-center gap-3 mt-5 pb-5">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 0))}
               disabled={currentPage === 0}
@@ -341,19 +343,6 @@ function AdminAccounts() {
           </div>
         )}
 
-        {/* Modals */}
-        {showFormModal && (
-          <AddAccountForm
-            onClose={() => setShowFormModal(false)}
-            onSuccess={() => {
-              setShowFormModal(false);
-              getData();
-              showPopup("Tạo tài khoản thành công!", "success");
-            }}
-            showPopup={showPopup}
-          />
-        )}
-
         {confirmPanel.visible && (
           <ConfirmPanel
             message={confirmPanel.message}
@@ -367,12 +356,13 @@ function AdminAccounts() {
           />
         )}
 
-        {(selectedCustomer != null || selectedStaff != null) && (
-          <CustomerDetails
+        {(selectedCustomer != null || selectedStaff != null || selectedShipper != null) && (
+          <AccountDetails
             visible={true}
             customerId={selectedCustomer}
             staffId={selectedStaff}
-            onClose={() => { setSelectedCustomer(null); setSelectedStaff(null) }}
+            shipperId={selectedShipper}
+            onClose={() => { setSelectedCustomer(null); setSelectedStaff(null); setSelectedShipper(null) }}
           />
         )}
       </div>

@@ -32,6 +32,9 @@ public class Staff {
     @Type(JsonType.class)
     private String metadata; // preferences, settings
 
+    @Column(name="is_active")
+    private Boolean isActive;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -40,9 +43,14 @@ public class Staff {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    public Staff(String fullName, String email, String phone) {
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
+
+    public Staff(String fullName, String email, String phone,Long warehouseId) {
         this.fullName = fullName;
         this.phone = phone;
         this.email=email;
+        this.warehouseId=warehouseId;
+        this.isActive=true;
     }
 }

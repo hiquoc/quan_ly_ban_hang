@@ -41,33 +41,36 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             SELECT COUNT(id) AS total_orders,
                    COALESCE(SUM(revenue), 0) AS total_revenue
             FROM orders
-            WHERE delivered_date BETWEEN :from AND :to
-              AND status_id = 5
+            WHERE order_date >= :from AND order_date < :to
+              AND (:statusId IS NULL OR status_id = :statusId)
             """, nativeQuery = true)
-    List<Object[]> getOrderSummary(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
-
+    List<Object[]> getOrderSummary(@Param("from") OffsetDateTime from,
+                                   @Param("to") OffsetDateTime to,
+                                   @Param("statusId") Long statusId);
 
     @Query("""
             SELECT o.status.name, COUNT(o)
             FROM Order o
-            WHERE o.createdAt BETWEEN :from AND :to
+            WHERE o.orderDate >= :from AND o.orderDate < :to
             GROUP BY o.status.name
             """)
-    List<Object[]> getOrderStatusStats(OffsetDateTime from, OffsetDateTime to);
-
+    List<Object[]> getOrderStatusStats(@Param("from") OffsetDateTime from,
+                                       @Param("to") OffsetDateTime to);
 
     @Query(value = """
-                 SELECT DATE(o.created_at) AS order_date,
+            SELECT DATE(order_date) AS order_date,
                    COUNT(*) AS total_orders,
-                   COALESCE(SUM(o.total_amount),0) AS total_amount,
-                   COALESCE(SUM(o.revenue),0) AS total_revenue
-                    FROM orders o
-                    WHERE o.delivered_date BETWEEN :from AND :to
-                      AND o.status_id = 5
-                    GROUP BY DATE(o.created_at)
-                    ORDER BY DATE(o.created_at);
+                   COALESCE(SUM(total_amount),0) AS total_amount,
+                   COALESCE(SUM(revenue),0) AS total_revenue
+            FROM orders
+            WHERE order_date >= :from AND order_date < :to
+              AND (:statusId IS NULL OR status_id = :statusId)
+            GROUP BY DATE(order_date)
+            ORDER BY DATE(order_date)
             """, nativeQuery = true)
-    List<Object[]> getDailyStats(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
+    List<Object[]> getDailyStats(@Param("from") OffsetDateTime from,
+                                 @Param("to") OffsetDateTime to,
+                                 @Param("statusId") Long statusId);
 
 
 }

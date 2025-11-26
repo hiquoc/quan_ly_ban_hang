@@ -39,6 +39,7 @@ export default function WarehouseManager() {
       setIsLoading(false);
       return;
     }
+    console.log(res.data)
     setWarehouses(res.data);
     setIsLoading(false);
   };

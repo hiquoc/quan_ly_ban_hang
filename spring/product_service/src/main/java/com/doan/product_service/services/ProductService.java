@@ -9,14 +9,8 @@ import com.doan.product_service.dtos.product_variant.VariantDetailsResponse;
 import com.doan.product_service.dtos.product_variant.VariantResponse;
 import com.doan.product_service.dtos.rec.RecResponse;
 import com.doan.product_service.dtos.rec.Recommendation;
-import com.doan.product_service.models.Brand;
-import com.doan.product_service.models.Category;
-import com.doan.product_service.models.Product;
-import com.doan.product_service.models.ProductVariant;
-import com.doan.product_service.repositories.BrandRepository;
-import com.doan.product_service.repositories.CategoryRepository;
-import com.doan.product_service.repositories.ProductRepository;
-import com.doan.product_service.repositories.ProductVariantRepository;
+import com.doan.product_service.models.*;
+import com.doan.product_service.repositories.*;
 import com.doan.product_service.services.client.RecServiceClient;
 import com.doan.product_service.services.cloud.CloudinaryService;
 import com.doan.product_service.utils.WebhookUtils;
@@ -41,6 +35,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -51,12 +46,13 @@ public class ProductService {
     private final ProductVariantRepository productVariantRepository;
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
+    private final PendingActionRepository pendingActionRepository;
     private final RecServiceClient recServiceClient;
     private final CloudinaryService cloudinaryService;
     private final CacheManager cacheManager;
 
     @CacheEvict(value = "homeProducts", allEntries = true)
-    public ProductResponse createProduct(ProductRequest productRequest, MultipartFile image) {
+    public ProductResponse createProduct(ProductRequest productRequest, MultipartFile image,List<String> newImageUrls) {
         Category category= categoryRepository.findById(productRequest.getCategoryId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy doanh mục với id: "+productRequest.getCategoryId()));
         Brand brand= brandRepository.findById(productRequest.getBrandId())
@@ -79,6 +75,9 @@ public class ProductService {
                         "Upload image thất bại", e);
             }
         }
+        if(newImageUrls!=null && !newImageUrls.isEmpty()){
+            submitPendingImages(newImageUrls);
+        }
         Product product=new Product(
                 productRequest.getName(),
                 productRequest.getProductCode(),
@@ -94,10 +93,9 @@ public class ProductService {
         WebhookUtils.postToWebhook(product.getId(),"insert");
         return fromEntity(product);
     }
+
     @PersistenceContext
     EntityManager em;
-    // Add these private methods to the class
-
 
     public Page<ProductResponse> getAllProducts(
             Integer page,
@@ -209,12 +207,9 @@ public class ProductService {
             });
         }
     }
-    public List<Product> getAllProductsWithoutInactive(){
-        return productRepository.findByIsActiveIsTrue();
-    }
 
     @Transactional(rollbackFor = IOException.class)
-    public ProductResponse updateProduct(Long id, ProductRequest productRequest,MultipartFile image){
+    public ProductResponse updateProduct(Long id, ProductRequest productRequest,MultipartFile image,List<String> newImageUrls,List<String> deletedImageUrls){
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -249,7 +244,14 @@ public class ProductService {
         product.setProductCode(productRequest.getProductCode());
         product.setSlug(productRequest.getSlug());
         product.setShortDescription(productRequest.getShortDescription());
-        product.setDescription(productRequest.getDescription());
+
+        if(productRequest.getDescription()!=null && !productRequest.getDescription().equals(product.getDescription())){
+            product.setDescription(productRequest.getDescription());
+            if(newImageUrls!=null && !newImageUrls.isEmpty())
+                submitPendingImages(newImageUrls);
+            if(deletedImageUrls!=null &&!deletedImageUrls.isEmpty())
+                deleteOldImagesInDescription(deletedImageUrls);
+        }
         product.setMainVariantId(productRequest.getMainVariantId());
         product.setTechnicalSpecs(productRequest.getTechnicalSpecs());
 
@@ -466,6 +468,42 @@ public class ProductService {
                 newProductList.getContent(),
                 discountProductList.getContent()
         );
+    }
+
+    public String uploadPendingImage(MultipartFile image,Long staffId){
+        String imageUrl="";
+        try{
+            imageUrl= cloudinaryService.uploadFile(image);
+            PendingAction pendingAction=PendingAction.builder()
+                    .imageUrl(imageUrl)
+                    .staffId(staffId)
+                    .timestamp(Instant.now())
+                    .build();
+            pendingActionRepository.save(pendingAction);
+        }catch (Exception ex){
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Lỗi khi upload hình ảnh");
+        }
+        return imageUrl;
+    }
+    public void submitPendingImages(List<String> imageUrls){
+        System.out.println(1);
+        List<PendingAction> pendingDeleteActions=new ArrayList<>();
+        for(String imageUrl:imageUrls){
+            PendingAction pendingAction=pendingActionRepository.findByImageUrl(imageUrl)
+                            .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy hình ảnh với url: "+imageUrl));
+            pendingDeleteActions.add(pendingAction);
+            System.out.println(imageUrl);
+        }
+        pendingActionRepository.deleteAll(pendingDeleteActions);
+    }
+    public void deleteOldImagesInDescription(List<String> imageUrls){
+        System.out.println(2);
+        System.out.println(imageUrls);
+        try{
+            cloudinaryService.deleteMultipleFiles(imageUrls);
+        }catch (Exception ex){
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Lỗi khi xóa hình ảnh cũ");
+        }
     }
 
     @Transactional

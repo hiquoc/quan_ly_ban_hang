@@ -55,9 +55,15 @@ const AdminDashboard = () => {
     return () => clearTimeout(handler);
   }, [from, to]);
 
-
+  const formatLocalDate = (date) => {
+    if (!date) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
   async function handleLoadOrderDashboard() {
-    const res = await getOrderDashboard(from, to);
+    const res = await getOrderDashboard(formatLocalDate(from), formatLocalDate(to));
     if (res.error) return showPopup(res.error);
     // console.log(res.data)
     setOrderData(res.data);
@@ -66,14 +72,6 @@ const AdminDashboard = () => {
 
   }
   async function handleLoadRecenOrderData(currentPage = recentOrderPage) {
-    const formatLocalDate = (date) => {
-      if (!date) return null;
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
-
     const res = await getAllOrders(
       currentPage,
       10,
@@ -262,7 +260,7 @@ const AdminDashboard = () => {
       title: 'Tổng doanh thu',
       value: <>{currentRevenue?.toLocaleString()}₫</>,
       prevValue: <span className="text-gray-400 text-sm">({previousRevenue?.toLocaleString()}₫)</span>,
-      change: previousRevenue ? (((currentRevenue - previousRevenue) / previousRevenue) * 100).toFixed(1) : '100',
+      change: previousRevenue ? (((currentRevenue - previousRevenue) / previousRevenue) * 100).toFixed(1) : '0',
       isPositive: currentRevenue >= previousRevenue,
       bgGradient: 'from-blue-500 to-blue-600',
     },
@@ -272,7 +270,7 @@ const AdminDashboard = () => {
         {currentOrders} <FaShoppingCart className="text-base inline-block mb-1" />
       </>,
       prevValue: <span className="text-gray-400 text-sm">({previousOrders})</span>,
-      change: previousOrders ? (((currentOrders - previousOrders) / previousOrders) * 100).toFixed(1) : '100',
+      change: previousOrders ? (((currentOrders - previousOrders) / previousOrders) * 100).toFixed(1) : '0',
       isPositive: currentOrders >= previousOrders,
       bgGradient: 'from-green-500 to-green-600',
     },
@@ -284,7 +282,7 @@ const AdminDashboard = () => {
         : null,
       change: preTotalCustomers
         ? ((totalCustomers - preTotalCustomers) / preTotalCustomers * 100).toFixed(1)
-        : '100',
+        : '0',
       isPositive: totalCustomers >= preTotalCustomers,
       bgGradient: 'from-purple-500 to-purple-600',
     },
@@ -678,7 +676,7 @@ const AdminDashboard = () => {
                         <span className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap shadow-sm ${item.status === 'normal' ? 'bg-green-500 text-white' :
                           item.status === 'critical' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'
                           }`}>
-                          {item.status === 'normal' ? "Còn hàng" : item.status === 'critical' ? 'Rất thấp' : 'Thấp'}
+                          {item.status === 'normal' ? "Còn hàng" : item.status === 'critical' ? 'Hết hàng' : 'Thấp'}
                         </span>
                       </div>
                     ))}

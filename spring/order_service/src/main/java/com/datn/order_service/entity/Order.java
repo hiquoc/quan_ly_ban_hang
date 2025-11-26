@@ -5,12 +5,15 @@ import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Entity
@@ -87,6 +90,10 @@ public class Order {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "warehouse_data")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String,Integer> warehouseData;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

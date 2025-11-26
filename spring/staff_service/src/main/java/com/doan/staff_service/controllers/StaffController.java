@@ -1,12 +1,10 @@
 package com.doan.staff_service.controllers;
 
-import com.doan.staff_service.dtos.ApiResponse;
-import com.doan.staff_service.dtos.StaffRequest;
-import com.doan.staff_service.dtos.OwnerIdResponse;
-import com.doan.staff_service.dtos.StaffResponse;
+import com.doan.staff_service.dtos.*;
 import com.doan.staff_service.models.Staff;
 import com.doan.staff_service.services.StaffService;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("")
@@ -40,17 +37,13 @@ public class StaffController {
     }
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/secure/staffs")
-    public List<StaffResponse> getAllStaffs(){
-        List<Staff> staffsList= staffService.getAllStaffs();
-        return staffsList.stream()
-                .map(staff ->new StaffResponse(
-                        staff.getId(),
-                        staff.getFullName(),
-                        staff.getEmail(),
-                        staff.getPhone(),
-                        staff.getCreatedAt()
-                ))
-                .collect(Collectors.toList());
+    public ResponseEntity<?> getAllStaffs(@RequestParam(required = false) Integer page,
+                                            @RequestParam(required = false) Integer size,
+                                            @RequestParam(required = false) String keyword,
+                                            @RequestParam(required = false) Long warehouseId,
+                                            @RequestParam(required = false) Boolean active){
+        Page<StaffDetailsResponse> staff= staffService.getAllStaffs(page,size,keyword,warehouseId,active);
+        return ResponseEntity.ok(new ApiResponse<>("Lấy thông tin staff thành công!",true, staff));
     }
     @GetMapping("/secure/staffs/{id}")
     public ResponseEntity<?> getStaffInfo(@PathVariable Long id,
@@ -80,6 +73,51 @@ public class StaffController {
             return errorResponse(ex);
         }
     }
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PutMapping("/secure/staffs/{id}/active/role/{role}")
+    public ResponseEntity<?> updateStaffActive(@PathVariable Long id,@PathVariable String role,
+                                               @RequestHeader("X-User-Role")String staffRole,
+                                               @RequestHeader("X-Owner-Id")Long staffId){
+        try{
+            if (Objects.equals(staffId, id)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể khóa chính mình!");
+            }
+            if (Objects.equals(staffRole, "ADMIN")) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi trạng thái của ADMIN!");
+            }
+            if (!canChangeRole(staffRole, role)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền thay đổi trạng thái nhân viên này!");
+            }
+            staffService.updateStaffActive(id,true);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái staff thành công!",true,null));
+        }catch (ResponseStatusException ex){
+            return errorResponse(ex);
+        }
+    }
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PatchMapping("/secure/staffs/{id}/role/{roleId}")
+    public ResponseEntity<?> updateStaffRole(@PathVariable Long id,@PathVariable Long roleId,
+                                             @RequestHeader("X-Owner-Id")Long staffId){
+        try{
+            if (staffId.equals(id)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi quyền của chính mình!");
+            }
+            staffService.updateStaffRole(id,roleId);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái staff thành công!",true,null));
+        }catch (ResponseStatusException ex){
+            return errorResponse(ex);
+        }
+    }
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PatchMapping("/secure/staffs/{id}/warehouse/{warehouseId}")
+    public ResponseEntity<?> updateStaffWarehouse(@PathVariable Long id,@PathVariable Long warehouseId){
+        try{
+            staffService.updateStaffWarehouse(id,warehouseId);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật kho staff thành công!",true,null));
+        }catch (ResponseStatusException ex){
+            return errorResponse(ex);
+        }
+    }
     @GetMapping("/internal/staffs/{id}")
     public ResponseEntity<?> getStaffByIdLike(@PathVariable Long id) {
         try {
@@ -93,7 +131,7 @@ public class StaffController {
     public ResponseEntity<?> getStaffByIds(@RequestParam List<Long> ids) {
         try {
             List <StaffResponse> list = staffService.getStaffByIds(ids).stream().map(staff ->
-                    new StaffResponse(staff.getId(),staff.getFullName(),staff.getEmail(),staff.getPhone(),staff.getCreatedAt())).toList();
+                    new StaffResponse(staff.getId(),staff.getFullName(),staff.getEmail(),staff.getPhone(),staff.getCreatedAt(),staff.getWarehouseId())).toList();
             return ResponseEntity.ok(list);
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -106,7 +144,7 @@ public class StaffController {
                                                   @RequestParam Integer size) {
         try {
             List <StaffResponse> list = staffService.getStaffByKeyword(keyword,type,page,size).stream().map(staff ->
-                    new StaffResponse(staff.getId(),staff.getFullName(),staff.getEmail(),staff.getPhone(),staff.getCreatedAt())).toList();
+                    new StaffResponse(staff.getId(),staff.getFullName(),staff.getEmail(),staff.getPhone(),staff.getCreatedAt(), staff.getWarehouseId())).toList();
             return ResponseEntity.ok(list);
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -119,6 +157,15 @@ public class StaffController {
             OwnerIdResponse response=new OwnerIdResponse();
             response.setOwnerId(staff.getId());
             return ResponseEntity.ok(response);
+        }catch (ResponseStatusException ex){
+            return errorResponse(ex);
+        }
+    }
+    @PostMapping("/internal/staffs/{id}/active")
+    public ResponseEntity<?> updateStaffActiveInternal(@PathVariable Long id){
+        try{
+            staffService.updateStaffActive(id,false);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái staff thành công!",true,null));
         }catch (ResponseStatusException ex){
             return errorResponse(ex);
         }
@@ -137,5 +184,12 @@ public class StaffController {
         error.put("message", ex.getReason());
         error.put("success", false);
         return ResponseEntity.status(ex.getStatusCode()).body(error);
+    }
+    private boolean canChangeRole(String userRole, String targetRole) {
+        return switch (userRole) {
+            case "ADMIN" -> true; // Admin can change anyone except ADMIN itself
+            case "MANAGER" -> !Objects.equals(targetRole, "ADMIN") && !Objects.equals(targetRole, "MANAGER"); // cannot change ADMIN or MANAGER
+            default -> false; // Staff cannot change anyone
+        };
     }
 }

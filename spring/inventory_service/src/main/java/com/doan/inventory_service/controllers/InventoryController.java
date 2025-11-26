@@ -20,10 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @AllArgsConstructor
 @RestController
@@ -33,12 +30,16 @@ public class InventoryController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/inventories")
-    public ResponseEntity<?> searchInventories(@RequestParam(required = false) Integer page,
+    public ResponseEntity<?> searchInventories(@RequestHeader("X-User-Role") String role,
+                                               @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
+                                               @RequestParam(required = false) Integer page,
                                                @RequestParam(required = false) Integer size,
                                                @RequestParam(required = false) String keyword,
                                                @RequestParam(required = false) Long warehouseId,
                                                @RequestParam(required = false) Boolean active) {
         try {
+            if (role.equals("STAFF") && (warehouseId == null || !Objects.equals(warehouseId, staffWarehouseId)))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem!");
             Page<InventoryResponse> inventories = inventoryService.searchInventories(page, size, keyword, warehouseId, active);
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu kho hàng thành công!", true, inventories));
         } catch (ResponseStatusException ex) {
@@ -48,9 +49,11 @@ public class InventoryController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PatchMapping("/secure/inventories/{id}")
-    public ResponseEntity<?> changeItemActive(@PathVariable Long id) {
+    public ResponseEntity<?> changeItemActive(@RequestHeader("X-User-Role") String role,
+                                              @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
+                                              @PathVariable Long id) {
         try {
-            inventoryService.changeItemActive(id);
+            inventoryService.changeItemActive(id,role,staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -60,6 +63,8 @@ public class InventoryController {
     @GetMapping("/secure/transactions")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     public ResponseEntity<?> getTransactions(
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String status,
@@ -72,11 +77,13 @@ public class InventoryController {
             @RequestParam(required = false) Long warehouseId
     ) {
         try {
+            if (role.equals("STAFF") && (warehouseId == null || !Objects.equals(warehouseId, staffWarehouseId)))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem!");
             LocalDate start = (startDate != null && !startDate.isBlank()) ? LocalDate.parse(startDate) : null;
             LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : null;
 
             Page<InventoryTransactionResponse> transactions = inventoryService.getTransactions(
-                    page, size, status, type, start, end, keyword, keywordType, ignoreReserveRelease,warehouseId);
+                    page, size, status, type, start, end, keyword, keywordType, ignoreReserveRelease, warehouseId);
 
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu phiếu thành công!", true, transactions));
         } catch (ResponseStatusException ex) {
@@ -88,6 +95,8 @@ public class InventoryController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/transactions/{variantId}")
     public ResponseEntity<?> getTransactionOfAnInventory(
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
             @PathVariable Long variantId,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
@@ -111,7 +120,7 @@ public class InventoryController {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày kết thúc không hợp lệ!");
                 }
             }
-            Page<InventoryTransactionResponse> transactions = inventoryService.getTransaction(variantId, page, size, start, end);
+            Page<InventoryTransactionResponse> transactions = inventoryService.getTransaction(variantId, page, size, start, end,role,staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu phiếu thành công!", true, transactions));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -120,10 +129,14 @@ public class InventoryController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PostMapping("/secure/transactions")
-    public ResponseEntity<?> createTransactions(@Valid @RequestBody InventoryTransactionRequest request,
+    public ResponseEntity<?> createTransactions(@RequestHeader("X-User-Role") String role,
+                                                @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
+                                                @Valid @RequestBody InventoryTransactionRequest request,
                                                 @RequestHeader("X-Owner-Id") Long staffId) {
         try {
-            InventoryTransactionResponse response= inventoryService.createTransactions(Collections.singletonList(request), staffId);
+            if(role.equals("STAFF")&&!Objects.equals(request.getWarehouseId(), staffWarehouseId))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền tạo đơn!");
+            InventoryTransactionResponse response = inventoryService.createTransactions(Collections.singletonList(request), staffId);
             return ResponseEntity.ok(new ApiResponse<>("Tạo phiếu phiếu thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -132,10 +145,12 @@ public class InventoryController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PatchMapping("/secure/transactions/{id}")
-    public ResponseEntity<?> updateTransactionStatus(@PathVariable Long id, @RequestBody UpdateTransactionStatusRequest request,
+    public ResponseEntity<?> updateTransactionStatus(@RequestHeader("X-User-Role") String role,
+                                                     @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
+                                                     @PathVariable Long id, @RequestBody UpdateTransactionStatusRequest request,
                                                      @RequestHeader("X-Owner-Id") Long staffId) {
         try {
-            inventoryService.updateTransactionStatus(id, request.getStatus().replace("\"", "").trim(), request.getNote(), staffId);
+            inventoryService.updateTransactionStatus(id, request.getStatus().replace("\"", "").trim(), request.getNote(), staffId,role,staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái phiếu thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -153,6 +168,7 @@ public class InventoryController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/secure/inventories/warning")
     public ResponseEntity<?> getInventoriesOrderByAvailableStock(@RequestParam(required = false) Integer page,
                                                                  @RequestParam(required = false) Integer size) {
@@ -166,11 +182,13 @@ public class InventoryController {
 
     @GetMapping("/secure/inventory-quantity/{id}")
     public ResponseEntity<InventoryQuantityChangeResponse> getInventoryQuantityChanges(
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
             @PathVariable Long id,
             @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
 
-        InventoryQuantityChangeResponse response = inventoryService.calculateNumOfItemWithDailyChanges(id, from, to);
+        InventoryQuantityChangeResponse response = inventoryService.calculateNumOfItemWithDailyChanges(id, from, to,role,staffWarehouseId);
         return ResponseEntity.ok(response);
     }
 
@@ -183,6 +201,7 @@ public class InventoryController {
             return errorResponse(ex);
         }
     }
+
     @PostMapping("/internal/transactions/return/")
     public ResponseEntity<?> createReturnOrderTransaction(@RequestBody ReturnedOrderTransactionRequest request) {
         try {
@@ -196,8 +215,8 @@ public class InventoryController {
     @PostMapping("/internal/transactions/reserve")
     public ResponseEntity<?> reserveStock(@RequestBody ReserveStockRequest request) {
         try {
-            inventoryService.reserveStock(request);
-            return ResponseEntity.ok(new ApiResponse<>("Cập nhật số lượng sản phẩm khả dụng thành công!", true, null));
+            Map<String, Integer> warehouseData = inventoryService.reserveStock(request);
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật số lượng sản phẩm khả dụng thành công!", true, warehouseData));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -235,6 +254,7 @@ public class InventoryController {
             return errorResponse(ex);
         }
     }
+
     @GetMapping("/internal/orders/{orderNumber}/warehouse-ids")
     public List<Long> getItemsWarehouseId(@PathVariable String orderNumber) {
         return inventoryService.getItemsWarehouseId(orderNumber);

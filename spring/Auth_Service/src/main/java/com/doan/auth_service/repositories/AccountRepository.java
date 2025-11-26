@@ -17,6 +17,10 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByOwnerIdAndRole_IdNot(Long ownerId, Long roleId);
 
+    Optional<Account> findByOwnerIdAndRole_IdIn(Long ownerId, List<Long> roleIds);
+
+    List<Account> findByOwnerIdInAndRole_IdIn(List<Long> staffIds, List<Long> roleIds);
+
     boolean existsByUsername(String username);
 
     Page<Account> findByIdAndRole_Id(Long id, Long roleId, Pageable pageable);
@@ -93,4 +97,5 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByOwnerId(Long ownerId);
 
     boolean existsByIdAndIsVerified(Long id, boolean isVerified);
+
 }

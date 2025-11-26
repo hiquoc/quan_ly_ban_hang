@@ -31,7 +31,7 @@ export const getCustomerOrders = async (page, size, statusName) => {
 
     return safeApiCall(() => api.get(`orders/customer`, { params }))
 }
-export const getAllOrders = async (page, size, status, keyword, startDate, endDate) => {
+export const getAllOrders = async (page, size, status, keyword, startDate, endDate,warehouseCode) => {
     const params = {}
     if (page != null) params.page = page;
     if (size != null) params.size = size;
@@ -39,6 +39,7 @@ export const getAllOrders = async (page, size, status, keyword, startDate, endDa
     if (keyword) params.keyword = keyword;
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
+    if (warehouseCode) params.warehouseCode = warehouseCode;
 
     return safeApiCall(() => api.get(`orders/secure/orders`, { params }))
 }
@@ -59,20 +60,15 @@ export const getCustomerOrderStats = async () =>
 export const rePayPayment = async (id) =>
     safeApiCall(() => api.post(`/payments/re-pay/order/${id}/platform/web`))
 
-export const getOrderDashboard = async (from, to) => {
+export const getOrderDashboard = async (start, end) => {
     const params = new URLSearchParams();
-    const fromLocal = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0);
-    const toLocal = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59);
+    // const fromLocal = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0);
+    // const toLocal = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59);
 
-    params.append("from", formatLocalDate(fromLocal));
-    params.append("to", formatLocalDate(toLocal));
+    params.append("start",start);
+    params.append("end", end);
 
     return safeApiCall(() => api.get(`/orders/secure/dashboard?${params.toString()}`))
-}
-
-function formatLocalDate(date) {
-    const pad = (n) => n.toString().padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 export const createReturnOrder = async (orderId, reason, items, images) => {

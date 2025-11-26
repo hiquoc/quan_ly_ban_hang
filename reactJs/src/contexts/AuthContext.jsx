@@ -9,14 +9,16 @@ export function AuthProvider({ children }) {
     const initalAccountId = decoded?.id || null;
     const initalRole = decoded?.role || null;
     const initalOwnerId = decoded?.ownerId || null;
+    const initalWarehouseId = decoded?.warehouseId || null;
+
     const [username, setUsername] = useState(intialUsername);
     const [accountId, setAccountId] = useState(initalAccountId);
     const [role, setRole] = useState(initalRole);
     const [ownerId, setOwnerId] = useState(initalOwnerId);
-    //console.log(decoded)
+    const [staffWarehouseId, setStaffWarehouseId] = useState(initalWarehouseId);
 
     return <AuthContext.Provider value={
-        { username, setUsername, accountId, setAccountId, role, setRole ,ownerId, setOwnerId}}>
+        { username, setUsername, accountId, setAccountId, role, setRole, ownerId, setOwnerId,staffWarehouseId, setStaffWarehouseId }}>
         {children}
     </AuthContext.Provider>
 }

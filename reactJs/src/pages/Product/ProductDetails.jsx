@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState,useRef } from "react";
+import React, { useContext, useEffect, useState, useRef } from "react";
 import { useParams, useLocation, useNavigate, NavLink } from "react-router-dom";
 import { createProductReview, deleteProductReview, getActiveProductDetails, getProductDetails, getProductReviews, getRandomActiveProductByCategory, updateProductReview } from "../../apis/productApi";
 import {
@@ -749,26 +749,26 @@ export default function ProductDetails() {
                                 </button>
                             )}
 
-                                <div
-                                    ref={relativeRef}
-                                    className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
-                                >
-                                    {relativeProducts && relativeProducts.map((product, idx) => (
-                                        <div
-                                            key={`relative-${product.id}-${idx}`}
-                                            className="flex-shrink-0 pb-12 overflow-visible"
-                                            style={{
-                                                width: `calc((100% - 5 * 1.5rem) / 6)`
-                                            }}
-                                        >
-                                            <ProductCard
-                                                key={product.id}
-                                                product={product}
-                                                priceRange={[]}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
+                            <div
+                                ref={relativeRef}
+                                className="flex overflow-x-auto scroll-smooth gap-6 scrollbar-hide"
+                            >
+                                {relativeProducts && relativeProducts.map((product, idx) => (
+                                    <div
+                                        key={`relative-${product.id}-${idx}`}
+                                        className="flex-shrink-0 pb-12 overflow-visible"
+                                        style={{
+                                            width: `calc((100% - 5 * 1.5rem) / 6)`
+                                        }}
+                                    >
+                                        <ProductCard
+                                            key={product.id}
+                                            product={product}
+                                            priceRange={[]}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -779,10 +779,11 @@ export default function ProductDetails() {
                             <h2 className="text-3xl font-bold text-gray-900 leading-tight mb-4">
                                 Thông tin chi tiết
                             </h2>
+                            <p
+                                className={`${!detailsExpanded ? "line-clamp-6" : ""} text-gray-600 rich-text-content`}
+                                dangerouslySetInnerHTML={{ __html: product.description }}
+                            />
 
-                            <p className={`${!detailsExpanded ? "line-clamp-6" : ""} text-gray-600 whitespace-pre-line`}>
-                                {product.description}
-                            </p>
 
                             {product.description && product.description.split(" ").length > 10 && (
                                 <div className="flex justify-center mt-2">

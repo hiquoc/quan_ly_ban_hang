@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,4 +20,5 @@ public class ChangeDeliveryOrderStatusRequest {
     @NotNull(message = "Trạng thái không được để trống.")
     private DeliveryStatus status;
     private String reason;
+    private MultipartFile image;
 }

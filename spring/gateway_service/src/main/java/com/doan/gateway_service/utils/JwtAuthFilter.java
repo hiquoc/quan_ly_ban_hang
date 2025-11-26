@@ -52,12 +52,14 @@ public class JwtAuthFilter implements GatewayFilter {
             String role = claims.get("role", String.class);
             Long id = claims.get("id", Long.class);
             Long ownerId = claims.get("ownerId", Long.class);
+            Long warehouseId = claims.get("warehouseId", Long.class);
 
             ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
                     .header("X-User-Name", username)
                     .header("X-User-Role", role)
                     .header("X-Account-Id", String.valueOf(id))
                     .header("X-Owner-Id", String.valueOf(ownerId))
+                    .header("X-Warehouse-Id", String.valueOf(warehouseId))
                     .header("Authorization", authHeader)
                     .build();
 

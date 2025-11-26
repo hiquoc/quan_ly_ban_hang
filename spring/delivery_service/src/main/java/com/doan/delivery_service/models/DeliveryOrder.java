@@ -60,6 +60,9 @@ public class DeliveryOrder {
     @Column(name="delivered_at")
     private OffsetDateTime deliveredAt;
 
+    @Column(name = "delivered_image_url")
+    private String deliveredImageUrl;
+
     @Column(name="failed_reason")
     private String failedReason;
 

@@ -1,37 +1,6 @@
 import api, { safeApiCall } from "./api";
 
-export const createProduct = (name, productCode, slug, description, shortDescription, categoryId, brandId, technicalSpecs, imageFile) => {
-  const formData = new FormData();
-  const productData = {
-    name,
-    productCode,
-    slug,
-    description: description || "",
-    shortDescription: shortDescription || "",
-    categoryId,
-    brandId,
-    technicalSpecs
-  };
-
-  formData.append(
-    "product",
-    new Blob([JSON.stringify(productData)], { type: "application/json" })
-  );
-
-  if (imageFile !== undefined && imageFile) {
-    formData.append("image", imageFile);
-  }
-
-  return safeApiCall(() =>
-    api.post("product/secure/products", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data"
-      }
-    })
-  );
-};
-
-export const updateProduct = (id, name, productCode, slug, description, shortDescription, categoryId, brandId, technicalSpecs, imageFile, mainVariantId) => {
+export const createProduct = (name, productCode, slug, description, shortDescription, categoryId, brandId, technicalSpecs, imageFile, newDescriptionImageUrls) => {
   const formData = new FormData();
   const productData = {
     name,
@@ -42,9 +11,47 @@ export const updateProduct = (id, name, productCode, slug, description, shortDes
     categoryId,
     brandId,
     technicalSpecs,
-    mainVariantId
+    newDescriptionImageUrls
   };
+
+  formData.append(
+    "product",
+    new Blob([JSON.stringify(productData)], { type: "application/json" })
+  );
+
+  if (imageFile !== undefined && imageFile) {
+    formData.append("image", imageFile);
+  }
   // console.log(productData)
+
+  return safeApiCall(() =>
+    api.post("product/secure/products", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    })
+  );
+};
+
+export const updateProduct = (id, name, productCode, slug, description, shortDescription, categoryId,
+  brandId, technicalSpecs, imageFile, mainVariantId, newDescriptionImageUrls, deletedDescriptionImageUrls) => {
+  const formData = new FormData();
+  const productData = {
+    name,
+    productCode,
+    slug,
+    description: description || "",
+    shortDescription: shortDescription || "",
+    categoryId,
+    brandId,
+    technicalSpecs,
+    mainVariantId,
+    newDescriptionImageUrls,
+    deletedDescriptionImageUrls
+  };
+  // console.log(newDescriptionImageUrls)
+  // console.log(deletedDescriptionImageUrls)
+
   formData.append(
     "product",
     new Blob([JSON.stringify(productData)], { type: "application/json" })
@@ -163,7 +170,7 @@ export const createVariant = (productId, name, sku, attributes, images) => {
   validImages.forEach(img => {
     if (!img.isMain) formData.append("images", img.file);
   });
-  
+
   return safeApiCall(() =>
     api.post(`product/secure/variants`, formData, {
       headers: {
@@ -509,3 +516,15 @@ export const getRandomActiveProductByCategory = async (categorySlug) =>
 
 export const getRecommendedProducts = async (customerId) =>
   safeApiCall(() => api.get(`/product/public/recommendations?customerId=${customerId}`))
+
+export const uploadImage = async (image) => {
+  const formData = new FormData();
+
+  formData.append("image", image);
+  console.log(formData)
+  return safeApiCall(() =>
+    api.post(`/product/secure/images`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+  );
+}

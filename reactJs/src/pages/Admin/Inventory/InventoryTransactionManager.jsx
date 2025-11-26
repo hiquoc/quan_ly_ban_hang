@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import SearchableSelect from "../../../components/SearchableSelect";
@@ -7,8 +7,10 @@ import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye } from "react-icons/f
 import { FaGear } from "react-icons/fa6";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { createPortal } from "react-dom";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function InventoryTransactionManager() {
+    const { role, staffWarehouseId } = useContext(AuthContext)
     const [transactions, setTransactions] = useState([]);
     const [transactionPage, setTransactionPage] = useState(0);
     const [transactionTotalPages, setTransactionTotalPages] = useState(0);
@@ -31,7 +33,7 @@ export default function InventoryTransactionManager() {
     const [endDate, setEndDate] = useState("");
     const [ignoreReserveRelease, setIgnoreReserveRelease] = useState(true)
 
-    const [warehouses, setWarehouses] = useState([]);
+    const [warehouses, setWarehouses] = useState(null);
     const [filteredWarehouses, setFilteredWarehouses] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -115,14 +117,14 @@ export default function InventoryTransactionManager() {
     }, []);
 
     useEffect(() => {
-        if (warehouses.length === 0) return;
+        if (warehouses===null) return;
         loadInventoriesBaseOnWarehouseId();
     }, [form.warehouseId])
 
     useEffect(() => {
-        if (warehouses.length === 0) return;
+        if (warehouses===null) return;
         loadTransactions(0);
-    },[warehouseSort])
+    }, [warehouseSort])
 
     async function loadTransactions(page,
         status = null,
@@ -168,9 +170,13 @@ export default function InventoryTransactionManager() {
     async function loadWarehouse() {
         const res = await getAllWarehouses();
         if (res.error) return setPopup({ message: res.error })
-        setWarehouses(res.data);
-        setWarehouseSort(res.data[0].id)
-        setFilteredWarehouses(res.data)
+        let warehouseData = res.data
+        if (role === "STAFF") {
+            warehouseData = warehouseData.filter(w => w.id === staffWarehouseId)
+        }
+        setWarehouses(warehouseData);
+        setWarehouseSort(warehouseData[0].id)
+        setFilteredWarehouses(warehouseData)
     }
     async function loadInventoriesBaseOnWarehouseId(keyword = "") {
         const res = await getAllInventories(0, 5, keyword, form.warehouseId, true)
@@ -280,7 +286,9 @@ export default function InventoryTransactionManager() {
                             onChange={e => setWarehouseSort(e.target.value)}
                             className="p-2 border border-gray-700 rounded hover:cursor-pointer"
                         >
-                            <option value="">Tất cả kho</option>
+                            {role !== "STAFF" && (
+                                <option value="">Tất cả kho</option>
+                            )}
                             {warehouses?.map(w =>
                                 <option key={w.id} value={w.id}>
                                     {w.name}
@@ -849,7 +857,7 @@ export default function InventoryTransactionManager() {
                                     {selectedTransaction.createdBy && (
                                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
                                             <span className="text-gray-600 font-medium">Nhân viên tạo</span>
-                                            <span className="text-black font-semibold">{selectedTransaction.referenceType==="ORDER"?"SP":"NV"}{selectedTransaction.createdBy}</span>
+                                            <span className="text-black font-semibold">{selectedTransaction.referenceType === "ORDER" ? "SP" : "NV"}{selectedTransaction.createdBy}</span>
                                         </div>
                                     )}
 
@@ -861,7 +869,7 @@ export default function InventoryTransactionManager() {
                                     {selectedTransaction.updatedBy && (
                                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
                                             <span className="text-gray-600 font-medium">Nhân viên cập nhật</span>
-                                            <span className="text-black font-semibold">{selectedTransaction.referenceType==="ORDER"?"SP":"NV"}{selectedTransaction.updatedBy}</span>
+                                            <span className="text-black font-semibold">{selectedTransaction.referenceType === "ORDER" ? "SP" : "NV"}{selectedTransaction.updatedBy}</span>
                                         </div>
                                     )}
 

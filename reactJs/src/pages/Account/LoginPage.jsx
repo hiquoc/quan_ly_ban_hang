@@ -14,9 +14,10 @@ function LoginPage() {
     const [rememberMe, setRememberMe] = useState(false)
     const [popup, setPopup] = useState({ message: "", type: "error" })
     const [processingToken, setProcessingToken] = useState(false)
-    const { setUsername, setAccountId, setRole, setOwnerId } = useContext(AuthContext)
+    const { setUsername, setAccountId, setRole, setOwnerId,setStaffWarehouseId } = useContext(AuthContext)
     const navigate = useNavigate()
     const location = useLocation()
+    const [isProcessing, setIsProcessing] = useState(false)
 
     useEffect(() => {
         const params = new URLSearchParams(location.search)
@@ -37,18 +38,23 @@ function LoginPage() {
 
     async function handleLogin(e) {
         e.preventDefault()
+        if (isProcessing) return;
+        try {
+            setIsProcessing(true)
+            if (!usernameInput || !password) {
+                setPopup({ message: "Vui lòng điền đầy đủ thông tin" })
+                return
+            }
 
-        if (!usernameInput || !password) {
-            setPopup({ message: "Vui lòng điền đầy đủ thông tin" })
-            return
+            const response = await login(usernameInput, password)
+            if (response?.error) {
+                setPopup({ message: response.error || "Sai tên tài khoản hoặc mật khẩu" })
+                return
+            }
+            handleTokenLogin(response.data.token)
+        } finally {
+            setIsProcessing(false)
         }
-
-        const response = await login(usernameInput, password)
-        if (response?.error) {
-            setPopup({ message: response.error || "Sai tên tài khoản hoặc mật khẩu" })
-            return
-        }
-        handleTokenLogin(response.data.token)
     }
 
     function handleTokenLogin(token) {
@@ -60,7 +66,7 @@ function LoginPage() {
         setAccountId(decoded.id)
         setRole(decoded.role)
         setOwnerId(decoded.ownerId)
-
+        setStaffWarehouseId(decoded.warehouseId)
         if (decoded.role === "CUSTOMER") navigate("/")
         else {
             localStorage.clear("cartData")
@@ -138,8 +144,30 @@ function LoginPage() {
                     {/* Nút đăng nhập */}
                     <button
                         type="submit"
-                        className="w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer"
+                        className="flex justify-center items-center gap-1 w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer"
                     >
+                        {isProcessing && (
+                            <svg
+                                className="animate-spin h-5 w-5 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                ></circle>
+                                <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                ></path>
+                            </svg>
+                        )}
                         Đăng nhập
                     </button>
 

@@ -67,6 +67,13 @@ public class StaffServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public void changeStaffActive(Long staffId) {
+        try {
+            staffRepository.changeStaffActive(staffId);
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
     private ResponseStatusException parseFeignException(FeignException ex) {
         HttpStatus status = HttpStatus.resolve(ex.status());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -81,4 +88,5 @@ public class StaffServiceClient {
         System.out.println("Feign Error: " + status + " - " + errorMessage);
         return new ResponseStatusException(status, errorMessage);
     }
+
 }

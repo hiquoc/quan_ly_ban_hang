@@ -37,11 +37,13 @@ export const updatePurchaseOrder = (id, supplierId, warehouseId, items) =>
 export const updatePurchaseOrderStatus = (id, status) =>
   safeApiCall(() => api.patch(`inventory/secure/orders/${id}`, { status }));
 
-export const getAllPurchaseOrders = (page, size, status, startDate, endDate) => {
+export const getAllPurchaseOrders = (page, size, status,keyword,warehouseId, startDate, endDate) => {
   const params = new URLSearchParams();
   if (page !== undefined && page !== null) params.append("page", page);
   if (size !== undefined && size !== null) params.append("size", size);
   if (status) params.append("status", status);
+  if (keyword) params.append("keyword", keyword);
+  if (warehouseId) params.append("warehouseId", warehouseId);
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);
 
@@ -137,8 +139,3 @@ export const getInventoryQuantityChanges = async (id, from, to) => {
     api.get(`inventory/secure/inventory-quantity/${id}?${params.toString()}`)
   );
 };
-
-function formatLocalDate(date) {
-  const pad = (n) => n.toString().padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}

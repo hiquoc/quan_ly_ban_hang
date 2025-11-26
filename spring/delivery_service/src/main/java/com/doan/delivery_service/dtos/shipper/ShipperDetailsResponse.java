@@ -15,6 +15,7 @@ public class ShipperDetailsResponse {
     private String email;
     private String phone;
     private OffsetDateTime createdAt;
+    private boolean active;
     private String status;
     private List<DeliveryOrder> assignedOrders;
 }

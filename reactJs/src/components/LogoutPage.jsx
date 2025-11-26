@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 
 export default function LogoutPage() {
-    const { setUsername, setAccountId, setRole, setOwnerId } = useContext(AuthContext);
+    const { setUsername, setAccountId, setRole, setOwnerId,setStaffWarehouseId } = useContext(AuthContext);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -14,6 +14,7 @@ export default function LogoutPage() {
         setAccountId(null);
         setRole(null);
         setOwnerId(null);
+        setStaffWarehouseId(null)
 
         navigate("/login", { replace: true });
     }, []);

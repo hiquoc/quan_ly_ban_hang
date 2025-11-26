@@ -7,6 +7,7 @@ import com.doan.delivery_service.sevices.DeliveryOrderService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,8 +35,8 @@ public class DeliveryOrderController {
                 new ApiResponse<>("Lấy dữ liệu thành công!",true,deliveryOrderService.assignDeliveryOrders(request)));
     }
 
-    @PutMapping("/secure/deliveries")
-    public void changeDeliveryOrderStatus(@RequestBody @Valid ChangeDeliveryOrderStatusRequest request,
+    @PutMapping(path = "/secure/deliveries", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public void changeDeliveryOrderStatus( @ModelAttribute @Valid ChangeDeliveryOrderStatusRequest request,
                                           @RequestHeader("X-Owner-Id") Long shipperId){
         deliveryOrderService.handleChangeDeliveryOrderStatus(request,shipperId);
     }

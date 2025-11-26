@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
     getAllPurchaseOrders,
     createPurchaseOrder,
@@ -14,13 +14,15 @@ import SearchableSelect from "../../../components/SearchableSelect";
 import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye } from "react-icons/fi";
 import { FaChevronLeft } from "react-icons/fa";
 import { FaChevronRight } from "react-icons/fa6";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function PurchaseOrderManager() {
+    const { role, staffWarehouseId } = useContext(AuthContext)
     const [orders, setOrders] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
     const [variants, setVariants] = useState([]);
-    const [warehouses, setWarehouses] = useState([]);
+    const [warehouses, setWarehouses] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ supplierId: "", warehouseId: "", items: [], status: "", createdBy: "", updatedBy: "" });
     const [editingOrderId, setEditingOrderId] = useState(null);
@@ -29,6 +31,7 @@ export default function PurchaseOrderManager() {
     const [isProcessing, setIsProcessing] = useState(false)
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+    const [sortWarehouseId, setSortWarehouseId] = useState(null)
 
     const [page, setPage] = useState(0)
     const [totalPages, setTotalPages] = useState(1);
@@ -36,15 +39,17 @@ export default function PurchaseOrderManager() {
     const [status, setStatus] = useState(null);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [searchText, setSearchText] = useState("");
 
     useEffect(() => { loadData(); }, []);
     useEffect(() => {
+        if (warehouses === null) return;
         loadOrders(0, size, status, startDate, endDate);
-    }, [startDate, endDate])
+    }, [startDate, endDate, sortWarehouseId])
 
     const loadOrders = async (currentPage = page, pageSize = size, orderStatus = status, start = startDate, end = endDate) => {
         setIsLoading(true);
-        const ordersRes = await getAllPurchaseOrders(currentPage, pageSize, orderStatus || null, start || null, end || null)
+        const ordersRes = await getAllPurchaseOrders(currentPage, pageSize, orderStatus || null, searchText,sortWarehouseId, start || null, end || null)
         if (ordersRes.error) {
             setPopup({ message: "Không thể tải danh sách đơn nhập!" });
             setIsLoading(false);
@@ -68,11 +73,17 @@ export default function PurchaseOrderManager() {
             }
 
             setSuppliers(suppliersRes.data);
-            setWarehouses(warehouseRes.data)
+            let warehouseData = warehouseRes.data;
+            if (role === "STAFF") {
+                warehouseData = warehouseData.filter(w => w.id === staffWarehouseId)
+            }
+            setWarehouses(warehouseData);
+            setSortWarehouseId(warehouseData[0].id)
         } catch (err) {
             setPopup({ message: err.message, type: "error" });
         }
     };
+
     const loadProducts = async (keyword = "") => {
         try {
             const res = await getAllProducts(0, 5, keyword);
@@ -304,7 +315,50 @@ export default function PurchaseOrderManager() {
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold text-gray-800">Lịch sử mua hàng</h2>
+                <button
+                    onClick={() => {
+                        setShowForm(true);
+                        setEditingOrderId(null);
+                        setForm({ supplierId: "", items: [], status: "", createdBy: "", updatedBy: "" });
+                        loadProducts();
+                    }}
+                    className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+                >
+                    Tạo đơn
+                </button>
+            </div>
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex gap-1">
+                    <input
+                        type="text"
+                        placeholder="Tìm kiếm theo SKU"
+                        value={searchText}
+                        onChange={e => setSearchText(e.target.value)}
+                        className="border p-2 rounded w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                        onClick={() => { loadOrders(0) }}
+                        className="w-full sm:w-auto bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
+                    >
+                        Tìm
+                    </button>
+                </div>
                 <div className="flex gap-2">
+                    <select
+                        value={sortWarehouseId || ""}
+                        onChange={(e) => setSortWarehouseId(e.target.value)}
+                        className="border border-gray-700 rounded px-3 py-2"
+                    >
+                        {role !== "STAFF" && (
+                            <option value="">Tất cả kho</option>
+                        )}
+                        {warehouses &&
+                            warehouses.map((w) => (
+                                <option key={w.id} value={w.id}>
+                                    {w.code}
+                                </option>
+                            ))}
+                    </select>
                     <div className="flex gap-2 items-center">
                         <input
                             type="date"
@@ -326,17 +380,7 @@ export default function PurchaseOrderManager() {
                     >
                         <FiRefreshCw className="h-5 w-5 mr-2" /> Làm mới
                     </button>
-                    <button
-                        onClick={() => {
-                            setShowForm(true);
-                            setEditingOrderId(null);
-                            setForm({ supplierId: "", items: [], status: "", createdBy: "", updatedBy: "" });
-                            loadProducts();
-                        }}
-                        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
-                    >
-                        Tạo đơn
-                    </button>
+
                 </div>
             </div>
 

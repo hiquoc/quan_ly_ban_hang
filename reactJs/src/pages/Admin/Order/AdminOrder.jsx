@@ -9,13 +9,15 @@ import { PopupContext } from "../../../contexts/PopupContext";
 import { FiEye, FiMapPin, FiPhone, FiRefreshCcw, FiUser } from "react-icons/fi";
 import { createPortal } from "react-dom";
 import { Helmet } from "react-helmet-async";
+import { getAllWarehouses } from "../../../apis/inventoryApi";
 
 function AdminOrder() {
-    const { role } = useContext(AuthContext);
+    const { role, staffWarehouseId } = useContext(AuthContext);
     const { showPopup } = useContext(PopupContext);
 
     if (!["ADMIN", "MANAGER", "STAFF"].includes(role)) return <Navigate to="/" replace />;
 
+    const [warehouses, setWarehouses] = useState(null)
     const [orders, setOrders] = useState([]);
     const [orderDetails, setOrderDetails] = useState(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -25,6 +27,7 @@ function AdminOrder() {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [sortStatus, setSortStatus] = useState("");
+    const [sortWarehouse, setSortWarehouse] = useState(null);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
@@ -42,20 +45,12 @@ function AdminOrder() {
 
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
-    const getData = async (page = currentPage) => {
-        setIsLoading(true);
-        const res = await getAllOrders(page, 20, sortStatus, keyword, startDate, endDate);
-        if (res.error){
-            setIsLoading(false);
-            return showPopup(res.error);
-        } 
-        // console.log(res.data)
-        setOrders(res.data.content || []);
-        setTotalPages(res.data.totalPages || 1);
-        setIsLoading(false);
-    };
+    useEffect(() => { handlLoadWarehouses() }, [])
 
-    useEffect(() => { getData(); }, [currentPage, sortStatus, startDate, endDate]);
+    useEffect(() => {
+        if (warehouses === null) return;
+        getData();
+    }, [currentPage, sortStatus, startDate, endDate, sortWarehouse]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -73,6 +68,32 @@ function AdminOrder() {
         };
     }, []);
 
+    const handlLoadWarehouses = async () => {
+        const res = await getAllWarehouses();
+        if (res.error) {
+            return showPopup(res.error);
+        }
+        let warehouseData = res.data;
+        if (role === "STAFF") {
+            warehouseData = warehouseData.filter(w => w.id === staffWarehouseId)
+        }
+        setWarehouses(warehouseData);
+        setSortWarehouse(warehouseData[0].code)
+        // console.log(warehouseData)
+    }
+
+    const getData = async (page = currentPage) => {
+        setIsLoading(true);
+        const res = await getAllOrders(page, 20, sortStatus, keyword, startDate, endDate, sortWarehouse);
+        if (res.error) {
+            setIsLoading(false);
+            return showPopup(res.error);
+        }
+        // console.log(res.data)
+        setOrders(res.data.content || []);
+        setTotalPages(res.data.totalPages || 1);
+        setIsLoading(false);
+    };
     const handleGetOrderDetails = async (ownerNumber) => {
         const res = await getOrderDetails(ownerNumber);
         if (res.error) return showPopup(res.error);
@@ -187,6 +208,21 @@ function AdminOrder() {
                             <option value="CANCELLED">Đã hủy</option>
                             <option value="RETURNED">Trả lại</option>
                         </select>
+                        <select
+                            value={sortWarehouse||""}
+                            onChange={e => setSortWarehouse(e.target.value)}
+                            className="p-2 border border-gray-700 rounded"
+                        >
+                            {role === "MANAGER" || role === "ADMIN" && (
+                                <option key="ALL" value={""}>Tất cả kho</option>
+                            )}
+                            {warehouses && (
+                                warehouses.map(w =>
+                                    <option key={w.id} value={w.code}>{w.code}</option>
+                                )
+                            )}
+
+                        </select>
                     </div>
 
                     {/* Date filter + Refresh */}
@@ -218,7 +254,7 @@ function AdminOrder() {
                     <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
                         <thead className="bg-gray-200 text-gray-700 ">
                             <tr>
-                                {["Mã đơn", "Mã khách hàng", "Ngày đặt", "Tổng tiền", "Trạng thái", "Thanh toán", "Chi tiết"].map(head => (
+                                {["Mã đơn", "Mã khách hàng", "Ngày đặt", "Tổng tiền", "Mã kho", "Trạng thái", "Thanh toán", "Chi tiết"].map(head => (
                                     <th key={head} className="p-3 border-b border-gray-200 text-center">{head}</th>
                                 ))}
                             </tr>
@@ -275,7 +311,9 @@ function AdminOrder() {
                                         <td className="p-3 border-b border-gray-200 text-center">
                                             {Number(order.totalAmount).toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
                                         </td>
-
+                                        <td className="p-3 border-b border-gray-200 text-center">
+                                            {Object.entries(order.warehouseData).map(([key]) => `${key}`).join(', ')}
+                                        </td>
                                         <td className="text-center border-b border-gray-200 relative group status-dropdown">
                                             <button
                                                 onClick={(e) => {
@@ -435,6 +473,7 @@ function AdminOrder() {
 
                                 <div className="text-gray-600 text-sm pt-2 ">
                                     <p className="font-bold">Mã khách hàng: KH{orderDetails.customerId}</p>
+                                    {Object.entries(orderDetails.warehouseData).map(([key, value]) => `Kho: ${key} - SL: ${value}`).join(', ')}
                                     {orderDetails.createdAt && <p>Ngày tạo: {new Date(orderDetails.createdAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.updatedAt && <p>Ngày cập nhật: {new Date(orderDetails.updatedAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.cancelledDate && <p>Ngày hủy: {new Date(orderDetails.cancelledDate).toLocaleString("vi-VN")}</p>}

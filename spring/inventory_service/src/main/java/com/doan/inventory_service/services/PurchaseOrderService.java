@@ -48,7 +48,6 @@ public class PurchaseOrderService {
 
         Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy kho!"));
-
         PurchaseOrder purchaseOrder = new PurchaseOrder(
                 generatePurchaseOrderCode(), staffId, staffId, supplier,warehouse, "PENDING");
 
@@ -119,7 +118,7 @@ public class PurchaseOrderService {
     }
 
     @Transactional
-    public PurchaseOrderResponse updatePurchaseOrderStatus(Long id, String status, Long staffId) {
+    public PurchaseOrderResponse updatePurchaseOrderStatus(Long id, String status, Long staffId,String role,Long staffWarehouseId) {
         if (!"COMPLETED".equals(status) && !"CANCELLED".equals(status)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Trạng thái không hợp lệ!");
@@ -127,6 +126,9 @@ public class PurchaseOrderService {
 
         PurchaseOrder order = purchaseOrderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn nhập hàng với id: " + id));
+
+        if(role.equals("STAFF")&&!Objects.equals(order.getWarehouse().getId(), staffWarehouseId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật đơn!");
 
         if (!"PENDING".equals(order.getStatus())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -157,7 +159,7 @@ public class PurchaseOrderService {
     }
 
     public Page<PurchaseOrderResponse> getPurchaseOrders(
-            Integer page, Integer size, String status, OffsetDateTime start, OffsetDateTime end) {
+            Integer page, Integer size, String status, String keyword, Long warehouseId, OffsetDateTime start, OffsetDateTime end) {
 
         Pageable pageable = PageRequest.of(
                 page != null ? page : 0,
@@ -168,8 +170,25 @@ public class PurchaseOrderService {
         Specification<PurchaseOrder> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            if (warehouseId != null) {
+                predicates.add(cb.equal(root.get("warehouse").get("id"), warehouseId));
+            }
             if (status != null && !status.isBlank()) {
                 predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                String likeKeyword = "%" + keyword.trim().toLowerCase() + "%";
+
+                predicates.add(cb.or(
+                        cb.like(
+                                cb.function("unaccent", String.class, cb.lower(root.get("code"))),
+                                cb.function("unaccent", String.class, cb.literal(likeKeyword))
+                        ),
+                        cb.like(
+                                cb.function("unaccent", String.class, cb.lower(root.get("supplier").get("code"))),
+                                cb.function("unaccent", String.class, cb.literal(likeKeyword))
+                        )
+                ));
             }
 
             if (start != null && end != null) {

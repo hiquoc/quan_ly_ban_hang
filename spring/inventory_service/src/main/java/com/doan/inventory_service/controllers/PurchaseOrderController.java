@@ -19,8 +19,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("")
@@ -31,8 +31,12 @@ public class PurchaseOrderController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PostMapping("/secure/orders")
     public ResponseEntity<?> createPurchaseOrder(@Valid @RequestBody PurchaseOrderRequest request,
-                                                 @RequestHeader("X-Owner-Id") Long staffId){
+                                                 @RequestHeader("X-Owner-Id") Long staffId,
+                                                 @RequestHeader("X-User-Role") String role,
+                                                 @RequestHeader("X-Warehouse-Id") Long staffWarehouseId) {
         try {
+            if(role.equals("STAFF")&&!Objects.equals(request.getWarehouseId(), staffWarehouseId))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền tạo đơn!");
             PurchaseOrderResponse response = purchaseOrderService.createPurchaseOrder(request, staffId);
             return ResponseEntity.ok(new ApiResponse<>("Tạo đơn hàng thành công!", true, response));
         } catch (ResponseStatusException ex) {
@@ -40,14 +44,20 @@ public class PurchaseOrderController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @GetMapping("/secure/orders")
     public ResponseEntity<?> getPurchaseOrders(
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
-
+        if (role.equals("STAFF") && (warehouseId == null || !Objects.equals(warehouseId, staffWarehouseId)))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem đơn!");
         try {
             OffsetDateTime start = startDate != null && !startDate.isBlank()
                     ? LocalDate.parse(startDate).atStartOfDay(ZoneOffset.UTC).toOffsetDateTime()
@@ -56,7 +66,7 @@ public class PurchaseOrderController {
                     ? LocalDate.parse(endDate).atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
                     : null;
 
-            Page<PurchaseOrderResponse> responses = purchaseOrderService.getPurchaseOrders(page, size, status, start, end);
+            Page<PurchaseOrderResponse> responses = purchaseOrderService.getPurchaseOrders(page, size, status,keyword, warehouseId, start, end);
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách đơn hàng thành công!", true, responses));
         } catch (DateTimeParseException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày không hợp lệ!");
@@ -68,8 +78,12 @@ public class PurchaseOrderController {
     @PutMapping("/secure/orders/{id}")
     public ResponseEntity<?> updatePurchaseOrder(@PathVariable Long id,
                                                  @Valid @RequestBody PurchaseOrderRequest request,
-                                                 @RequestHeader("X-Owner-Id") Long staffId){
+                                                 @RequestHeader("X-Owner-Id") Long staffId,
+                                                 @RequestHeader("X-User-Role") String role,
+                                                 @RequestHeader("X-Warehouse-Id") Long staffWarehouseId) {
         try {
+            if(role.equals("STAFF")&&!Objects.equals(request.getWarehouseId(), staffWarehouseId))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật đơn!");
             PurchaseOrderResponse response = purchaseOrderService.updatePurchaseOrder(id, request, staffId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật đơn hàng thành công!", true, response));
         } catch (ResponseStatusException ex) {
@@ -81,13 +95,15 @@ public class PurchaseOrderController {
     @PatchMapping("/secure/orders/{id}")
     public ResponseEntity<?> updatePurchaseOrderStatus(@PathVariable Long id,
                                                        @RequestBody UpdatePurchaseOrderStatusRequest request,
-                                                       @RequestHeader("X-Owner-Id") Long staffId){
+                                                       @RequestHeader("X-Owner-Id") Long staffId,
+                                                       @RequestHeader("X-User-Role") String role,
+                                                       @RequestHeader("X-Warehouse-Id") Long staffWarehouseId) {
         try {
-            if (request.getStatus() == null || request.getStatus() .isBlank()) {
+            if (request.getStatus() == null || request.getStatus().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái không được để trống");
             }
-            String trimmedStatus = request.getStatus() .replace("\"", "").trim();
-            PurchaseOrderResponse response = purchaseOrderService.updatePurchaseOrderStatus(id, trimmedStatus , staffId);
+            String trimmedStatus = request.getStatus().replace("\"", "").trim();
+            PurchaseOrderResponse response = purchaseOrderService.updatePurchaseOrderStatus(id, trimmedStatus, staffId,role,staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái đơn hàng thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -95,7 +111,7 @@ public class PurchaseOrderController {
     }
 
     @GetMapping("/internal/orders/{id}")
-    public ResponseEntity<?> checkPurchaseOrderByVariantId(@PathVariable Long id){
+    public ResponseEntity<?> checkPurchaseOrderByVariantId(@PathVariable Long id) {
         try {
             Boolean exist = purchaseOrderService.checkPurchaseOrderByVariantId(id);
             return ResponseEntity.ok(exist);

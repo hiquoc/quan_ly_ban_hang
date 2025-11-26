@@ -11,6 +11,7 @@ import com.doan.delivery_service.models.DeliveryOrder;
 import com.doan.delivery_service.models.Shipper;
 import com.doan.delivery_service.repositories.DeliveryOrderRepository;
 import com.doan.delivery_service.repositories.ShipperRepository;
+import com.doan.delivery_service.repositories.feign.AuthRepositoryClient;
 import com.doan.delivery_service.repositories.feign.InventoryRepositoryClient;
 import com.doan.delivery_service.repositories.feign.OrderRepositoryClient;
 import lombok.AllArgsConstructor;
@@ -33,6 +34,7 @@ public class ShipperService {
     private final ShipperRepository shipperRepository;
     private final InventoryRepositoryClient inventoryRepositoryClient;
     private final OrderRepositoryClient orderRepositoryClient;
+    private final AuthRepositoryClient authRepositoryClient;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.ASSIGNED, DeliveryStatus.SHIPPING, DeliveryStatus.FAILED
@@ -49,10 +51,11 @@ public class ShipperService {
                 PageRequest.of(pageNumber, pageSize)
         );
     }
+
     public Page<ShipperDetailsResponse> getAllShippersDetails(Integer page, Integer size, String keyword, String status, Long warehouseId, Boolean active) {
         int pageNumber = page != null && page > 0 ? page : 0;
         int pageSize = size != null && size > 0 ? size : 10;
-        Page<Shipper> shipperPage= shipperRepository.findAllByKeywordAndStatusAndWarehouseId(
+        Page<Shipper> shipperPage = shipperRepository.findAllByKeywordAndStatusAndWarehouseId(
                 (keyword != null && !keyword.isBlank()) ? keyword : null,
                 (status != null && !status.isBlank()) ? status : null,
                 (warehouseId != null && warehouseId > 0) ? warehouseId : null,
@@ -175,14 +178,27 @@ public class ShipperService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập mã kho");
         Shipper shipper = shipperRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy shipper!"));
+        try{
+            if(!inventoryRepositoryClient.checkWarehouseId(warehouseId))
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã kho không tồn tại!");
+        }catch (Exception ex){
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Lỗi hệ thống khi kiểm tra kho!");
+        }
         shipper.setWarehouseId(warehouseId);
         return shipperRepository.save(shipper);
     }
 
-    public Shipper updateShipperActive(Long id) {
+    public Shipper updateShipperActive(Long id,boolean callToAuth) {
         Shipper shipper = shipperRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy shipper!"));
         shipper.setIsActive(!shipper.getIsActive());
+        if(callToAuth){
+            try {
+                authRepositoryClient.changeAccountActive(id,5L);
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống khi khóa tài khoản");
+            }
+        }
         return shipperRepository.save(shipper);
     }
 
@@ -201,17 +217,17 @@ public class ShipperService {
         if (prevStatus.equals("ONLINE")
                 && status.equals("SHIPPING")
                 && !shipper.getAssignedOrders().isEmpty()) {
-            List<DeliveryOrder> deliveryOrders=shipper.getAssignedOrders().stream().filter(
+            List<DeliveryOrder> deliveryOrders = shipper.getAssignedOrders().stream().filter(
                     deliveryOrder -> deliveryOrder.getStatus().equals(DeliveryStatus.ASSIGNED)).toList();
-            for(DeliveryOrder deliveryOrder:deliveryOrders){
+            for (DeliveryOrder deliveryOrder : deliveryOrders) {
                 deliveryOrder.setStatus(DeliveryStatus.SHIPPING);
             }
             deliveryOrderRepository.saveAll(deliveryOrders);
             try {
                 orderRepositoryClient.updateOrderStatus(
                         new UpdateOrderStatusRequest(deliveryOrders.stream().map(DeliveryOrder::getOrderNumber).toList(),
-                                id,4L,"Đơn hàng đang được giao bởi SP"+id));
-            }catch (Exception e) {
+                                id, 4L, "Đơn hàng đang được giao bởi SP" + id));
+            } catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                         "Lỗi khi tạo phiếu cập nhật trạng thái thành Đã giao cho shipper! " + e.getMessage(), e);
             }
@@ -231,13 +247,13 @@ public class ShipperService {
                     .toList();
             try {
                 inventoryRepositoryClient.createOrderTransaction(requests);
-            }catch (Exception e) {
+            } catch (Exception e) {
                 try {
                     System.out.println("Tạo phiếu xuất kho thất bại!\nĐang hoàn tác cập nhật trạng thái đơn hàng");
                     orderRepositoryClient.updateOrderStatus(
                             new UpdateOrderStatusRequest(deliveryOrders.stream().map(DeliveryOrder::getOrderNumber).toList(),
-                                    id,3L,"Đơn hàng đang được giao bởi SP"+id));
-                }catch (Exception ex) {
+                                    id, 3L, "Đơn hàng đang được giao bởi SP" + id));
+                } catch (Exception ex) {
                     throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                             "Lỗi khi hoàn tác cập nhật trạng thái thành Đã giao cho shipper! " + ex.getMessage(), ex);
                 }
@@ -248,11 +264,13 @@ public class ShipperService {
         }
         return shipper;
     }
-    private ShipperDetailsResponse mapToDetailsResponse(Shipper shipper){
+
+    private ShipperDetailsResponse mapToDetailsResponse(Shipper shipper) {
         return new ShipperDetailsResponse(shipper.getId(), shipper.getFullName(),
                 shipper.getEmail(), shipper.getPhone(), shipper.getCreatedAt(),
                 shipper.getStatus(), getShipperDeliveries(shipper.getId()));
     }
+
     public List<DeliveryOrder> getShipperDeliveries(Long shipperId) {
         return deliveryOrderRepository.findByAssignedShipper_IdAndStatusIn(shipperId, ACTIVE_STATUSES);
     }

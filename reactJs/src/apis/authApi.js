@@ -6,8 +6,8 @@ export const login = (username, password) =>
 export const customerRegister = (username, password, fullName, phone, email) =>
   safeApiCall(() => api.post("auth/public/register", { username, password, fullName, phone, email }));
 
-export const staffRegister = (username, password, fullName, phone, email,warehouseId) =>
-  safeApiCall(() => api.post("auth/secure/register", { username, password, fullName, phone, email,warehouseId }));
+export const staffRegister = (username, password, fullName, phone, email,warehouseId,isStaff) =>
+  safeApiCall(() => api.post("auth/secure/register", { username, password, fullName, phone, email,warehouseId,isStaff }));
 
 export const changePassword = (newPassword, oldPassword) =>
   safeApiCall(() => api.patch("auth/secure/accounts", { newPassword, oldPassword }));

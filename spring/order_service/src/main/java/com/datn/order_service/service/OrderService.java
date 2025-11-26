@@ -23,12 +23,10 @@ import feign.FeignException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
@@ -63,7 +61,8 @@ public class OrderService {
     private final CartServiceClient cartServiceClient;
     private final CloudinaryService cloudinaryService;
 
-
+    @Autowired
+    private WebhookUtils webhookUtils;
     /**
      * Create order from cart (checkout all or selected items)
      */
@@ -196,6 +195,7 @@ public class OrderService {
                 .paymentMethod(request.getPaymentMethod())
                 .orderDate(OffsetDateTime.now())
                 .notes(request.getNotes())
+                .warehouseData(null)
                 .build();
 
         // 5. Generate and update orderNumber with ID
@@ -266,7 +266,8 @@ public class OrderService {
 
                     boolean stockReserved = false;
                     try {
-                        inventoryServiceClient.reserveStock(stockRequest);
+                        Map<String,Integer> warehouseData= inventoryServiceClient.reserveStock(stockRequest).getData();
+                        order.setWarehouseData(warehouseData);
                         log.info("Stock reserved - ProductId: {}, VariantId: {}, Quantity: {}",
                                 variant.getProductId(), itemReq.getVariantId(), itemReq.getQuantity());
                         stockReserved = true;
@@ -326,7 +327,7 @@ public class OrderService {
             log.info("Order created successfully - OrderNumber: {}, TotalAmount: {}",
                     orderNumber, totalAmount);
 
-            WebhookUtils.postToWebhook(order.getId(), "insert");
+            webhookUtils.postToWebhook(order.getId(), "insert");
             return mapToDetailResponse(order, orderItems, false);
 
         } catch (Exception e) {
@@ -444,7 +445,8 @@ public class OrderService {
             String keyword,
             LocalDate fromDate,
             LocalDate toDate,
-            boolean showRevenue) {
+            boolean showRevenue,
+            String warehouseCode) {
 
         Pageable pageable = (page == null || size == null)
                 ? Pageable.unpaged()
@@ -480,6 +482,16 @@ public class OrderService {
             predicates.add(cb.lessThan(root.get("orderDate"), endDateTime));
         }
 
+        if (warehouseCode != null && !warehouseCode.isBlank()) {
+            // FIXED: Use .as(String.class) for implicit cast to text, then LIKE
+            predicates.add(
+                    cb.like(
+                            root.get("warehouseData").as(String.class),
+                            "%\"" + warehouseCode + "\"%"
+                    )
+            );
+        }
+
         if (keyword != null && !keyword.isBlank() || customerId != null) {
             List<Predicate> orPredicates = new ArrayList<>();
             if (keyword != null && !keyword.isBlank()) {
@@ -511,12 +523,23 @@ public class OrderService {
         if (status != null && !status.isBlank()) {
             countPredicates.add(cb.equal(countRoot.get("status").get("name"), status));
         }
+
         if (startDateTime != null) {
             countPredicates.add(cb.greaterThanOrEqualTo(countRoot.get("orderDate"), startDateTime));
         }
         if (endDateTime != null) {
             countPredicates.add(cb.lessThan(countRoot.get("orderDate"), endDateTime));
         }
+
+        if (warehouseCode != null && !warehouseCode.isBlank()) {
+            countPredicates.add(
+                    cb.like(
+                            countRoot.get("warehouseData").as(String.class),
+                            "%\"" + warehouseCode + "\"%"
+                    )
+            );
+        }
+
         if (keyword != null && !keyword.isBlank() || customerId != null) {
             List<Predicate> orPredicatesCount = new ArrayList<>();
             if (keyword != null && !keyword.isBlank()) {
@@ -538,7 +561,6 @@ public class OrderService {
                 total
         );
     }
-
     public Page<OrderDetailResponse> getOrdersDetailsAdvanced(
             Integer page,
             Integer size,
@@ -708,7 +730,7 @@ public class OrderService {
             }
         }
         order = orderRepository.save(order);
-        WebhookUtils.postToWebhook(order.getId(), "update");
+        webhookUtils.postToWebhook(order.getId(), "update");
         log.info("Order status updated successfully - OrderId: {}, NewStatus: {}", orderId, newStatus.getName());
         return mapToResponse(order);
     }
@@ -732,7 +754,7 @@ public class OrderService {
                 log.info("Order status updated to PENDING after payment");
             }
         }
-        WebhookUtils.postToWebhook(order.getId(), "update");
+        webhookUtils.postToWebhook(order.getId(), "update");
         return mapToResponse(order);
     }
 
@@ -785,7 +807,7 @@ public class OrderService {
         }
 
         order = orderRepository.save(order);
-        WebhookUtils.postToWebhook(order.getId(), "update");
+        webhookUtils.postToWebhook(order.getId(), "update");
         log.info("Order cancelled successfully - OrderId: {}", orderId);
 
         return mapToResponse(order);
@@ -1002,7 +1024,7 @@ public class OrderService {
             order.setStatus(newStatus);
             order.setNotes(request.getNotes());
             pendingOrdersToSave.add(order);
-            WebhookUtils.postToWebhook(order.getId(), "update");
+            webhookUtils.postToWebhook(order.getId(), "update");
         }
         orderRepository.saveAll(pendingOrdersToSave);
     }
@@ -1022,6 +1044,7 @@ public class OrderService {
                 .orderDate(order.getOrderDate())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .warehouseData(order.getWarehouseData())
                 .build();
     }
 
@@ -1039,6 +1062,7 @@ public class OrderService {
                 .deliveredDate(order.getDeliveredDate())
                 .cancelledDate(order.getCancelledDate())
                 .notes(order.getNotes())
+                .warehouseData(order.getWarehouseData())
                 .build();
 
         response.setId(order.getId());
@@ -1142,6 +1166,7 @@ public class OrderService {
                 .orderDate(order.getOrderDate())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .warehouseData(order.getWarehouseData())
                 .build();
     }
 

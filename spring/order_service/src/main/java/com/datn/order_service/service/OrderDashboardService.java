@@ -27,75 +27,61 @@ public class OrderDashboardService {
     private final ProductServiceClient productServiceClient;
 
     public OrderDashboardResponse getDashboard(OffsetDateTime from, OffsetDateTime to) {
-        try {
-            // --- Current period ---
-            List<Object[]> result = orderRepository.getOrderSummary(from, to);
-            Object[] summary = result.isEmpty() ? new Object[]{0L, 0.0} : result.get(0);
-            if (summary == null) {
-                log.warn("No summary returned from repository");
-                summary = new Object[]{0L, 0.0};
-            }
 
-            long totalOrders = ((Number) summary[0]).longValue();
-            double totalRevenue = ((Number) summary[1]).doubleValue();
+        List<Object[]> result = orderRepository.getOrderSummary(from, to, 5L);
+        Object[] summary = result.isEmpty() ? new Object[]{0L, 0.0} : result.get(0);
 
-            long days = Duration.between(from.toLocalDate().atStartOfDay(), to.toLocalDate().atStartOfDay()).toDays() + 1;
-            OffsetDateTime prevFrom = from.minusDays(days);
-            OffsetDateTime prevTo   = to.minusDays(days);
+        long totalOrders = ((Number) summary[0]).longValue();
+        double totalRevenue = ((Number) summary[1]).doubleValue();
 
-            List<Object[]> preResult = orderRepository.getOrderSummary(prevFrom, prevTo);
-            Object[] preSummary = preResult.isEmpty() ? new Object[]{0L, 0.0} : preResult.get(0);
-            if (preSummary == null) {
-                log.warn("No summary returned from repository for previous period");
-                preSummary = new Object[]{0L, 0.0};
-            }
+        long days = Duration.between(from.toLocalDate().atStartOfDay(), to.toLocalDate().atStartOfDay()).toDays() + 1;
+        OffsetDateTime prevFrom = from.minusDays(days);
+        OffsetDateTime prevTo   = to.minusDays(days);
 
-            long prevTotalOrders = ((Number) preSummary[0]).longValue();
-            double prevTotalRevenue = ((Number) preSummary[1]).doubleValue();
-            OrderStats orderStats=new OrderStats(totalOrders, totalRevenue,prevTotalOrders,prevTotalRevenue);
+        List<Object[]> preResult = orderRepository.getOrderSummary(prevFrom, prevTo, 5L);
+        Object[] preSummary = preResult.isEmpty() ? new Object[]{0L, 0.0} : preResult.get(0);
 
-            Map<String, Long> ordersByStatus = new HashMap<>();
-            for (Object[] r : orderRepository.getOrderStatusStats(from, to)) {
-                ordersByStatus.put((String) r[0], ((Number) r[1]).longValue());
-            }
+        long prevTotalOrders = ((Number) preSummary[0]).longValue();
+        double prevTotalRevenue = ((Number) preSummary[1]).doubleValue();
 
-            List<DailyOrderStats> dailyStats = orderRepository.getDailyStats(from, to)
-                    .stream()
-                    .map(r -> new DailyOrderStats(
-                            ((java.sql.Date) r[0]).toLocalDate(),
-                            ((Number) r[1]).longValue(),
-                            (BigDecimal) r[2],
-                            (BigDecimal) r[3]
-                    )).toList();
+        OrderStats orderStats = new OrderStats(totalOrders, totalRevenue, prevTotalOrders, prevTotalRevenue);
 
-            //Top product
-            List<Object[]> topProductsRaw = itemRepository.getTopProduct(from, to,PageRequest.of(0, 5));
-            List<TopProduct> topProducts = topProductsRaw.stream()
-                    .map(r -> new TopProduct(
-                            ((Number) r[0]).longValue(),
-                            ((Number) r[1]).longValue(),
-                            (String) r[2],
-                            (String) r[3],
-                            (String) r[4]
-                    )).toList();
-            List<Object[]> topVariantsRaw = itemRepository.getTopVariant(from, to,PageRequest.of(0, 5));
-            List<TopVariant> topVariants = topVariantsRaw.stream()
-                    .map(r -> new TopVariant(
-                            ((Number) r[0]).longValue(),
-                            ((Number) r[1]).longValue(),
-                            (String) r[2],
-                            (String) r[3]
-                    )).toList();
+        Map<String, Long> ordersByStatus = new HashMap<>();
+        orderRepository.getOrderStatusStats(from, to).forEach(r ->
+                ordersByStatus.put((String) r[0], ((Number) r[1]).longValue())
+        );
 
-            OrderDashboardResponse response = new OrderDashboardResponse(orderStats,
-                    ordersByStatus, dailyStats,topProducts,topVariants);
+        List<DailyOrderStats> dailyStats = orderRepository.getDailyStats(from, to, 5L)
+                .stream()
+                .map(r -> new DailyOrderStats(
+                        ((java.sql.Date) r[0]).toLocalDate(),
+                        ((Number) r[1]).longValue(),
+                        ((BigDecimal) r[2]),
+                        ((BigDecimal) r[3])
+                ))
+                .toList();
 
-            log.info("Dashboard response: {}", response);
-            return response;
+        List<TopProduct> topProducts = itemRepository.getTopProduct(from, to, PageRequest.of(0, 5))
+                .stream()
+                .map(r -> new TopProduct(
+                        ((Number) r[0]).longValue(),
+                        ((Number) r[1]).longValue(),
+                        (String) r[2],
+                        (String) r[3],
+                        (String) r[4]
+                ))
+                .toList();
 
-        } catch (Exception e) {
-            log.error("Error building dashboard", e);
-            throw new RuntimeException(e);
-        }
+        List<TopVariant> topVariants = itemRepository.getTopVariant(from, to, PageRequest.of(0, 5))
+                .stream()
+                .map(r -> new TopVariant(
+                        ((Number) r[0]).longValue(),
+                        ((Number) r[1]).longValue(),
+                        (String) r[2],
+                        (String) r[3]
+                ))
+                .toList();
+
+        return new OrderDashboardResponse(orderStats, ordersByStatus, dailyStats, topProducts, topVariants);
     }
 }

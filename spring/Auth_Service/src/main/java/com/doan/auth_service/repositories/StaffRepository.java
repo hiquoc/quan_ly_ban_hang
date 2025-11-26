@@ -35,4 +35,7 @@ public interface StaffRepository {
                                                   @RequestParam String type,
                                                   @RequestParam Integer page,
                                                   @RequestParam Integer size);
+
+    @PostMapping("/{id}/active")
+    void changeStaffActive(@PathVariable Long id);
 }

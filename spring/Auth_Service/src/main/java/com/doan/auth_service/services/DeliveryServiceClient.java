@@ -67,6 +67,13 @@ public class DeliveryServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public void changeShipperActive(Long shipperId) {
+        try {
+            deliveryRepository.changeShipperActive(shipperId);
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
     private ResponseStatusException parseFeignException(FeignException ex) {
         HttpStatus status = HttpStatus.resolve(ex.status());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -81,4 +88,5 @@ public class DeliveryServiceClient {
         System.out.println("Feign Error: " + status + " - " + errorMessage);
         return new ResponseStatusException(status, errorMessage);
     }
+
 }

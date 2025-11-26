@@ -7,6 +7,7 @@ import com.doan.delivery_service.dtos.shipper.ShipperRequest;
 import com.doan.delivery_service.dtos.shipper.ShipperResponse;
 import com.doan.delivery_service.models.Shipper;
 import com.doan.delivery_service.sevices.ShipperService;
+import jakarta.annotation.security.PermitAll;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -59,6 +60,15 @@ public class ShipperController {
                 new ApiResponse<>("Lấy dữ liệu thành công!",true,shipperService.getShipperDetailsById(id)));
     }
 
+    @GetMapping("/secure/shippers/orders")
+    public ResponseEntity<?> getShipperOrders(
+            @RequestHeader("X-Owner-Id") Long shipperId) {
+        return ResponseEntity.ok(
+                new ApiResponse<>("Lấy dữ liệu thành công!", true,
+                        shipperService.getShipperDeliveries(shipperId)));
+    }
+
+
     @PutMapping("/secure/shippers")
     public ResponseEntity<?> updateShipper(@RequestBody ShipperRequest request,
                                            @RequestHeader("X-Owner-Id") Long shipperId) {
@@ -76,7 +86,7 @@ public class ShipperController {
     @PatchMapping("/secure/shippers/{id}/active")
     public ResponseEntity<?> updateShipperActive(@PathVariable Long id) {
         return ResponseEntity.ok(
-                new ApiResponse<>("Cập nhật thành công!",true,shipperService.updateShipperActive(id)));
+                new ApiResponse<>("Cập nhật thành công!",true,shipperService.updateShipperActive(id,true)));
     }
     @PatchMapping("/secure/shippers/status")
     public ResponseEntity<?> updateShipperStatus(@RequestHeader("X-Owner-Id") Long shipperId,
@@ -84,7 +94,11 @@ public class ShipperController {
         return ResponseEntity.ok(
                 new ApiResponse<>("Cập nhật thành công!",true,shipperService.updateShipperStatus(shipperId,status)));
     }
-
+    @PostMapping("/internal/shippers/{id}/active")
+    public void changeShipperActive(@PathVariable Long id){
+        System.out.println("Controller hit with id = " + id);
+        shipperService.updateShipperActive(id,false);
+    }
     @PostMapping("/internal/shippers")
     public ResponseEntity<?> createShipper(@RequestBody ShipperRequest request) {
         Shipper shipper = shipperService.createShipper(request);
@@ -98,7 +112,6 @@ public class ShipperController {
         List<ShipperResponse> list = shipperService.getShipperByIds(ids).stream().map(customer ->
                 new ShipperResponse(customer.getId(), customer.getFullName(), customer.getEmail(), customer.getPhone(), customer.getCreatedAt())).toList();
         return ResponseEntity.ok(list);
-
     }
 
     @GetMapping("/internal/shippers/keyword")

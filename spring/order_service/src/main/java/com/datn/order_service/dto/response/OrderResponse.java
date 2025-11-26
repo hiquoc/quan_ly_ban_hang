@@ -6,6 +6,8 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -27,4 +29,5 @@ public class OrderResponse {
     private OffsetDateTime orderDate;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private Map<String,Integer> warehouseData;
 }

@@ -18,13 +18,14 @@ public class JwtUtil {
         byte[] decodedKey = java.util.Base64.getDecoder().decode(secret);
         this.key = Keys.hmacShaKeyFor(decodedKey);
     }
-    public String generateToken(String username,Long id, String role,Long ownerId){
+    public String generateToken(String username,Long id, String role,Long ownerId,Long warehouseId){
         long expiration = 1000 * 60 * 60 *24;
         return Jwts.builder()
                 .setSubject(username)
                 .claim("id",id)
                 .claim("role",role)
                 .claim("ownerId",ownerId)
+                .claim("warehouseId",warehouseId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis()+ expiration))
                 .signWith(key)

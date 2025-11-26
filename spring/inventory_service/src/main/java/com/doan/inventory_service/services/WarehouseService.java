@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -64,5 +65,9 @@ public class WarehouseService {
         if(inventoryRepository.existsByWarehouseId(id))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Kho đang được sử dụng!");
         warehouseRepository.delete(supplier);
+    }
+
+    public Boolean checkWarehouseId(Long id) {
+        return warehouseRepository.existsById(id);
     }
 }

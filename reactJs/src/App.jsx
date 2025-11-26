@@ -24,6 +24,8 @@ import AdminDashboard from "./pages/Admin/Dashboard/AdminDasboard";
 import PaymentCheck from "./pages/PaymentCheck";
 import ScrollToTop from "./components/ScrollToTop";
 import AdminDelivery from "./pages/Admin/Delivery/AdminDelivery";
+import ChatBox from "./components/ChatBox/ChatBox";
+import AdminStaff from "./pages/Admin/Staff/AdminStaff";
 
 function App() {
   return (
@@ -36,6 +38,7 @@ function App() {
         <AuthProvider>
           <Router>
             <ScrollToTop />
+            <ChatBox />
 
             <Routes>
               {/* Public Routes */}
@@ -151,6 +154,16 @@ function App() {
                   <ProtectedRoute>
                     <AdminLayout>
                       <AdminAccounts />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/staffs"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <AdminStaff />
                     </AdminLayout>
                   </ProtectedRoute>
                 }

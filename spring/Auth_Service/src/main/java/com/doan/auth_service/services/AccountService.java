@@ -19,7 +19,6 @@ import com.doan.auth_service.utils.JwtUtil;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +51,7 @@ public class AccountService {
         accountRepository.save(account);
     }
 
+    @Transactional(readOnly = true)
     public LoginResponse login(String username, String password) {
         Account account = accountRepository.findByUsername(username)
                 .or(() -> {
@@ -83,8 +83,12 @@ public class AccountService {
         if (!account.getIsActive())
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tài khoản đã bị khóa!");
 
-
-        String token = jwtUtil.generateToken(account.getUsername(), account.getId(), account.getRole().getName(), account.getOwnerId());
+        Long warehouseId = -1L;
+        if (account.getRole().getId() == 3L) {
+            List<StaffResponse> staffResponses = staffServiceClient.getStaffByIds(List.of(account.getOwnerId()));
+            warehouseId = staffResponses.getFirst().getWarehouseId();
+        }
+        String token = jwtUtil.generateToken(account.getUsername(), account.getId(), account.getRole().getName(), account.getOwnerId(), warehouseId);
 
         LoginResponse response = new LoginResponse();
         response.setUsername(account.getUsername());
@@ -94,6 +98,7 @@ public class AccountService {
         return response;
     }
 
+    @Transactional
     public Account getAccountById(Long id) {
         return accountRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
@@ -284,7 +289,7 @@ public class AccountService {
                     .stream().collect(Collectors.toMap(StaffResponse::getId, s -> s));
             accountResponses.forEach(acc -> {
                 if ("SHIPPER".equals(acc.getRole()) && acc.getOwnerId() != null) {
-                    StaffResponse  s = shipperMap.get(acc.getOwnerId());
+                    StaffResponse s = shipperMap.get(acc.getOwnerId());
                     if (s != null) {
                         acc.setFullName(s.getFullName());
                         acc.setEmail(s.getEmail());
@@ -327,9 +332,14 @@ public class AccountService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
     }
 
-    public void changeAccountRole(Long accountId, Role role) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + accountId));
+    public void changeStaffRole(Long staffId, Long roleId) {
+        Account account = accountRepository.findByOwnerIdAndRole_IdIn(staffId,Arrays.asList(2L, 3L))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy staff với id: " + staffId));
+        if (Objects.equals(account.getRole().getName(), "ADMIN"))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi quyền của tài khoản này!");
+        Role role=roleService.getRoleById(roleId);
+        if(!Objects.equals(role.getName(), "STAFF") && !Objects.equals(role.getName(), "MANAGER"))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Quyền không hợp lệ!");
         account.setRole(role);
         accountRepository.save(account);
     }
@@ -358,15 +368,31 @@ public class AccountService {
         accountRepository.deleteById(id);
     }
 
+    @Transactional
     public void changeAccountActive(Long id) {
         Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
         account.setIsActive(!account.getIsActive());
-        accountRepository.save(account);
+        Long roleId = account.getRole().getId();
+        if (roleId == 5L) {
+            deliveryServiceClient.changeShipperActive(account.getOwnerId());
+        } else if (roleId != 4) {
+            staffServiceClient.changeStaffActive(account.getOwnerId());
+        }
     }
 
     @Transactional
-    public void createCustomer(RegisterRequest request){
+    public void changeAccountActiveByOwnerIdAndRole(Long ownerId, Long roleId) {
+        if(roleId==1L)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "");
+
+        Account account = accountRepository.findByOwnerIdAndRole_Id(ownerId, roleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản"));
+        account.setIsActive(!account.getIsActive());
+    }
+
+    @Transactional
+    public void createCustomer(RegisterRequest request) {
         checkRegisterRequest(request);
         CustomerRequest body = new CustomerRequest(
                 request.getFullName().trim(),
@@ -374,8 +400,8 @@ public class AccountService {
                 null
         );
         boolean emailVerified = false;
-        if(request.getEmail() != null && !request.getEmail().isBlank()) {
-            if(!verificationCodeRepository.existsByEmailAndIsVerified(request.getEmail(), true)) {
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            if (!verificationCodeRepository.existsByEmailAndIsVerified(request.getEmail(), true)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email chưa được xác thực!");
             }
             body.setEmail(request.getEmail().trim());
@@ -411,7 +437,7 @@ public class AccountService {
     }
 
     @Transactional
-    public void createStaff(RegisterRequest request){
+    public void createStaff(RegisterRequest request) {
 
         checkRegisterRequest(request);
 
@@ -433,7 +459,7 @@ public class AccountService {
         Long ownerId = null;
 
         try {
-            if (request.getWarehouseId() == null) {
+            if (request.getIsStaff()) {
                 response = staffServiceClient.createStaff(body);
                 ownerId = response.getOwnerId();
 
@@ -466,7 +492,7 @@ public class AccountService {
         } catch (Exception ex) {
             if (ownerId != null) {
                 PendingAction pending = new PendingAction();
-                pending.setService(request.getWarehouseId() == null?"STAFF_SERVICE":"DELIVERY_SERVICE");
+                pending.setService(request.getWarehouseId() == null ? "STAFF_SERVICE" : "DELIVERY_SERVICE");
                 pending.setEntityId(ownerId);
                 pending.setActionType("DELETE");
                 pendingActionRepository.save(pending);
@@ -501,5 +527,15 @@ public class AccountService {
                 account.getIsActive(),
                 account.getCreatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, String> getStaffsRole(List<Long> staffIds) {
+        List<Account> accounts=accountRepository.findByOwnerIdInAndRole_IdIn(staffIds,Arrays.asList(3L,2L,1L));
+        Map<Long,String> staffRoleMap=new HashMap<>();
+        for(Account account:accounts){
+            staffRoleMap.put(account.getOwnerId(),account.getRole().getName());
+        }
+        return staffRoleMap;
     }
 }

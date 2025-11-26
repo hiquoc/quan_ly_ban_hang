@@ -2,6 +2,7 @@ package com.doan.staff_service.repositories;
 
 import com.doan.staff_service.models.Staff;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -28,4 +29,17 @@ public interface StaffRepository extends JpaRepository<Staff,Long> {
     List<Staff> findByIdLike(@Param("idPart") String idPart);
 
 
+    @Query(value = "SELECT * FROM staffs s " +
+            "WHERE (:keyword IS NULL OR s.id::text = :keyword " +
+            "   OR s.full_name ILIKE CONCAT('%', :keyword, '%') " +
+            "   OR s.email ILIKE CONCAT('%', :keyword, '%') " +
+            "   OR s.phone ILIKE CONCAT('%', :keyword, '%')) " +
+            "   AND (:active IS NULL OR s.is_active = :active)" +
+            "   AND (:warehouseId IS NULL OR s.warehouse_id = :warehouseId)"+
+            "   ORDER BY s.created_at DESC",
+            nativeQuery = true)
+    Page<Staff> findAllByKeywordAndStatusAndWarehouseId(@Param("keyword") String keyword,
+                                                        @Param("warehouseId") Long warehouseId,
+                                                        @Param("active") Boolean active,
+                                                        Pageable pageable);
 }

@@ -58,23 +58,19 @@ public class InventoryService {
         Page<Inventory> inventory;
         Boolean isActive = active == null || active;
 
-        List<Long> variantIds = Collections.emptyList();
+        List<Long> variantIds = null;
         if (keyword != null && !keyword.isBlank()) {
             try {
                 variantIds = productServiceClient.searchVariantIds(keyword);
+                if(variantIds.isEmpty())
+                    variantIds=List.of(-1L);
             } catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi tìm variant", e);
             }
         }
-        if (!variantIds.isEmpty() && warehouseId != null) {
-            inventory = inventoryRepository.searchInventories(variantIds, isActive, warehouseId, pageable);
-        } else if (!variantIds.isEmpty()) {
-            inventory = inventoryRepository.findAllByIsActiveAndVariantIdIn(isActive, variantIds, pageable);
-        } else if (warehouseId != null) {
-            inventory = inventoryRepository.findAllByIsActiveAndWarehouseId(isActive, warehouseId, pageable);
-        } else {
-            inventory = inventoryRepository.findAllByIsActive(isActive, pageable);
-        }
+
+        inventory = inventoryRepository.searchInventories(variantIds, isActive, warehouseId, pageable);
+
 
         Map<Long, VariantResponse> variantMap = productServiceClient
                 .getVariantsByIds(inventory.getContent().stream()
@@ -114,9 +110,11 @@ public class InventoryService {
         ).toList();
     }
 
-    public void changeItemActive(Long id) {
+    public void changeItemActive(Long id,String role,Long staffWarehouseId) {
         Inventory inventory = inventoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm!"));
+        if(role.equals("STAFF")&&!Objects.equals(inventory.getWarehouse().getId(), staffWarehouseId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật!");
         inventory.setActive(!inventory.isActive());
         inventoryRepository.save(inventory);
         WebhookUtils.postToWebhook(inventory.getId(), "update");
@@ -124,7 +122,8 @@ public class InventoryService {
 
     // ---------------------- RESERVE / RELEASE STOCK ----------------------
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void reserveStock(ReserveStockRequest request) {
+    public Map<String,Integer> reserveStock(ReserveStockRequest request) {
+        Map<String,Integer> warehouseData = new HashMap<>();
         List<Inventory> inventories = inventoryRepository.findByVariantId(request.getVariantId());
         int pending = request.getQuantity();
         int totalAvailable = inventories.stream()
@@ -143,7 +142,7 @@ public class InventoryService {
             int add = Math.min(pending, available);
             inv.setReservedQuantity(inv.getReservedQuantity() + add);
             inventoryRepository.save(inv);
-
+            warehouseData.merge(inv.getWarehouse().getCode(), add, Integer::sum);
             updateVariantStatusInternal(inv.getVariantId(),
                     inv.getQuantity() - (inv.getReservedQuantity() - add),
                     inv.getQuantity() - inv.getReservedQuantity()
@@ -167,6 +166,7 @@ public class InventoryService {
         for (Inventory inv : inventories) {
             WebhookUtils.postToWebhook(inv.getId(), "update");
         }
+        return warehouseData;
     }
 
     @Transactional
@@ -242,7 +242,7 @@ public class InventoryService {
                             .createdBy(order.getShipperId())
                             .build();
                     inventoryTransactionRepository.save(exportTransaction);
-                    updateTransactionStatus(exportTransaction.getId(), "COMPLETED",null,exportTransaction.getCreatedBy());
+                    updateTransactionStatus(exportTransaction.getId(), "COMPLETED", null, exportTransaction.getCreatedBy(),"",null);
 
                     pending -= exportQty;
                 }
@@ -324,9 +324,11 @@ public class InventoryService {
     }
 
     @Transactional
-    public void updateTransactionStatus(Long id, String status, String note, Long staffId) {
+    public void updateTransactionStatus(Long id, String status, String note, Long staffId,String role,Long staffWarehouseId) {
         InventoryTransaction transaction = inventoryTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phiếu!"));
+        if(role.equals("STAFF")&&!Objects.equals(transaction.getInventory().getWarehouse().getId(), staffWarehouseId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật!");
 
         if ("RESERVE".equals(transaction.getTransactionType())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không được phép chỉnh sửa phiếu này!");
@@ -486,7 +488,7 @@ public class InventoryService {
         Join<Inventory, Warehouse> warehouseJoin = inventoryJoin.join("warehouse", JoinType.LEFT);
 
         List<Predicate> predicates = buildPredicates(cb, root, inventoryJoin, warehouseJoin,
-                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease,warehouseId);
+                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease, warehouseId);
 
         cq.where(predicates.toArray(new Predicate[0]));
         cq.orderBy(cb.desc(root.get("createdAt")));
@@ -504,7 +506,7 @@ public class InventoryService {
         Join<Inventory, Warehouse> countWarehouseJoin = countInventoryJoin.join("warehouse", JoinType.LEFT);
 
         List<Predicate> countPredicates = buildPredicates(cb, countRoot, countInventoryJoin, countWarehouseJoin,
-                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease,warehouseId);
+                status, type, startDate, endDate, keyword, keywordType, ignoreReserveRelease, warehouseId);
 
         countQuery.select(cb.count(countRoot))
                 .where(countPredicates.toArray(new Predicate[0]));
@@ -570,14 +572,15 @@ public class InventoryService {
 
 
     public Page<InventoryTransactionResponse> getTransaction(
-            Long id, Integer page, Integer size, LocalDate fromDate, LocalDate toDate) {
+            Long id, Integer page, Integer size, LocalDate fromDate, LocalDate toDate,String role,Long staffWarehouseId) {
 
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "'Đến ngày' không thể bé hơn 'Từ ngày'");
 
         Inventory inventory = inventoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm món hàng!"));
-
+        if(role.equals("STAFF")&&!Objects.equals(inventory.getWarehouse().getId(), staffWarehouseId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền xem!");
         Pageable pageable = (page != null && size != null)
                 ? PageRequest.of(page, size, Sort.by("createdAt").descending())
                 : Pageable.unpaged();
@@ -601,11 +604,13 @@ public class InventoryService {
     }
 
     public InventoryQuantityChangeResponse calculateNumOfItemWithDailyChanges(
-            Long id, OffsetDateTime from, OffsetDateTime to) {
+            Long id, OffsetDateTime from, OffsetDateTime to,String role,Long staffWarehouseId) {
 
         Inventory inventory = inventoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy món hàng với id: " + id));
+        if(role.equals("STAFF")&&!Objects.equals(inventory.getWarehouse().getId(), staffWarehouseId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có cập nhật!");
 
         int currentQuantity = inventory.getQuantity();
         if (to == null) to = OffsetDateTime.now();
@@ -800,32 +805,32 @@ public class InventoryService {
     public void createTransactionForReturnedDelivery(ReturnedOrderTransactionRequest request) {
         List<InventoryTransaction> exportTxs =
                 inventoryTransactionRepository.findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatusAndInventory_Warehouse_Id(
-                                "ORDER",
-                                request.getOrderNumber(),
-                                "EXPORT",
-                                "COMPLETED",
-                                request.getWarehouseId());
-        if(exportTxs.isEmpty())
+                        "ORDER",
+                        request.getOrderNumber(),
+                        "EXPORT",
+                        "COMPLETED",
+                        request.getWarehouseId());
+        if (exportTxs.isEmpty())
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiếu xuất kho đã hoàn thành!");
 
-        for(InventoryTransaction exportTx:exportTxs){
-        Inventory inventory = exportTx.getInventory();
-        int exportedQty = exportTx.getQuantity();
+        for (InventoryTransaction exportTx : exportTxs) {
+            Inventory inventory = exportTx.getInventory();
+            int exportedQty = exportTx.getQuantity();
 
-        InventoryTransaction newTx = new InventoryTransaction(
-                generateTransactionCode("IMPORT"),
-                inventory,
-                "IMPORT",
-                exportedQty,
-                exportTx.getPricePerItem(),
-                request.getNote(),
-                "ORDER",
-                request.getOrderNumber(),
-                request.getShipperId()
-        );
+            InventoryTransaction newTx = new InventoryTransaction(
+                    generateTransactionCode("IMPORT"),
+                    inventory,
+                    "IMPORT",
+                    exportedQty,
+                    exportTx.getPricePerItem(),
+                    request.getNote(),
+                    "ORDER",
+                    request.getOrderNumber(),
+                    request.getShipperId()
+            );
 
-        inventoryTransactionRepository.save(newTx);
-        updateTransactionStatus(newTx.getId(), "COMPLETED", request.getNote(), request.getShipperId());
+            inventoryTransactionRepository.save(newTx);
+            updateTransactionStatus(newTx.getId(), "COMPLETED", request.getNote(), request.getShipperId(),"",null);
         }
     }
 

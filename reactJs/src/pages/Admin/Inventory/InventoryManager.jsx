@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { getAllInventories, getAllWarehouses, getInventoryQuantityChanges, getInventoryTransaction, updateInventoryActive } from "../../../apis/inventoryApi";
 import Popup from "../../../components/Popup";
 import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye, FiClock } from "react-icons/fi";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import ConfirmPanel from "../../../components/ConfirmPanel";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function InventoryManager() {
+  const { role, staffWarehouseId } = useContext(AuthContext)
   const [inventories, setInventories] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -13,7 +15,7 @@ export default function InventoryManager() {
   const [searchText, setSearchText] = useState("");
   const [popup, setPopup] = useState({ message: "", type: "" });
   const [showOnlyActive, setShowOnlyActive] = useState(true)
-  const [warehouse, setWarehouse] = useState(null)
+  const [warehouses, setWarehouses] = useState(null)
   const [sortWarehouseId, setSortWarehouseId] = useState(null)
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingTrans, setIsLoadingTrans] = useState(false);
@@ -48,6 +50,7 @@ export default function InventoryManager() {
   }, [])
 
   useEffect(() => {
+    if (warehouses === null) return;
     loadData(0)
   }, [showOnlyActive, sortWarehouseId])
 
@@ -79,7 +82,12 @@ export default function InventoryManager() {
       setPopup({ message: res.error || "Lỗi khi tải danh sách kho!" });
       return
     }
-    setWarehouse(res.data);
+    let warehouseData = res.data;
+    if (role === "STAFF") {
+      warehouseData = warehouseData.filter(w => w.id === staffWarehouseId)
+    }
+    setWarehouses(warehouseData);
+    setSortWarehouseId(warehouseData[0].id)
   }
 
   async function loadTransaction(item, page = 0, start = startDate, end = endDate) {
@@ -121,7 +129,7 @@ export default function InventoryManager() {
     if (res.error)
       return setPopup({ message: res.error });
     setPopup({ message: "Cập nhật trạng thái thành công!" });
-    setInventories(prev=>prev.map(t=>t.id===id?{...t,active:!t.active}:t))
+    setInventories(prev => prev.map(t => t.id === id ? { ...t, active: !t.active } : t))
   }
 
   async function handleGetInventoryQuantityChanges(selectedInventory) {
@@ -256,7 +264,7 @@ export default function InventoryManager() {
         <div className="mb-6 flex flex-col sm:flex-row items-center gap-2">
           <input
             type="text"
-            placeholder="Tìm kiếm theo SKU, kho..."
+            placeholder="Tìm kiếm theo SKU"
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             className="border p-2 rounded w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -272,9 +280,11 @@ export default function InventoryManager() {
             onChange={(e) => setSortWarehouseId(e.target.value)}
             className="border border-gray-700 rounded px-3 py-2"
           >
-            <option value="">Tất cả kho</option>
-            {warehouse &&
-              warehouse.map((w) => (
+            {role !== "STAFF" && (
+              <option value="">Tất cả kho</option>
+            )}
+            {warehouses &&
+              warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.code}
                 </option>
@@ -622,137 +632,137 @@ export default function InventoryManager() {
           </div>
         )
       }
-      { showChange && (
-          <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-2xl p-6 relative">
-              <button
-                onClick={() => {setShowChange(false); setSelectedInventory(null); setQuantityData(null);}}
-                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+      {showChange && (
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-2xl p-6 relative">
+            <button
+              onClick={() => { setShowChange(false); setSelectedInventory(null); setQuantityData(null); }}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+            <h2 className="text-xl font-semibold mb-4">Lịch sử tồn kho: {selectedInventory.name}</h2>
+
+            {/* Date range selector */}
+            <div className="flex items-center gap-3 mb-4">
+              <select
+                value={dateRange}
+                onChange={(e) => handleDateRangeChange(e.target.value)}
+                className="px-4 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 bg-white shadow-sm"
               >
-                ✕
-              </button>
-              <h2 className="text-xl font-semibold mb-4">Lịch sử tồn kho: {selectedInventory.name}</h2>
+                <option value="today">Hôm nay</option>
+                <option value="yesterday">Hôm qua</option>
+                <option value="7days">7 ngày qua</option>
+                <option value="30days">30 ngày qua</option>
+                <option value="6months">6 tháng qua</option>
+                <option value="year">Năm nay</option>
+                <option value="custom">Tùy chỉnh</option>
+              </select>
 
-              {/* Date range selector */}
-              <div className="flex items-center gap-3 mb-4">
-                <select
-                  value={dateRange}
-                  onChange={(e) => handleDateRangeChange(e.target.value)}
-                  className="px-4 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 bg-white shadow-sm"
-                >
-                  <option value="today">Hôm nay</option>
-                  <option value="yesterday">Hôm qua</option>
-                  <option value="7days">7 ngày qua</option>
-                  <option value="30days">30 ngày qua</option>
-                  <option value="6months">6 tháng qua</option>
-                  <option value="year">Năm nay</option>
-                  <option value="custom">Tùy chỉnh</option>
-                </select>
-
-                {dateRange === 'custom' && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={formatDateForInput(from)}
-                      onChange={(e) => {
-                        const date = parseDateInput(e.target.value);
-                        if (date) {
-                          date.setHours(0, 0, 0, 0);
-                          setFrom(date);
-                        }
-                      }}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-500">-</span>
-                    <input
-                      type="date"
-                      value={formatDateForInput(to)}
-                      onChange={(e) => {
-                        const date = parseDateInput(e.target.value);
-                        if (date) {
-                          date.setHours(23, 59, 59, 999);
-                          setTo(date);
-                        }
-                      }}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Table of quantity changes */}
-              <div className="overflow-y-auto max-h-96 rounded-lg shadow-sm border border-gray-200">
-                {quantityData?.dailyChanges && quantityData.dailyChanges.length > 0 ? (
-                  <>
-                    {/* <div className="mb-2 text-sm text-gray-600">
-                    Tồn kho đầu kỳ: <strong>{quantityData.from}</strong>
-                  </div> */}
-                    <table className="min-w-full divide-y divide-gray-200 text-sm text-gray-700">
-                      <thead className="bg-gray-50 sticky top-0 z-10">
-                        <tr className="text-center">
-                          <th className="px-5 py-3 font-medium text-gray-900">Ngày</th>
-                          <th className="px-5 py-3 font-medium text-gray-900">Thay đổi</th>
-                          <th className="px-5 py-3 font-medium text-gray-900">Tồn kho cuối ngày</th>
-                        </tr>
-                      </thead>
-
-                      <tbody className="bg-white divide-y divide-gray-100">
-                        {quantityData.dailyChanges.map((day, idx) => {
-                          const isPositive = day.quantity > 0;
-                          return (
-                            <tr
-                              key={day.date}
-                              className={`transition-colors hover:bg-gray-50 ${idx % 2 === 0 ? 'bg-gray-25' : ''
-                                }`}
-                            >
-                              <td className="px-5 py-3 text-center whitespace-nowrap">
-                                {new Date(day.date).toLocaleDateString('vi-VN')}
-                              </td>
-
-                              <td
-                                className={`px-5 py-3 text-center font-medium ${isPositive ? 'text-green-600' : 'text-red-600'
-                                  }`}
-                              >
-                                {isPositive ? `+${day.quantity}` : day.quantity}
-                              </td>
-
-                              <td className="px-5 py-3 text-center font-semibold">
-                                {day.runningTotal}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot className="bg-gray-50 font-medium">
-                        <tr className="text-center">
-                          <td className="px-5 py-3">Tổng</td>
-                          <td className="px-5 py-3">
-                            {(() => {
-                              const total = quantityData.dailyChanges.reduce((sum, d) => sum + d.quantity, 0);
-                              const color = total < 0 ? "text-red-600" : total > 0 ? "text-green-600" : "text-gray-500";
-                              return <span className={color}>{total}</span>;
-                            })()}
-                          </td>
-
-                          <td className="px-5 py-3">
-                            {quantityData.to}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </>
-                ) : (
-                  <p className="text-center py-10 text-gray-500">Không có dữ liệu</p>
-                )}
-              </div>
-
-
-              {popup.message && (
-                <p className="text-red-500 mt-4">{popup.message}</p>
+              {dateRange === 'custom' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={formatDateForInput(from)}
+                    onChange={(e) => {
+                      const date = parseDateInput(e.target.value);
+                      if (date) {
+                        date.setHours(0, 0, 0, 0);
+                        setFrom(date);
+                      }
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-500">-</span>
+                  <input
+                    type="date"
+                    value={formatDateForInput(to)}
+                    onChange={(e) => {
+                      const date = parseDateInput(e.target.value);
+                      if (date) {
+                        date.setHours(23, 59, 59, 999);
+                        setTo(date);
+                      }
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               )}
             </div>
+
+            {/* Table of quantity changes */}
+            <div className="overflow-y-auto max-h-96 rounded-lg shadow-sm border border-gray-200">
+              {quantityData?.dailyChanges && quantityData.dailyChanges.length > 0 ? (
+                <>
+                  {/* <div className="mb-2 text-sm text-gray-600">
+                    Tồn kho đầu kỳ: <strong>{quantityData.from}</strong>
+                  </div> */}
+                  <table className="min-w-full divide-y divide-gray-200 text-sm text-gray-700">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                      <tr className="text-center">
+                        <th className="px-5 py-3 font-medium text-gray-900">Ngày</th>
+                        <th className="px-5 py-3 font-medium text-gray-900">Thay đổi</th>
+                        <th className="px-5 py-3 font-medium text-gray-900">Tồn kho cuối ngày</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {quantityData.dailyChanges.map((day, idx) => {
+                        const isPositive = day.quantity > 0;
+                        return (
+                          <tr
+                            key={day.date}
+                            className={`transition-colors hover:bg-gray-50 ${idx % 2 === 0 ? 'bg-gray-25' : ''
+                              }`}
+                          >
+                            <td className="px-5 py-3 text-center whitespace-nowrap">
+                              {new Date(day.date).toLocaleDateString('vi-VN')}
+                            </td>
+
+                            <td
+                              className={`px-5 py-3 text-center font-medium ${isPositive ? 'text-green-600' : 'text-red-600'
+                                }`}
+                            >
+                              {isPositive ? `+${day.quantity}` : day.quantity}
+                            </td>
+
+                            <td className="px-5 py-3 text-center font-semibold">
+                              {day.runningTotal}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-gray-50 font-medium">
+                      <tr className="text-center">
+                        <td className="px-5 py-3">Tổng</td>
+                        <td className="px-5 py-3">
+                          {(() => {
+                            const total = quantityData.dailyChanges.reduce((sum, d) => sum + d.quantity, 0);
+                            const color = total < 0 ? "text-red-600" : total > 0 ? "text-green-600" : "text-gray-500";
+                            return <span className={color}>{total}</span>;
+                          })()}
+                        </td>
+
+                        <td className="px-5 py-3">
+                          {quantityData.to}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </>
+              ) : (
+                <p className="text-center py-10 text-gray-500">Không có dữ liệu</p>
+              )}
+            </div>
+
+
+            {popup.message && (
+              <p className="text-red-500 mt-4">{popup.message}</p>
+            )}
           </div>
-        )
+        </div>
+      )
       }
 
       {/* Transaction Detail Modal */}
@@ -918,16 +928,16 @@ export default function InventoryManager() {
         onClose={() => setPopup({ message: "", type: "" })}
         duration={3000}
       />
-    
-       <ConfirmPanel
+
+      <ConfirmPanel
         visible={confirmPanel.visible}
         message={confirmPanel.message}
         onConfirm={async () => {
-            if (confirmPanel.onConfirm) {
-              await confirmPanel.onConfirm();
-            }
-            closeConfirmPanel();
-          }}
+          if (confirmPanel.onConfirm) {
+            await confirmPanel.onConfirm();
+          }
+          closeConfirmPanel();
+        }}
         onCancel={closeConfirmPanel}
       />
     </div >

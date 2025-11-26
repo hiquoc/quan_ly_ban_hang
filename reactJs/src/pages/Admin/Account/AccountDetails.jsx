@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { getCustomerDetails } from "../../../apis/customerApi";
 import { getCustomerOrderStats } from "../../../apis/orderApi";
 import { getStaffDetails } from "../../../apis/staffApi";
+import { getShipperDetails } from "../../../apis/deliveryApi";
 
-function AccountDetails({ customerId, staffId, onClose }) {
+function AccountDetails({ customerId, staffId, shipperId, onClose }) {
   const [customer, setCustomer] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,17 +12,19 @@ function AccountDetails({ customerId, staffId, onClose }) {
   const [selectedAddress, setSelectedAddress] = useState(null);
 
   const isStaff = !!staffId;
+  const isShipper = !!shipperId;
 
   useEffect(() => {
-    if (!customerId && !staffId) return;
+    if (!customerId && !staffId && !shipperId) return;
 
     const fetchCustomer = async () => {
       setLoading(true);
       setError(null);
       try {
         let response;
-        if (!isStaff) response = await getCustomerDetails(customerId);
-        else response = await getStaffDetails(staffId);
+        if (isShipper) response = await getShipperDetails(shipperId);
+        else if (isStaff) response = await getStaffDetails(staffId);
+        else response = await getCustomerDetails(customerId);
 
         if (response?.error) {
           setError(response.error);
@@ -30,13 +33,14 @@ function AccountDetails({ customerId, staffId, onClose }) {
           setCustomer(response.data);
           if (response.data.addresses?.length > 0) setSelectedAddress(response.data.addresses[0]);
         }
+        console.log(response.data)
       } finally {
         setLoading(false);
       }
     };
 
     const fetchOrderData = async () => {
-      if (isStaff) return;
+      if (isStaff || isShipper) return;
       const res = await getCustomerOrderStats();
       if (res.error) setError(res.error);
       else {
@@ -46,7 +50,7 @@ function AccountDetails({ customerId, staffId, onClose }) {
 
     fetchCustomer();
     fetchOrderData();
-  }, [customerId, staffId, isStaff]);
+  }, [customerId, staffId, shipperId, isStaff, isShipper]);
 
   const formatDate = (dateStr) => (dateStr ? new Date(dateStr).toLocaleDateString("vi-VN") : "-");
   const formatDateTime = (dateStr) => (dateStr ? new Date(dateStr).toLocaleString("vi-VN") : "-");
@@ -100,7 +104,7 @@ function AccountDetails({ customerId, staffId, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h3 className="text-xl font-semibold text-gray-900">
-            {isStaff ? "Thông tin nhân viên" : "Thông tin khách hàng"}
+            {isShipper ? "Thông tin tài xế" : isStaff ? "Thông tin nhân viên" : "Thông tin khách hàng"}
           </h3>
           <button
             onClick={onClose}
@@ -114,7 +118,78 @@ function AccountDetails({ customerId, staffId, onClose }) {
 
         {/* Content */}
         <div className="p-6 max-h-[calc(100vh-180px)] overflow-y-auto">
-          {isStaff ? (
+          {isShipper ? (
+            // Shipper View
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">ID</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  {customer.id || "-"}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Họ và tên</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  {customer.fullName || "-"}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  {customer.email || "-"}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Số điện thoại</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  {customer.phone || "-"}
+                </div>
+              </div>
+
+              {/* <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Trạng thái shipper</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                    customer.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                  }`}>
+                    {customer.active ? "Hoạt động" : "Đã khóa"}
+                  </span>
+                </div>
+              </div> */}
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Trạng thái giao hàng</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                    customer.status === "ONLINE" ? "bg-blue-100 text-blue-800" :
+                    customer.status === "SHIPPING" ? "bg-orange-100 text-orange-800" :
+                    "bg-gray-100 text-gray-800"
+                  }`}>
+                    {customer.status === "ONLINE" ? "Trực tuyến" : 
+                     customer.status === "SHIPPING" ? "Đang giao hàng" : 
+                     "Ngoại tuyến"}
+                  </span>
+                </div>
+              </div>
+
+              {/* <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Kho</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  {customer.warehouseId || "-"}
+                </div>
+              </div> */}
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Ngày tạo</label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  {formatDateTime(customer.createdAt)}
+                </div>
+              </div>
+            </div>
+          ) : isStaff ? (
             // Staff View
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <div>

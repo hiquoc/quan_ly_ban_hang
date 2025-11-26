@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useContext, useState } from "react";
 import { AuthContext } from "../../contexts/AuthContext";
-import { FaSignOutAlt, FaChartLine, FaShoppingCart, FaUsers, FaBox, FaTags, FaWarehouse, FaUserCircle, FaBoxOpen } from "react-icons/fa";
+import { FaSignOutAlt, FaChartLine, FaShoppingCart, FaUsers, FaBox, FaTags, FaWarehouse, FaUserCircle, FaBoxOpen,FaUserTie  } from "react-icons/fa";
 import StaffDetails from "../StaffDetails";
 
 export default function AdminLayout({ children }) {
@@ -20,10 +20,11 @@ export default function AdminLayout({ children }) {
   const menuItems = [
     { path: "/admin/orders", label: "Đơn hàng", icon: FaShoppingCart },
     { path: "/admin/accounts", label: "Tài khoản", icon: FaUsers, hideForStaff: true },
+    { path: "/admin/staffs", label: "Nhân viên", icon: FaUserTie, hideForStaff: true },
     { path: "/admin/products", label: "Sản phẩm", icon: FaBox },
-    { path: "/admin/promotions", label: "Khuyến mãi", icon: FaTags },
+    { path: "/admin/promotions", label: "Khuyến mãi", icon: FaTags, hideForStaff: true },
     { path: "/admin/inventory", label: "Tồn kho", icon: FaWarehouse },
-    { path: "/admin/deliveries", label: "Giao hàng", icon: FaBoxOpen },
+    { path: "/admin/deliveries", label: "Giao hàng", icon: FaBoxOpen, hideForStaff: true },
     { path: "/admin/dashboard", label: "Thống kê", icon: FaChartLine, hideForStaff: true },
   ];
 

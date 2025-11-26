@@ -5,10 +5,12 @@ import { FiRefreshCw, FiFilter, FiChevronRight, FiChevronLeft, FiEye, FiTrash2, 
 import {
   getAllCategories, getAllProducts, getAllBrands, createProduct, updateProduct,
   changeProductActive, changeProductFeatured, deleteProduct,
-  getProductVariantByProductId
+  getProductVariantByProductId,
+  uploadImage
 } from "../../../apis/productApi";
 import { FaChevronLeft, FaChevronRight, FaStar } from "react-icons/fa";
 import { FaX } from "react-icons/fa6";
+import RichTextEditor from "../../../components/RichTextEditor";
 
 export default function ProductManager() {
   const [products, setProducts] = useState([]);
@@ -48,6 +50,10 @@ export default function ProductManager() {
   const [discountedOnly, setDiscountedOnly] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  const [currentDescriptionImageUrls, setCurrentDescriptionImageUrls] = useState([])
+  const [newDescriptionImageUrls, setNewDescriptionImageUrls] = useState([])
+  const [deleteddDescriptionImageUrls, setDeletedDescriptionImageUrls] = useState([])
 
   useEffect(() => {
     handleLoadProducts();
@@ -100,7 +106,6 @@ export default function ProductManager() {
     }
 
   };
-
 
   const handleLoadCategories = async () => {
     const res = await getAllCategories();
@@ -164,7 +169,8 @@ export default function ProductManager() {
         payload.categoryId,
         payload.brandId,
         payload.technicalSpecs,
-        imageFile || undefined
+        imageFile || undefined,
+        newDescriptionImageUrls
       );
 
       if (response?.error) {
@@ -235,6 +241,10 @@ export default function ProductManager() {
 
     setEditingProductId(product.id);
     setShowForm(true);
+    const initialUrls = extractImageUrls(product.description);
+    setCurrentDescriptionImageUrls(initialUrls);
+    setNewDescriptionImageUrls([]);
+    setDeletedDescriptionImageUrls([]);
   };
 
 
@@ -264,7 +274,9 @@ export default function ProductManager() {
         payload.brandId,
         payload.technicalSpecs,
         imageFile || undefined,
-        payload.mainVariantId
+        payload.mainVariantId,
+        newDescriptionImageUrls,
+        deleteddDescriptionImageUrls
       );
 
       if (response?.error) {
@@ -281,7 +293,7 @@ export default function ProductManager() {
       });
       setImageFile(null)
       setEditingProductId(null);
-      console.log(response.data)
+      // console.log(response.data)
       setProducts(prev => prev.map(p => p.id === editingProductId ? response.data : p))
       // handleLoadProducts();
     } finally {
@@ -322,6 +334,39 @@ export default function ProductManager() {
     setPopup({ message: "Xóa sản phẩm thành công!", type: "success" });
     setProducts((prev) => prev.filter((p) => p.id !== id));
   };
+
+  const handleUploadImage = async (image) => {
+    const response = await uploadImage(image);
+    if (response?.error) {
+      setPopup({ message: response.error, type: "error" });
+      return;
+    }
+    setCurrentDescriptionImageUrls(prev => [...prev, response.data])
+    setNewDescriptionImageUrls(prev => [...prev, response.data])
+    return response.data;
+  }
+  const extractImageUrls = (html) => {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    const imgs = Array.from(div.querySelectorAll("img"));
+    return imgs.map(img => img.src);
+  };
+
+  function handleDescriptionChange(newHtml) {
+    const newUrls = extractImageUrls(newHtml);
+    const deleted = currentDescriptionImageUrls.filter(url => !newUrls.includes(url));
+    setNewDescriptionImageUrls(prev => prev.filter(url => !deleted.includes(url)));
+
+    const toDeleteFromDB = deleted.filter(url => !newDescriptionImageUrls.includes(url));
+    setDeletedDescriptionImageUrls(prev => [...prev, ...toDeleteFromDB]);
+    setCurrentDescriptionImageUrls(newUrls)
+
+    setForm({ ...form, description: newHtml });
+    // console.log('currentDescriptionImageUrls:', currentDescriptionImageUrls);
+    // console.log('newUrls (extracted):', newUrls);
+    // console.log('deleted:', deleted);
+    // console.log('toDeleteFromDB:', toDeleteFromDB);
+  }
 
   const closeAndResetForm = () => {
     setForm({
@@ -781,8 +826,8 @@ export default function ProductManager() {
       )}
       {/* Add/Edit Product Form */}
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 overflow-y-auto p-4">
-          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] my-10 relative">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] max-h-[calc(100vh-2rem)] overflow-y-auto relative">
             <div className="flex justify-between">
               <h3 className="text-3xl font-bold mb-5 text-black">
                 {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}
@@ -963,7 +1008,7 @@ export default function ProductManager() {
                 </label>
 
                 {/* Mô tả chi tiết */}
-                <label className="flex flex-col">
+                {/* <label className="flex flex-col">
                   <span className="text-gray-700 font-semibold mb-2 text-black">Mô tả chi tiết</span>
                   <textarea
                     placeholder="Nhập mô tả chi tiết"
@@ -971,7 +1016,15 @@ export default function ProductManager() {
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     className="bg-white border p-3 rounded text-black placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-700 transition-all h-45 resize-none"
                   />
-                </label>
+                </label> */}
+                <div className="flex flex-col">
+                  <span className="text-gray-700 font-semibold mb-2 text-black">Mô tả chi tiết</span>
+                  <RichTextEditor
+                    value={form.description}
+                    onChange={(value) => handleDescriptionChange(value)}
+                    onImageUpload={handleUploadImage}
+                  />
+                </div>
 
                 {/* Thông số kỹ thuật */}
                 <div className="border p-5 rounded">

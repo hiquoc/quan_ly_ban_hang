@@ -11,14 +11,17 @@ import com.doan.delivery_service.repositories.DeliveryOrderRepository;
 import com.doan.delivery_service.repositories.ShipperRepository;
 import com.doan.delivery_service.repositories.feign.InventoryRepositoryClient;
 import com.doan.delivery_service.repositories.feign.OrderRepositoryClient;
+import com.doan.delivery_service.sevices.cloud.CloudinaryService;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -31,6 +34,7 @@ public class DeliveryOrderService {
     private final ShipperRepository shipperRepository;
     private final InventoryRepositoryClient inventoryRepositoryClient;
     private final OrderRepositoryClient orderRepositoryClient;
+    private final CloudinaryService cloudinaryService;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.ASSIGNED, DeliveryStatus.SHIPPING,DeliveryStatus.FAILED
@@ -144,7 +148,7 @@ public class DeliveryOrderService {
             order.setAssignedShipper(newShipper);
             order.setAssignedAt(OffsetDateTime.now());
             if(order.getStatus()!=DeliveryStatus.FAILED)
-                changeDeliveryOrderStatus(order,DeliveryStatus.ASSIGNED ,null);
+                changeDeliveryOrderStatus(order,DeliveryStatus.ASSIGNED ,null,null);
 
             ordersToSave.add(order);
         }
@@ -171,8 +175,7 @@ public class DeliveryOrderService {
         if(!order.getAssignedShipper().getId().equals(shipperId))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Bạn không có quyền cập nhật trạng thái!");
-        changeDeliveryOrderStatus(order, request.getStatus(),request.getReason());
-//        deliveryOrderRepository.save(order);
+        changeDeliveryOrderStatus(order, request.getStatus(),request.getReason(),request.getImage());
     }
     @Transactional
     public void handleCancelDeliveryOrderStatusFromInternal(CancelDeliveryOrderRequest request) {
@@ -180,10 +183,10 @@ public class DeliveryOrderService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với orderId: " + request.getOrderId()));
 
-        changeDeliveryOrderStatus(order, DeliveryStatus.CANCELLED, request.getReason());
+        changeDeliveryOrderStatus(order, DeliveryStatus.CANCELLED, request.getReason(),null);
     }
 
-    private void changeDeliveryOrderStatus(DeliveryOrder order, DeliveryStatus newStatus,String reason) {
+    private void changeDeliveryOrderStatus(DeliveryOrder order, DeliveryStatus newStatus, String reason, MultipartFile image) {
         DeliveryStatus currentStatus = order.getStatus();
 
         if (!canChangeStatus(currentStatus, newStatus)) {
@@ -211,6 +214,16 @@ public class DeliveryOrderService {
             }
         }
         if(newStatus==DeliveryStatus.DELIVERED){
+            if(image==null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Vui lòng chụp ảnh xác nhận!");
+            try{
+                String imageUrl= cloudinaryService.uploadFile(image);
+                order.setDeliveredImageUrl(imageUrl);
+            } catch (IOException e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Lỗi khi upload hình ảnh xác thực đơn giao hàng\nVui lòng lưu lại ảnh để xác thực sau!");
+            }
             order.setDeliveredAt(OffsetDateTime.now());
             Long shipperId=order.getAssignedShipper().getId();
             try {
@@ -222,7 +235,6 @@ public class DeliveryOrderService {
             }
         }
         order.setStatus(newStatus);
-//        deliveryOrderRepository.save(order);
     }
 
     private boolean canChangeStatus(DeliveryStatus current, DeliveryStatus target) {

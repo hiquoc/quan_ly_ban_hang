@@ -64,7 +64,7 @@ function AddShipperForm({ warehouses, onClose, onSuccess, showPopup }) {
             return setShowVerifyPanel(true);
         }
 
-        const res = await staffRegister(username, password, fullName, phone, email, selectedWarehouseId);
+        const res = await staffRegister(username, password, fullName, phone, email, selectedWarehouseId,false);
         if (res?.error) return showPopup(res.error);
 
         showPopup("Tạo tài khoản thành công!");

@@ -20,4 +20,7 @@ public interface InventoryRepositoryClient {
 
     @PostMapping("/internal/transactions/return/")
     ResponseEntity<ApiResponse<Void>> createReturnOrderTransaction(@Valid @RequestBody ReturnedOrderTransactionRequest request);
+
+    @GetMapping("/internal/warehouses/{id}")
+    Boolean checkWarehouseId(@PathVariable Long id);
 }

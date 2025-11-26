@@ -42,3 +42,38 @@ body {
 .bg-gradient-overlay {
   background: linear-gradient(to right, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
 }
+
+.rich-editor {
+  overflow: visible !important;
+}
+
+.rich-editor .ql-container {
+  height: 200px;
+}
+
+.rich-editor .ql-editor {
+  height: 100%;       /* minimum editor height */
+  overflow-y: auto;        /* scroll when content exceeds max */
+  line-height: 1.6;
+}
+
+.rich-editor .ql-toolbar .ql-picker-options {
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 9999 !important;
+}
+
+.rich-editor .ql-editor::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rich-editor .ql-editor::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 6px;
+}
+.rich-text-content img {
+  display: block;   
+  margin: 0 auto;
+  max-width: 100%; 
+  height: auto; 
+}

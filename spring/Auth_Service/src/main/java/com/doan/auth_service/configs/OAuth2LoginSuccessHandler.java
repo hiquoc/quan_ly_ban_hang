@@ -99,7 +99,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 principal.getUsername(),
                 principal.getAccount().getId(),
                 principal.getAccount().getRole().getName(),
-                principal.getAccount().getOwnerId()
+                principal.getAccount().getOwnerId(),
+                null
         );
 
         LoginResponse loginResponse = new LoginResponse();

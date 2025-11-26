@@ -31,6 +31,7 @@ public class OrderDetailResponse implements Serializable {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private OffsetDateTime cancelledDate;
+    private Map<String,Integer> warehouseData;
 
     // Detail fields
     private List<OrderItemResponse> items;

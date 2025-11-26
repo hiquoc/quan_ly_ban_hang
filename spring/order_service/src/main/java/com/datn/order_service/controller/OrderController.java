@@ -205,9 +205,10 @@ public class OrderController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
-            @RequestHeader("X-User-Role") String role) {
+            @RequestHeader("X-User-Role") String role,
+            @RequestParam(required = false) String warehouseCode) {
         try {
-            LocalDate start = null;
+                LocalDate start = null;
             LocalDate end = null;
             if (startDate != null && !startDate.isBlank()) {
                 try {
@@ -224,7 +225,7 @@ public class OrderController {
                 }
             }
             Page<OrderResponse> orders = orderService.getOrdersAdvanced(page, size, status,keyword,
-                    start, end, Objects.equals(role, "ADMIN") || Objects.equals(role, "MANAGER"));
+                    start, end, Objects.equals(role, "ADMIN") || Objects.equals(role, "MANAGER"),warehouseCode);
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu đơn hàng thành công!", true, orders));
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(new ApiResponse<>(ex.getReason(), false, null));
@@ -366,19 +367,24 @@ public class OrderController {
 
     @GetMapping("/secure/dashboard")
     public ResponseEntity<OrderDashboardResponse> getDashboard(
-            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end
     ) {
-        from = from.with(LocalTime.MIN);
-        to = to.with(LocalTime.MAX);
+        if (start == null || end == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start and end dates are required");
+        }
 
-        ZoneOffset offset = ZoneId.systemDefault().getRules().getOffset(from);
-        OffsetDateTime fromOffset = from.atOffset(offset);
-        OffsetDateTime toOffset = to.atOffset(offset);
+        LocalDateTime startDateTime = start.atStartOfDay();
+        LocalDateTime endDateTime   = end.atTime(LocalTime.MAX);
+
+        ZoneOffset offset = ZoneId.systemDefault().getRules().getOffset(startDateTime);
+        OffsetDateTime fromOffset = startDateTime.atOffset(offset);
+        OffsetDateTime toOffset   = endDateTime.atOffset(offset);
 
         OrderDashboardResponse response = dashboardService.getDashboard(fromOffset, toOffset);
         return ResponseEntity.ok(response);
     }
+
     /**
      * Get client IP address
      */

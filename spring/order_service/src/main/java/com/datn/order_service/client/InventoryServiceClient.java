@@ -8,12 +8,13 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @FeignClient(name = "inventory-service")
 public interface InventoryServiceClient {
 
     @PostMapping("/internal/transactions/reserve")
-    ApiResponse<Void> reserveStock(@RequestBody ReserveStockRequest request);
+    ApiResponse<Map<String,Integer>> reserveStock(@RequestBody ReserveStockRequest request);
 
     @PostMapping("/internal/transactions/reserve/{orderNumber}")
     ApiResponse<Void> releaseStock(@PathVariable String orderNumber,@RequestBody ReleaseStockRequest request);
@@ -23,4 +24,5 @@ public interface InventoryServiceClient {
 
     @GetMapping("/internal/orders/{orderNumber}/warehouse-ids")
     List<Long> getItemsWarehouseId(@PathVariable String orderNumber);
+
 }

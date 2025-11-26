@@ -7,12 +7,11 @@ import com.doan.product_service.dtos.product.ProductDetailsResponse;
 import com.doan.product_service.dtos.product.ProductRequest;
 import com.doan.product_service.dtos.product.ProductResponse;
 import com.doan.product_service.dtos.product_variant.VariantResponse;
-import com.doan.product_service.models.Product;
 import com.doan.product_service.services.ProductDashboardService;
 import com.doan.product_service.services.ProductService;
+import com.doan.product_service.services.cloud.CloudinaryService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -35,13 +34,15 @@ import java.util.Map;
 public class ProductController {
     private final ProductService productService;
     private final ProductDashboardService dashboardService;
+    private final CloudinaryService cloudinaryService;
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PostMapping("/secure/products")
     public ResponseEntity<?> createProduct(@RequestPart("product") @Valid ProductRequest productRequest,
                                            @RequestPart(value = "image", required = false) MultipartFile image) {
         try {
-            ProductResponse response= productService.createProduct(productRequest, image);
+            List<String> newImageUrls = productRequest.getNewDescriptionImageUrls();
+            ProductResponse response = productService.createProduct(productRequest, image,newImageUrls);
             return ResponseEntity.ok(new ApiResponse<>("Tạo sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -62,10 +63,10 @@ public class ProductController {
     }
 
     @GetMapping("/public/recommendations")
-    public ResponseEntity<?> getRecommendations(@RequestParam(required = false) String customerId){
+    public ResponseEntity<?> getRecommendations(@RequestParam(required = false) String customerId) {
         try {
-            Map<String, List<ProductResponse>> response=productService.
-                    getRecommendations(customerId==null||customerId.equals("undefined")||customerId.isBlank()?null:Long.valueOf(customerId));
+            Map<String, List<ProductResponse>> response = productService.
+                    getRecommendations(customerId == null || customerId.equals("undefined") || customerId.isBlank() ? null : Long.valueOf(customerId));
             return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -130,21 +131,23 @@ public class ProductController {
     @GetMapping("/public/products/{slug}")
     public ResponseEntity<?> getActiveProductDetails(@PathVariable String slug) {
         try {
-            ProductDetailsResponse response = productService.getActiveProductDetails(slug,false);
+            ProductDetailsResponse response = productService.getActiveProductDetails(slug, false);
             return ResponseEntity.ok(new ApiResponse<>("Lấy sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
+
     @GetMapping("/secure/products/{slug}")
     public ResponseEntity<?> getProductDetails(@PathVariable String slug) {
         try {
-            ProductDetailsResponse response = productService.getActiveProductDetails(slug,true);
+            ProductDetailsResponse response = productService.getActiveProductDetails(slug, true);
             return ResponseEntity.ok(new ApiResponse<>("Lấy sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
     }
+
     @GetMapping("/public/products-random/category/{categorySlug}")
     public ResponseEntity<?> getRandomActiveProductByCategory(@PathVariable String categorySlug) {
         try {
@@ -157,10 +160,13 @@ public class ProductController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
     @PutMapping("/secure/products/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestPart("product") @Valid ProductRequest productRequest,
+    public ResponseEntity<?> updateProduct(@PathVariable Long id,
+                                           @RequestPart("product") @Valid ProductRequest productRequest,
                                            @RequestPart(value = "image", required = false) MultipartFile image) {
         try {
-            ProductResponse response= productService.updateProduct(id, productRequest, image);
+            List<String> newImageUrls = productRequest.getNewDescriptionImageUrls();
+            List<String> deletedImageUrls = productRequest.getDeletedDescriptionImageUrls();
+            ProductResponse response = productService.updateProduct(id, productRequest, image, newImageUrls, deletedImageUrls);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật sản phẩm thành công!", true, response));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -202,7 +208,7 @@ public class ProductController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/recommendations")
-    public ResponseEntity<?> rebuildRecommendations(){
+    public ResponseEntity<?> rebuildRecommendations() {
         try {
             productService.rebuildRecommendations();
             return ResponseEntity.ok(new ApiResponse<>("Rebuild thành công!", true, null));
@@ -212,10 +218,20 @@ public class ProductController {
     }
 
     @PostMapping("/secure/rebuildAll")
-    public void rebuildAll(){
+    public void rebuildAll() {
         productService.rebuildAll();
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PostMapping("/secure/images")
+    public ResponseEntity<?> uploadPendingImage(@RequestPart MultipartFile image, @RequestHeader("X-Owner-Id") Long staffId) {
+        try {
+            String url = productService.uploadPendingImage(image, staffId);
+            return ResponseEntity.ok(new ApiResponse<>("Upload ảnh thành công!", true, url));
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi upload ảnh");
+        }
+    }
 
     @GetMapping("/internal/dashboard")
     public ResponseEntity<Object> getDashboard(
