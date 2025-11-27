@@ -2,12 +2,11 @@ import { useContext, useEffect, useState } from "react";
 import AddShipperForm from "./AddShipperForm";
 import { PopupContext } from "../../../contexts/PopupContext";
 import { deleteAccount, getAllAccounts } from "../../../apis/authApi";
-import { FiLock, FiRefreshCcw, FiTrash2, FiUnlock } from "react-icons/fi";
-import { changeShipperActive, changeShipperWarehouse, getAllShippers } from "../../../apis/deliveryApi";
+import { FiEye, FiLock, FiRefreshCcw, FiTrash2, FiUnlock, FiX } from "react-icons/fi";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { getAllWarehouses } from "../../../apis/inventoryApi";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-
+import { changeShipperWarehouse, getAllShippers, getShipperDeliveries } from "../../../apis/deliveryApi";
 export default function ShipperManager() {
     const [showAccountForm, setShowAccountForm] = useState(false)
     const { showPopup } = useContext(PopupContext)
@@ -21,19 +20,31 @@ export default function ShipperManager() {
     const [warehouseSort, setWarehouseSort] = useState(null)
     const [isLoading, setIsLoading] = useState(false)
     const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null })
-
+    const [showDeliveriesPanel, setShowDeliveriesPanel] = useState({ visible: false, shipperId: null })
+    const [deliveriesPage, setDeliveriesPage] = useState(0)
+    const [totalDeliveriesPages, setTotalDeliveriesPages] = useState(0)
+    const [deliveries, setDeliveries] = useState([])
+    const [deliveriesLoading, setDeliveriesLoading] = useState(false)
+    const [deliveriesKeyword, setDeliveriesKeyword] = useState("")
+    const [deliveriesStatusFilter, setDeliveriesStatusFilter] = useState("")
     useEffect(() => {
         handleLoadWarehouses();
     }, [])
     useEffect(() => {
         handleLoadShippers(0);
-    }, [statusSort, warehouseSort,activeSort])
-
+    }, [statusSort, warehouseSort, activeSort])
+    
+    useEffect(() => {
+        if (showDeliveriesPanel.shipperId === null) {
+            return;
+        }
+        handleGetShipperDeliveries(0);
+    }, [showDeliveriesPanel.shipperId,deliveriesStatusFilter])
     async function handleLoadShippers(currentPage = 0) {
         try {
             setIsLoading(true)
             setPage(currentPage)
-            const res = await getAllShippers(currentPage, 10, keyword, statusSort, warehouseSort,activeSort)
+            const res = await getAllShippers(currentPage, 10, keyword, statusSort, warehouseSort, activeSort)
             if (res.error)
                 return showPopup(res.error)
             setShippers(res.data.content || [])
@@ -44,14 +55,12 @@ export default function ShipperManager() {
             setIsLoading(false)
         }
     }
-
     async function handleLoadWarehouses() {
         const res = await getAllWarehouses();
         if (res.error) return showPopup(res.error);
         const data = res.data;
         setWarehouses(data);
     }
-
     async function handleChangeShipperWarehouse(id, warehouseId) {
         const selectedWarehouse = warehouses.find(w => w.id === Number(warehouseId));
         setConfirmPanel({
@@ -76,26 +85,68 @@ export default function ShipperManager() {
             }
         });
     };
-
-
+    const handleShowShipperDeliveries = (id) => {
+        setShowDeliveriesPanel({ visible: true, shipperId: id })
+        setDeliveriesKeyword("")
+        setDeliveriesStatusFilter("")
+        setDeliveriesPage(0)
+    }
+    const handleCloseDeliveriesPanel = () => {
+        setShowDeliveriesPanel({ visible: false, shipperId: null })
+        setDeliveriesKeyword("")
+        setDeliveriesStatusFilter("")
+        setDeliveriesPage(0)
+        setDeliveries([])
+    }
+    const handleGetShipperDeliveries = async (currentPage = 0) => {
+        try {
+            setDeliveriesLoading(true)
+            setDeliveriesPage(currentPage)
+            const res = await getShipperDeliveries(currentPage, 10, deliveriesKeyword, deliveriesStatusFilter, showDeliveriesPanel.shipperId)
+            if (res.error)
+                return showPopup(res.error)
+            setDeliveries(res.data.content || [])
+            setDeliveriesPage(currentPage)
+            setTotalDeliveriesPages(res.data.totalPages || 0)
+        }
+        finally {
+            setDeliveriesLoading(false)
+        }
+    }
     const getPageNumbers = () => {
         const pages = [];
         const maxVisible = 4;
-
         if (totalPages <= maxVisible + 2) {
             for (let i = 0; i < totalPages; i++) {
                 pages.push(i);
             }
         } else {
-            if (currentPage <= 2) {
+            if (page <= 2) {
                 pages.push(0, 1, 2, 3, "...", totalPages - 1);
-            } else if (currentPage >= totalPages - 3) {
+            } else if (page >= totalPages - 3) {
                 pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
             } else {
-                pages.push(0, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages - 1);
+                pages.push(0, "...", page - 1, page, page + 1, "...", totalPages - 1);
             }
         }
-
+        return pages;
+    };
+    const getDeliveriesPageNumbers = () => {
+        const pages = [];
+        const maxVisible = 4;
+        if (totalDeliveriesPages <= maxVisible + 2) {
+            for (let i = 0; i < totalDeliveriesPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (deliveriesPage <= 2) {
+                pages.push(0, 1, 2, 3, "...", totalDeliveriesPages - 1);
+            } else if (deliveriesPage >= totalDeliveriesPages - 3) {
+                pages.push(0, "...", totalDeliveriesPages - 4, totalDeliveriesPages - 3, totalDeliveriesPages - 2, totalDeliveriesPages - 1);
+            } else {
+                pages.push(0, "...", deliveriesPage - 1, deliveriesPage, deliveriesPage + 1, "...", totalDeliveriesPages - 1);
+            }
+        }
         return pages;
     };
     const shipperStatusVN = {
@@ -108,7 +159,22 @@ export default function ShipperManager() {
         ONLINE: "px-3 py-1 rounded-full text-sm font-semibold bg-green-500 text-white transition hover:bg-green-400",
         SHIPPING: "px-3 py-1 rounded-full text-sm font-semibold bg-blue-500 text-white transition hover:bg-blue-400",
     };
-
+    const deliveryStatusVN = {
+        PENDING: "Chờ xử lý",
+        ASSIGNED: "Đã phân công",
+        SHIPPING: "Đang giao",
+        DELIVERED: "Đã giao thành công",
+        FAILED: "Thất bại",
+        CANCELLED: "Đã hủy"
+    }
+    const deliveryStatusStyle = {
+        PENDING: "px-3 py-1 rounded-full text-sm font-semibold bg-gray-200 text-gray-700 transition hover:bg-gray-300",
+        ASSIGNED: "px-3 py-1 rounded-full text-sm font-semibold bg-yellow-500 text-white transition hover:bg-yellow-400",
+        SHIPPING: "px-3 py-1 rounded-full text-sm font-semibold bg-blue-500 text-white transition hover:bg-blue-400",
+        DELIVERED: "px-3 py-1 rounded-full text-sm font-semibold bg-green-500 text-white transition hover:bg-green-400",
+        FAILED: "px-3 py-1 rounded-full text-sm font-semibold bg-red-500 text-white transition hover:bg-red-400",
+        CANCELLED: "px-3 py-1 rounded-full text-sm font-semibold bg-gray-500 text-white transition hover:bg-gray-400",
+    };
     return (<div className="p-6 bg-white rounded shadow">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h2 className="text-2xl font-semibold text-gray-800">Quản lý shipper</h2>
@@ -156,7 +222,6 @@ export default function ShipperManager() {
                         </option>
                     )}
                 </select>
-
                 <select
                     value={activeSort}
                     onChange={e => setActiveSort(e.target.value === "" ? "" : e.target.value === "true")}
@@ -170,8 +235,6 @@ export default function ShipperManager() {
                     <FiRefreshCcw className="h-5 w-5 mr-2" /> Làm mới
                 </button>
             </div>
-
-
         </div>
         {/* Table */}
         <div className="mt-8 bg-white rounded-xl shadow overflow-x-auto">
@@ -238,14 +301,20 @@ export default function ShipperManager() {
                                     {warehouses && warehouses.map(w =>
                                         <option key={w.id} value={w.id}>{w.code}</option>
                                     )}
-
                                 </select>
                             </td>
                             <td className="p-3 border-b border-gray-200 text-center">
                                 <div className="flex justify-center gap-2 flex-wrap">
                                     <button
                                         className={`p-2 rounded text-sm font-semibold cursor-pointer transition
-                                                ${shipper.isActive ? "text-green-500 hover:bg-green-100"
+                                            text-blue-500 hover:bg-blue-100`}
+                                        onClick={() => handleShowShipperDeliveries(shipper.id)}
+                                    >
+                                        <FiEye />
+                                    </button>
+                                    <button
+                                        className={`p-2 rounded text-sm font-semibold cursor-pointer transition
+                                            ${shipper.isActive ? "text-green-500 hover:bg-green-100"
                                                 : "text-gray-500  hover:bg-gray-300"
                                             }`}
                                         title={shipper.isActive ? "Khóa" : "Mở khóa"}
@@ -257,34 +326,29 @@ export default function ShipperManager() {
                                         {!shipper.isActive ? <FiLock /> : <FiUnlock />}
                                         <span className="sr-only">{shipper.isActive ? "Khóa" : "Mở khóa"}</span>
                                     </button>
-
                                 </div>
                             </td>
                         </tr>
-                    )))
-                    )}
-
+                    ))))}
                 </tbody>
             </table>
         </div>
-
         {totalPages > 0 && (
             <div className="flex justify-center items-center gap-3 mt-10 pb-5">
                 <button
-                    onClick={() => setPage(prev => Math.max(prev - 1, 0))}
+                    onClick={() => handleLoadShippers(Math.max(page - 1, 0))}
                     disabled={page === 0}
                     className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
                 >
                     <FaChevronLeft />
                 </button>
-
                 {getPageNumbers().map((num, i) =>
                     num === "..." ? (
                         <span key={`ellipsis-${i}`} className="px-2 text-gray-500">...</span>
                     ) : (
                         <button
                             key={`page-${num}`}
-                            onClick={() => setPage(num)}
+                            onClick={() => handleLoadShippers(num)}
                             className={`w-8 h-8 flex items-center justify-center rounded border transition-all ${page === num
                                 ? "bg-black text-white border-black"
                                 : "bg-white hover:bg-gray-100"
@@ -294,9 +358,8 @@ export default function ShipperManager() {
                         </button>
                     )
                 )}
-
                 <button
-                    onClick={() => setPage(prev => Math.min(prev + 1, totalPages - 1))}
+                    onClick={() => handleLoadShippers(Math.min(page + 1, totalPages - 1))}
                     disabled={page >= totalPages - 1}
                     className={`p-3 rounded ${page >= totalPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
                 >
@@ -317,5 +380,164 @@ export default function ShipperManager() {
             onConfirm={confirmPanel.onConfirm}
             onCancel={handleOnCloseConfirmPanel}
         ></ConfirmPanel>
+        {showDeliveriesPanel.visible && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 pb-10">
+                <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-semibold text-gray-800">Lịch sử giao hàng của SP{showDeliveriesPanel.shipperId}</h3>
+                            <button
+                                onClick={handleCloseDeliveriesPanel}
+                                className="text-gray-500 hover:text-gray-700 transition"
+                            >
+                                <FiX className="h-6 w-6" />
+                            </button>
+                        </div>
+                        <div className="flex justify-between mb-6">
+                            <div className="flex gap-1">
+                                <input
+                                    type="text"
+                                    placeholder="Từ khóa..."
+                                    value={deliveriesKeyword}
+                                    onChange={e => setDeliveriesKeyword(e.target.value)}
+                                    className="p-2 flex-1 border border-gray-700 rounded focus:outline-none focus:ring-1 focus:ring-gray-700"
+                                />
+                                <button
+                                    onClick={() => {
+                                        handleGetShipperDeliveries(0);
+                                    }}
+                                    className="px-5 py-2 text-white bg-black rounded hover:bg-gray-800 hover:cursor-pointer"
+                                >
+                                    Tìm
+                                </button>
+                            </div>
+                            <div className="flex gap-2">
+                                <select
+                                    value={deliveriesStatusFilter}
+                                    onChange={e => {
+                                        setDeliveriesStatusFilter(e.target.value);
+                                    }}
+                                    className="p-2 border border-gray-700 rounded hover:cursor-pointer"
+                                >
+                                    <option value="">Tất cả trạng thái</option>
+                                    <option value="PENDING">Chờ xử lý</option>
+                                    <option value="ASSIGNED">Đã phân công</option>
+                                    <option value="SHIPPING">Đang giao</option>
+                                    <option value="DELIVERED">Đã giao thành công</option>
+                                    <option value="FAILED">Thất bại</option>
+                                    <option value="CANCELLED">Đã hủy</option>
+                                </select>
+                                <button
+                                    onClick={() => handleGetShipperDeliveries(0)}
+                                    className="flex items-center px-4 py-2 border border-gray-700 rounded hover:bg-gray-200 hover:cursor-pointer"
+                                >
+                                    <FiRefreshCcw className="h-5 w-5 mr-2" /> Làm mới
+                                </button>
+                            </div>
+                        </div>
+                        {/* Deliveries Table */}
+                        <div className="bg-white rounded-xl shadow overflow-x-auto">
+                            <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
+                                <thead className="bg-gray-200 text-gray-700">
+                                    <tr>
+                                        {["Mã đơn hàng", "Trạng thái", "Khách hàng", "Số điện thoại", "Ngày tạo","Ngày giao"].map(head => (
+                                            <th key={head} className="p-3 border-b border-gray-200 text-center">{head}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white">
+                                    {deliveriesLoading ? (
+                                        <tr>
+                                            <td colSpan={5} className="p-4 text-gray-500 text-center align-middle">
+                                                <div className="inline-flex gap-2 items-center justify-center">
+                                                    <svg
+                                                        className="animate-spin h-5 w-5 text-black"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <circle
+                                                            className="opacity-25"
+                                                            cx="12"
+                                                            cy="12"
+                                                            r="10"
+                                                            stroke="currentColor"
+                                                            strokeWidth="4"
+                                                        ></circle>
+                                                        <path
+                                                            className="opacity-75"
+                                                            fill="currentColor"
+                                                            d="M4 12a8 8 0 018-8V8a4 4 0 00-4 4H4z"
+                                                        ></path>
+                                                    </svg>
+                                                    Đang tải dữ liệu giao hàng...
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (deliveries.length === 0 ? (
+                                        <tr className="hover:bg-gray-50 transition">
+                                            <td colSpan={6} className="text-center p-3">
+                                                Không có kết quả giao hàng
+                                            </td>
+                                        </tr>
+                                    ) : (deliveries.map(delivery => (
+                                        <tr key={delivery.id} className="hover:bg-gray-50 transition">
+                                            <td className="p-3 border-b border-gray-200 text-center">{delivery.deliveryNumber || "-"}</td>
+                                            <td className="p-3 border-b border-gray-200 text-center">
+                                                <span className={deliveryStatusStyle[delivery.status]}>
+                                                    {deliveryStatusVN[delivery.status]}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 border-b border-gray-200 text-center">{delivery.shippingName || "-"}</td>
+                                            <td className="p-3 border-b border-gray-200 text-center">{delivery.shippingPhone || "-"}</td>
+                                            <td className="p-3 border-b border-gray-200 text-center">
+                                                {delivery.createdAt ? new Date(delivery.createdAt).toLocaleDateString('vi-VN') : "-"}
+                                            </td>
+                                            <td className="p-3 border-b border-gray-200 text-center">
+                                                {delivery.deliveredAt ? new Date(delivery.deliveredAt).toLocaleDateString('vi-VN') : "-"}
+                                            </td>
+                                        </tr>
+                                    ))))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {totalDeliveriesPages > 0 && (
+                            <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+                                <button
+                                    onClick={() => handleGetShipperDeliveries(Math.max(deliveriesPage - 1, 0))}
+                                    disabled={deliveriesPage === 0}
+                                    className={`p-3 rounded ${deliveriesPage === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                                >
+                                    <FaChevronLeft />
+                                </button>
+                                {getDeliveriesPageNumbers().map((num, i) =>
+                                    num === "..." ? (
+                                        <span key={`ellipsis-${i}`} className="px-2 text-gray-500">...</span>
+                                    ) : (
+                                        <button
+                                            key={`page-${num}`}
+                                            onClick={() => handleGetShipperDeliveries(num)}
+                                            className={`w-8 h-8 flex items-center justify-center rounded border transition-all ${deliveriesPage === num
+                                                ? "bg-black text-white border-black"
+                                                : "bg-white hover:bg-gray-100"
+                                                }`}
+                                        >
+                                            {num + 1}
+                                        </button>
+                                    )
+                                )}
+                                <button
+                                    onClick={() => handleGetShipperDeliveries(Math.min(deliveriesPage + 1, totalDeliveriesPages - 1))}
+                                    disabled={deliveriesPage >= totalDeliveriesPages - 1}
+                                    className={`p-3 rounded ${deliveriesPage >= totalDeliveriesPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                                >
+                                    <FaChevronRight />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
     </div>)
 }

@@ -179,6 +179,11 @@ public class StaffController {
             return errorResponse(ex);
         }
     }
+    @GetMapping("/internal/staffs/{id}/email")
+    public String getStaffEmail(@PathVariable Long id){
+        return staffService.getStaffById(id).getEmail();
+    }
+
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();
         error.put("message", ex.getReason());

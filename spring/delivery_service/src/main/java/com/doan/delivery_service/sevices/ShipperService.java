@@ -1,13 +1,13 @@
 package com.doan.delivery_service.sevices;
 
-import com.doan.delivery_service.dtos.inventory.OrderItemTransactionRequest;
-import com.doan.delivery_service.dtos.inventory.OrderTransactionRequest;
-import com.doan.delivery_service.dtos.order.UpdateOrderStatusRequest;
+import com.doan.delivery_service.dtos.delivery.DeliveryOrderItemResponse;
+import com.doan.delivery_service.dtos.delivery.DeliveryOrderResponse;
 import com.doan.delivery_service.dtos.shipper.ShipperDetailsResponse;
 import com.doan.delivery_service.dtos.shipper.ShipperRequest;
 import com.doan.delivery_service.dtos.shipper.ShipperResponse;
 import com.doan.delivery_service.enums.DeliveryStatus;
 import com.doan.delivery_service.models.DeliveryOrder;
+import com.doan.delivery_service.models.DeliveryOrderItem;
 import com.doan.delivery_service.models.Shipper;
 import com.doan.delivery_service.repositories.DeliveryOrderRepository;
 import com.doan.delivery_service.repositories.ShipperRepository;
@@ -223,5 +223,82 @@ public class ShipperService {
 
     public List<DeliveryOrder> getShipperDeliveries(Long shipperId) {
         return deliveryOrderRepository.findByAssignedShipper_IdAndStatusIn(shipperId, ACTIVE_STATUSES);
+    }
+
+    public Page<DeliveryOrderResponse> getShipperDeliveriesResponse(
+            Long shipperId, Integer page, Integer size, String keyword, String status) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        String kw = (keyword == null || keyword.isBlank()) ? "" : keyword.trim();
+
+        Page<DeliveryOrder> result;
+
+        boolean hasStatus = status != null && !status.isBlank();
+
+        if (hasStatus) {
+            DeliveryStatus st = DeliveryStatus.valueOf(status.toUpperCase());
+
+            result = deliveryOrderRepository
+                    .findByAssignedShipper_IdAndStatusAndDeliveryNumberContainingIgnoreCase(
+                            shipperId, st, kw, pageable);
+
+        } else {
+            result = deliveryOrderRepository
+                    .findByAssignedShipper_IdAndDeliveryNumberContainingIgnoreCase(
+                            shipperId, kw, pageable);
+        }
+
+        return result.map(this::mapToResponse);
+    }
+
+
+
+    public Shipper getShipperById(Long id) {
+        return shipperRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy shipper!"));
+    }
+    private DeliveryOrderResponse mapToResponse(DeliveryOrder order) {
+        if (order == null) return null;
+
+        return DeliveryOrderResponse.builder()
+                .id(order.getId())
+                .deliveryNumber(order.getDeliveryNumber())
+                .orderId(order.getOrderId())
+                .orderNumber(order.getOrderNumber())
+                .shippingName(order.getShippingName())
+                .shippingAddress(order.getShippingAddress())
+                .shippingPhone(order.getShippingPhone())
+                .paymentMethod(order.getPaymentMethod())
+                .warehouseId(order.getWarehouseId())
+                .status(order.getStatus())
+                .assignedShipperId(order.getAssignedShipper() != null ? order.getAssignedShipper().getId() : null)
+                .assignedAt(order.getAssignedAt())
+                .deliveredAt(order.getDeliveredAt())
+                .imageUrl(order.getDeliveredImageUrl())
+                .failedReason(order.getFailedReason())
+                .codAmount(order.getCodAmount())
+                .itemList(order.getItemList() != null
+                        ? order.getItemList().stream()
+                        .map(this::mapToItemResponse)
+                        .toList()
+                        : null)
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .build();
+    }
+
+    private DeliveryOrderItemResponse mapToItemResponse(DeliveryOrderItem item) {
+        if (item == null) return null;
+
+        return DeliveryOrderItemResponse.builder()
+                .id(item.getId())
+                .orderItemId(item.getOrderItemId())
+                .variantId(item.getVariantId())
+                .variantName(item.getVariantName())
+                .unitPrice(item.getUnitPrice())
+                .quantity(item.getQuantity())
+                .imageUrl(item.getImageUrl())
+                .build();
     }
 }

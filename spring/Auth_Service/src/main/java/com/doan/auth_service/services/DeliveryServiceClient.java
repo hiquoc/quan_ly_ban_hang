@@ -74,6 +74,13 @@ public class DeliveryServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public String getShipperEmail(Long shipperId) {
+        try {
+            return deliveryRepository.getShipperEmail(shipperId);
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
     private ResponseStatusException parseFeignException(FeignException ex) {
         HttpStatus status = HttpStatus.resolve(ex.status());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;

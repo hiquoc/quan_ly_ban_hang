@@ -1,8 +1,12 @@
 package com.doan.auth_service.controllers;
 
+import com.doan.auth_service.dtos.ApiResponse;
+import com.doan.auth_service.dtos.VerificationCode.ForgetPasswordRequest;
+import com.doan.auth_service.dtos.VerificationCode.ForgotPasswordUsernameRequest;
 import com.doan.auth_service.dtos.VerificationCode.VerificationRequest;
 import com.doan.auth_service.dtos.VerificationCode.VerificationResponse;
 import com.doan.auth_service.services.VerificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -54,6 +58,25 @@ public class VerificationController {
             return ResponseEntity.ok(new VerificationResponse("Xác thực thành công."));
         } else {
             return ResponseEntity.status(400).body(Map.of("message", "Mã không hợp lệ hoặc đã hết hạn."));
+        }
+    }
+
+    @PostMapping("/public/forget/send")
+    public ResponseEntity<?> sendForgetCode(@RequestBody ForgotPasswordUsernameRequest request) {
+        try {
+            return ResponseEntity.ok(new ApiResponse<>("Mã xác thực đã được gửi đến email.",
+                    true,verificationService.sendForgotPasswordCode(request.getUsername())));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(429).body(Map.of("error", e.getMessage())); // 429 Too Many Requests
+        }
+    }
+    @PostMapping("/public/forget/check")
+    public ResponseEntity<?> changePasswordByForgotCode(@Valid @RequestBody ForgetPasswordRequest request) {
+        try {
+            verificationService.changePasswordByForgotCode(request.getUsername(),request.getCode(),request.getNewPassword());
+            return ResponseEntity.ok(new ApiResponse<>("Đổi mật khẩu thành công vui lòng đăng nhập",true,null));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(429).body(Map.of("error", e.getMessage())); // 429 Too Many Requests
         }
     }
 }

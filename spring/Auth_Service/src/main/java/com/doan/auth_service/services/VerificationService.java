@@ -8,6 +8,7 @@ import com.doan.auth_service.repositories.VerificationCodeRepository;
 import com.doan.auth_service.utils.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,16 +29,17 @@ public class VerificationService {
     private final StaffServiceClient staffServiceClient;
     private final DeliveryServiceClient deliveryServiceClient;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public void sendVerificationCode(String email, String role) {
         try {
             Long ownerId;
             if (role != null) {
-                if(role.equals("STAFF") || role.equals("ADMIN") || role.equals("MANAGER"))
+                if (role.equals("STAFF") || role.equals("ADMIN") || role.equals("MANAGER"))
                     ownerId = staffServiceClient.getStaffIdByEmail(email).getOwnerId();
                 else
-                    ownerId= deliveryServiceClient.getShipperIdByEmail(email).getOwnerId();
+                    ownerId = deliveryServiceClient.getShipperIdByEmail(email).getOwnerId();
             } else {
                 ownerId = customerServiceClient.getCustomerIdByEmail(email).getOwnerId();
             }
@@ -50,7 +52,7 @@ public class VerificationService {
 
         int count = repository.countByEmailAndExpiryTimeAfter(email, LocalDateTime.now());
         if (count >= 5) {
-            throw new IllegalStateException("Bạn đã gửi mã quá 5 lần. Vui lòng thử lại sau.");
+            throw new IllegalStateException("Bạn đã yêu cầu gửi mã quá 5 lần. Vui lòng thử lại sau.");
         }
 
         String code = String.format("%06d", new Random().nextInt(999999));
@@ -125,4 +127,116 @@ public class VerificationService {
         }
         return true;
     }
+
+    @Transactional
+    public String sendForgotPasswordCode(String username) {
+        Account account = accountRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        if (!account.getIsVerified()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Tài khoản chưa xác thực email!\nVui lòng tạo lại tài khoản!");
+        }
+
+        String email = null;
+        try {
+            Long ownerId = account.getOwnerId();
+            String role = account.getRole().getName();
+            switch (role) {
+                case "CUSTOMER" -> email = customerServiceClient.getCustomerEmail(ownerId);
+                case "SHIPPER" -> email = deliveryServiceClient.getShipperEmail(ownerId);
+                case "STAFF", "ADMIN", "MANAGER" -> email = staffServiceClient.getStaffEmail(ownerId);
+            }
+            if (email == null) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Có lỗi khi lấy email tài khoản!");
+            }
+        } catch (ResponseStatusException ex) {
+            if (ex.getStatusCode().value() != 404) throw ex;
+        }
+
+        int count = repository.countByEmailAndExpiryTimeAfter(email, LocalDateTime.now());
+        if (count >= 5) {
+            throw new IllegalStateException("Bạn đã yêu cầu gửi mã quá 5 lần. Vui lòng thử lại sau.");
+        }
+
+        String code = String.format("%06d", new Random().nextInt(1_000_000));
+        LocalDateTime expiry = LocalDateTime.now().plusMinutes(10);
+
+        VerificationCode verificationCode = new VerificationCode();
+        verificationCode.setEmail(email);
+        verificationCode.setCode(code);
+        verificationCode.setExpiryTime(expiry);
+        repository.save(verificationCode);
+
+        String subject = "Mã đặt lại mật khẩu của bạn";
+        String content = """
+                <html>
+                  <body style="font-family: Arial, sans-serif; color: #333;">
+                    <div style="max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9;">
+                      <h2 style="color: #2D3748;">Đặt lại mật khẩu</h2>
+                      <p>Chào bạn,</p>
+                      <p>Bạn hoặc ai đó vừa yêu cầu mã đặt lại mật khẩu cho tài khoản của mình.</p>
+                      <p>Vui lòng sử dụng mã sau để đặt lại mật khẩu:</p>
+                      <div style="text-align: center; margin: 20px 0;">
+                        <span style="font-size: 24px; font-weight: bold; color: #E53E3E; padding: 10px 20px; border: 2px dashed #E53E3E; border-radius: 8px;">%s</span>
+                      </div>
+                      <p>Mã này sẽ hết hạn sau 10 phút.</p>
+                      <p>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.</p>
+                      <p style="margin-top: 20px;">Trân trọng,<br/>Đội ngũ Hỗ trợ</p>
+                    </div>
+                  </body>
+                </html>
+                """.formatted(code);
+
+        emailService.sendEmail(email, subject, content, true);
+        assert email != null;
+        return email.replaceAll("(?<=.{2}).(?=[^@]*?@)", "*");
+    }
+
+    @Transactional
+    public void changePasswordByForgotCode(String username,String code,  String newPassword) {
+        Account account = accountRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        String email=null;
+        try {
+            Long ownerId = account.getOwnerId();
+            String role = account.getRole().getName();
+
+            switch (role) {
+                case "CUSTOMER" -> email = customerServiceClient.getCustomerEmail(ownerId);
+                case "SHIPPER" -> email = deliveryServiceClient.getShipperEmail(ownerId);
+                case "STAFF", "ADMIN", "MANAGER" -> email = staffServiceClient.getStaffEmail(ownerId);
+            }
+
+            if (email == null) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Có lỗi khi lấy email tài khoản!");
+            }
+
+        } catch (ResponseStatusException ex) {
+            if (ex.getStatusCode().value() != 404) throw ex;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy email tài khoản!");
+        }
+
+        VerificationCode vc = repository.findByEmailAndCode(email, code)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã xác thực không chính xác hoặc đã hết hạng!"));
+
+        if (vc.getExpiryTime().isBefore(LocalDateTime.now())) {
+            repository.delete(vc);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã xác thực đã hết hạn!");
+        }
+
+        repository.delete(vc);
+
+        if (passwordEncoder.matches(newPassword, account.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới không được trùng với mật khẩu hiện tại");
+        }
+
+        account.setPassword(passwordEncoder.encode(newPassword));
+        accountRepository.save(account);
+
+    }
+
 }

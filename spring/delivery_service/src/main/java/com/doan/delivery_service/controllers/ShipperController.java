@@ -2,6 +2,7 @@ package com.doan.delivery_service.controllers;
 
 import com.doan.delivery_service.dtos.ApiResponse;
 import com.doan.delivery_service.dtos.OwnerIdResponse;
+import com.doan.delivery_service.dtos.delivery.DeliveryOrderResponse;
 import com.doan.delivery_service.dtos.shipper.ShipperDetailsResponse;
 import com.doan.delivery_service.dtos.shipper.ShipperRequest;
 import com.doan.delivery_service.dtos.shipper.ShipperResponse;
@@ -62,10 +63,33 @@ public class ShipperController {
 
     @GetMapping("/secure/shippers/orders")
     public ResponseEntity<?> getShipperOrders(
-            @RequestHeader("X-Owner-Id") Long shipperId) {
+            @RequestHeader("X-Owner-Id") Long actualShipperId,
+            @RequestHeader("X-User-Role") String role,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long shipperId) {
+        boolean isShipper = role.equals("SHIPPER");
+        boolean isAdmin = role.equals("ADMIN");
+        boolean isManager = role.equals("MANAGER");
+
+        if (isShipper) {
+            if (shipperId != null && !Objects.equals(actualShipperId, shipperId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền truy vấn dữ liệu này!");
+            }
+        }
+        if (!isShipper) {
+            if (shipperId == null && (isAdmin || isManager)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng cung cấp shipperId!");
+            }
+        }
+        if (!isShipper && !isAdmin && !isManager) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền truy vấn dữ liệu này!");
+        }
+        Page<DeliveryOrderResponse> responses=shipperService.getShipperDeliveriesResponse(shipperId==null?actualShipperId:shipperId,page,size,keyword,status);
         return ResponseEntity.ok(
-                new ApiResponse<>("Lấy dữ liệu thành công!", true,
-                        shipperService.getShipperDeliveries(shipperId)));
+                new ApiResponse<>("Lấy dữ liệu thành công!", true,responses));
     }
 
 
@@ -137,7 +161,10 @@ public class ShipperController {
         List<ShipperResponse> list = shipperService.getShipperByIdLike(id);
         return ResponseEntity.ok(list);
     }
-
+    @GetMapping("/internal/shippers/{id}/email")
+    public String getShipperEmail(@PathVariable Long id){
+        return shipperService.getShipperById(id).getEmail();
+    }
     @DeleteMapping("/internal/shippers/{id}")
     public ResponseEntity<?> deleteCustomer(@PathVariable Long id) {
         shipperService.deleteShipper(id);

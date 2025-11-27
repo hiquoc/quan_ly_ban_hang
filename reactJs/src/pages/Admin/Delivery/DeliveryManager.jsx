@@ -4,6 +4,7 @@ import { useState, useEffect, useContext } from "react"
 import { assignDeliveriesToShipper, getAllDeliveries, getAllShippers, getAllShippersDetails, getShipperDetails } from "../../../apis/deliveryApi"
 import { FiUser, FiMapPin, FiPhone } from 'react-icons/fi';
 import { getAllWarehouses } from "../../../apis/inventoryApi";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 export default function DeliveryManager() {
     const { showPopup } = useContext(PopupContext)
@@ -127,6 +128,25 @@ export default function DeliveryManager() {
     const statusLabel = (status) => ({ PENDING: 'Chưa phân công', ASSIGNED: 'Đã phân công', SHIPPING: 'Đang giao', DELIVERED: 'Đã giao', FAILED: 'Giao thất bại', CANCELLED: 'Đã hủy' }[status] || status);
     const ALLOW_REASSIGN_STATUSES = ["PENDING", "ASSIGNED", "FAILED"];
 
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisible = 4;
+        if (totalPages <= maxVisible + 2) {
+            for (let i = 0; i < totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (page <= 2) {
+                pages.push(0, 1, 2, 3, "...", totalPages - 1);
+            } else if (page >= totalPages - 3) {
+                pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
+            } else {
+                pages.push(0, "...", page - 1, page, page + 1, "...", totalPages - 1);
+            }
+        }
+        return pages;
+    };
+
     const renderOrderCard = (order, type) => {
         const isAssigned = type === 'assigned';
         return (
@@ -236,6 +256,40 @@ export default function DeliveryManager() {
                     </tbody>
                 </table>
             </div>
+            {totalPages > 0 && (
+                <div className="flex justify-center items-center gap-3 mt-10 pb-5">
+                    <button
+                        onClick={() => handleLoadDeliveryOrders(Math.max(page - 1, 0))}
+                        disabled={page === 0}
+                        className={`p-3 rounded ${page === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronLeft />
+                    </button>
+                    {getPageNumbers().map((num, i) =>
+                        num === "..." ? (
+                            <span key={`ellipsis-${i}`} className="px-2 text-gray-500">...</span>
+                        ) : (
+                            <button
+                                key={`page-${num}`}
+                                onClick={() => handleLoadDeliveryOrders(num)}
+                                className={`w-8 h-8 flex items-center justify-center rounded border transition-all ${page === num
+                                    ? "bg-black text-white border-black"
+                                    : "bg-white hover:bg-gray-100"
+                                    }`}
+                            >
+                                {num + 1}
+                            </button>
+                        )
+                    )}
+                    <button
+                        onClick={() => handleLoadDeliveryOrders(Math.min(page + 1, totalPages - 1))}
+                        disabled={page >= totalPages - 1}
+                        className={`p-3 rounded ${page >= totalPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
+                    >
+                        <FaChevronRight />
+                    </button>
+                </div>
+            )}
 
             {/* Detail Modal */}
             {isDetailOpen && deliveryDetails && (

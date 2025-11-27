@@ -7,7 +7,7 @@ export const getAllShippers = async (page, size, keyword, status, warehouseId, a
     if (keyword) params.keyword = keyword;
     if (status) params.status = status;
     if (warehouseId) params.warehouseId = warehouseId;
-    if (active!=null) params.active = active;
+    if (active != null) params.active = active;
 
     return safeApiCall(() => api.get(`deliveries/secure/shippers`, { params }))
 }
@@ -19,7 +19,7 @@ export const getAllShippersDetails = async (page, size, keyword, status, warehou
     if (keyword) params.keyword = keyword;
     if (status) params.status = status;
     if (warehouseId) params.warehouseId = warehouseId;
-    if (active!=null) params.active = active;
+    if (active != null) params.active = active;
 
     return safeApiCall(() => api.get(`deliveries/secure/shippers-details`, { params }))
 }
@@ -48,4 +48,13 @@ export const getAllDeliveries = async (page, size, keyword, status, warehouseId)
 
 export const assignDeliveriesToShipper = async (shipperId, deliveryIds) => {
     return safeApiCall(() => api.post(`deliveries/secure/deliveries`, { shipperId, deliveryIds }))
+}
+export const getShipperDeliveries = async (page, size, keyword, status, shipperId) => {
+    const params = {};
+    if (page != null) params.page = page;
+    if (size != null) params.size = size;
+    if (keyword) params.keyword = keyword;
+    if (status) params.status = status;
+    if (shipperId) params.shipperId = shipperId;
+    return safeApiCall(() => api.get(`deliveries/secure/shippers/orders`, { params }))
 }

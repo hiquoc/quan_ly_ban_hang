@@ -74,6 +74,13 @@ public class CustomerServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public String getCustomerEmail(Long customerId) {
+        try {
+            return customerRepository.getCustomerEmail(customerId);
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
     private ResponseStatusException parseFeignException(FeignException ex) {
         HttpStatus status = HttpStatus.resolve(ex.status());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -88,4 +95,5 @@ public class CustomerServiceClient {
         System.out.println("Feign Error: " + status + " - " + errorMessage);
         return new ResponseStatusException(status, errorMessage);
     }
+
 }

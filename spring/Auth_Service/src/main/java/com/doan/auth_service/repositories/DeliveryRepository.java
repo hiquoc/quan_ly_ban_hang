@@ -36,4 +36,7 @@ public interface DeliveryRepository {
 
     @PostMapping("/internal/shippers/{id}/active")
     void changeShipperActive(@PathVariable Long id);
+
+    @GetMapping("/internal/shippers/{id}/email")
+    String getShipperEmail(@PathVariable Long id);
 }

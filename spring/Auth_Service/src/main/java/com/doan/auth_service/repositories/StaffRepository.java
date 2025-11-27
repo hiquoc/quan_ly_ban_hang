@@ -38,4 +38,7 @@ public interface StaffRepository {
 
     @PostMapping("/{id}/active")
     void changeStaffActive(@PathVariable Long id);
+
+    @GetMapping("/{id}/email")
+    String getStaffEmail(@PathVariable Long id);
 }

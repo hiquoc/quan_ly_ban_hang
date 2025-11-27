@@ -62,3 +62,9 @@ export const checkVerificationCode = (email,code) =>
 
 export const checkVerificationCodeSecure = (email,code) =>
    safeApiCall(() => api.post(`auth/secure/verify/check`, { email ,code}))
+
+export const requestForgotPasswordCode = (username) =>
+   safeApiCall(() => api.post(`auth/public/forget/send`, { username }))
+
+export const changePasswordByForgotCode = (username,code,newPassword) =>
+   safeApiCall(() => api.post(`auth/public/forget/check`, { username,code,newPassword }))

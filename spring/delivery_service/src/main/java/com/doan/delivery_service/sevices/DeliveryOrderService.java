@@ -305,6 +305,7 @@ public class DeliveryOrderService {
                 .assignedShipperId(order.getAssignedShipper() != null ? order.getAssignedShipper().getId() : null)
                 .assignedAt(order.getAssignedAt())
                 .deliveredAt(order.getDeliveredAt())
+                .imageUrl(order.getDeliveredImageUrl())
                 .failedReason(order.getFailedReason())
                 .codAmount(order.getCodAmount())
                 .itemList(order.getItemList() != null

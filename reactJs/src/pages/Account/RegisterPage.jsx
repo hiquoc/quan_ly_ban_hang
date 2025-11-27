@@ -76,19 +76,20 @@ export default function RegisterPage() {
     return (
         <>
             <Helmet>
-                <title>Đăng kí</title></Helmet>
+                <title>Đăng ký</title>
+            </Helmet>
 
-            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
+            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 py-8">
                 {/* Registration Form */}
-                <form onSubmit={handleSubmit} className="bg-white p-10 rounded-lg shadow w-[400px] relative transition-all duration-300 hover:shadow-xl">
-                    <button type="button" onClick={() => navigate("/")} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-xl">
+                <form onSubmit={handleSubmit} className="bg-white p-10 rounded-2xl shadow-2xl w-[420px] relative transition-all duration-300 hover:shadow-3xl border border-gray-100">
+                    <button type="button" onClick={() => navigate("/")} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl transition-all duration-200 hover:rotate-90">
                         <FiX />
                     </button>
 
-                    <h2 className="text-3xl font-semibold text-center mb-8 text-gray-800">Đăng ký</h2>
+                    <h2 className="text-3xl font-bold text-center mb-8 text-gray-900">Đăng ký</h2>
 
                     {/* Username */}
-                    <div className="mb-3">
+                    <div className="mb-4">
                         <div className="relative flex items-center">
                             <FiUser className="absolute left-3 text-gray-400 pointer-events-none" />
                             <input
@@ -96,14 +97,14 @@ export default function RegisterPage() {
                                 placeholder="Tên tài khoản"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className={`${inputBaseClass} border-gray-300 ${errors.username ? "border-red-500" : ""}`}
+                                className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white ${errors.username ? "border-red-500 ring-2 ring-red-200" : ""}`}
                             />
                         </div>
                         {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username}</p>}
                     </div>
 
                     {/* Password */}
-                    <div className="mb-3">
+                    <div className="mb-4">
                         <div className="relative flex items-center">
                             <FiLock className="absolute left-3 text-gray-400 pointer-events-none" />
                             <input
@@ -111,14 +112,14 @@ export default function RegisterPage() {
                                 placeholder="Mật khẩu"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className={`${inputBaseClass} border-gray-300 ${errors.password ? "border-red-500" : ""}`}
+                                className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white ${errors.password ? "border-red-500 ring-2 ring-red-200" : ""}`}
                             />
                         </div>
                         {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
                     </div>
 
                     {/* Confirm Password */}
-                    <div className="mb-3">
+                    <div className="mb-4">
                         <div className="relative flex items-center">
                             <FiLock className="absolute left-3 text-gray-400 pointer-events-none" />
                             <input
@@ -126,22 +127,28 @@ export default function RegisterPage() {
                                 placeholder="Nhập lại mật khẩu"
                                 value={rePassword}
                                 onChange={(e) => setRePassword(e.target.value)}
-                                className={`${inputBaseClass} border-gray-300 ${errors.rePassword ? "border-red-500" : ""}`}
+                                className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white ${errors.rePassword ? "border-red-500 ring-2 ring-red-200" : ""}`}
                             />
                         </div>
                         {errors.rePassword && <p className="text-red-500 text-sm mt-1">{errors.rePassword}</p>}
                     </div>
 
                     {/* Full Name */}
-                    <div className="mb-3">
+                    <div className="mb-4">
                         <div className="relative flex items-center">
                             <FiUserPlus className="absolute left-3 text-gray-400 pointer-events-none" />
-                            <input type="text" placeholder="Họ và tên (tuỳ chọn)" value={fullName} onChange={(e) => setFullName(e.target.value)} className={`${inputBaseClass} border-gray-300`} />
+                            <input 
+                                type="text" 
+                                placeholder="Họ và tên (tuỳ chọn)" 
+                                value={fullName} 
+                                onChange={(e) => setFullName(e.target.value)} 
+                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white" 
+                            />
                         </div>
                     </div>
 
                     {/* Email */}
-                    <div className="mb-3">
+                    <div className="mb-4">
                         <div className="relative flex items-center">
                             <FiMail className="absolute left-3 text-gray-400 pointer-events-none" />
                             <input
@@ -152,7 +159,7 @@ export default function RegisterPage() {
                                     setEmail(e.target.value);
                                     setIsVerified(false);
                                 }}
-                                className={`${inputBaseClass} border-gray-300 ${errors.email ? "border-red-500" : ""}`}
+                                className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white ${errors.email ? "border-red-500 ring-2 ring-red-200" : ""}`}
                                 autoComplete="off"
                                 spellCheck={false}
                             />
@@ -161,17 +168,25 @@ export default function RegisterPage() {
                     </div>
 
                     {/* Phone */}
-                    <div className="mb-5">
+                    <div className="mb-6">
                         <div className="relative flex items-center">
                             <FiPhone className="absolute left-3 text-gray-400 pointer-events-none" />
-                            <input type="text" placeholder="Số điện thoại (tuỳ chọn)" value={phone} onChange={(e) => setPhone(e.target.value)} className={`${inputBaseClass} border-gray-300 ${errors.phone ? "border-red-500" : ""}`} />
+                            <input 
+                                type="text" 
+                                placeholder="Số điện thoại (tuỳ chọn)" 
+                                value={phone} 
+                                onChange={(e) => setPhone(e.target.value)} 
+                                className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white ${errors.phone ? "border-red-500 ring-2 ring-red-200" : ""}`} 
+                            />
                         </div>
                         {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                     </div>
 
-                    <button disabled={isProcessing}
+                    <button 
+                        disabled={isProcessing}
                         type="submit"
-                        className={`flex gap-1 items-center justify-center w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer  ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}>
+                        className={`flex gap-2 items-center justify-center w-full bg-gray-900 text-white py-3 rounded-lg font-semibold text-base hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
                         {isProcessing && (
                             <svg
                                 className="animate-spin h-5 w-5 text-white"
@@ -199,7 +214,7 @@ export default function RegisterPage() {
 
                     <p className="mt-6 text-center text-sm text-gray-600">
                         Đã có tài khoản?{" "}
-                        <Link to="/login" className="text-blue-600 font-medium hover:underline">
+                        <Link to="/login" className="text-gray-900 font-semibold hover:text-gray-700 hover:underline">
                             Đăng nhập
                         </Link>
                     </p>
@@ -218,6 +233,7 @@ export default function RegisterPage() {
                         onClose={() => setShowVerifyPanel(false)}
                     />
                 )}
-            </div></>
+            </div>
+        </>
     );
 }

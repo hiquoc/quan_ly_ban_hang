@@ -36,4 +36,6 @@ public interface CustomerRepository {
                                                   @RequestParam String type,
                                                   @RequestParam Integer page,
                                                   @RequestParam Integer size);
+    @GetMapping("/{id}/email")
+    String getCustomerEmail(@PathVariable Long id);
 }

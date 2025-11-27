@@ -74,6 +74,13 @@ public class StaffServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public String getStaffEmail(Long staffId) {
+        try {
+            return staffRepository.getStaffEmail(staffId);
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
     private ResponseStatusException parseFeignException(FeignException ex) {
         HttpStatus status = HttpStatus.resolve(ex.status());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;

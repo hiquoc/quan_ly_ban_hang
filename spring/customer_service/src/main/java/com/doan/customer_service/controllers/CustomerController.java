@@ -244,6 +244,10 @@ public class CustomerController {
         CustomerDashboardResponse response=dashboardService.getDashboard(from, to);
         return ResponseEntity.ok(response);
     }
+    @GetMapping("/internal/customers/{id}/email")
+    public String getCustomerEmail(@PathVariable Long id){
+        return customerService.getCustomerById(id).getEmail();
+    }
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();

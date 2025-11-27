@@ -30,6 +30,7 @@ public class DeliveryOrderResponse {
     private Long assignedShipperId;
     private OffsetDateTime assignedAt;
     private OffsetDateTime deliveredAt;
+    private String imageUrl;
     private String failedReason;
     private BigDecimal codAmount;
 

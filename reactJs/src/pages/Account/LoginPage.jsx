@@ -76,49 +76,50 @@ function LoginPage() {
 
     if (processingToken) return null
 
-    return (
+   return (
         <>
             <Helmet>
-                <title>Đăng nhập</title></Helmet>
+                <title>Đăng nhập</title>
+            </Helmet>
 
-            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
+            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
                 <form
-                    className="bg-white p-10 rounded-lg shadow w-[400px] relative transition-all duration-300 hover:shadow-xl"
+                    className="bg-white p-10 rounded-2xl shadow-2xl w-[420px] relative transition-all duration-300 hover:shadow-3xl border border-gray-100"
                     onSubmit={handleLogin}
                 >
                     <button
                         type="button"
                         onClick={() => navigate("/")}
-                        className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-xl hover:cursor-pointer"
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl hover:cursor-pointer transition-all duration-200 hover:rotate-90"
                     >
                         <FiX />
                     </button>
 
-                    <h2 className="text-3xl font-semibold text-center mb-8 text-gray-800">
+                    <h2 className="text-3xl font-bold text-center mb-8 text-gray-900">
                         Đăng nhập
                     </h2>
 
                     {/* Tài khoản */}
-                    <div className="relative mb-3">
+                    <div className="relative mb-4">
                         <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Tên tài khoản"
                             value={usernameInput}
                             onChange={handleUsername}
-                            className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-800"
+                            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
                         />
                     </div>
 
                     {/* Mật khẩu */}
-                    <div className="relative mb-3">
+                    <div className="relative mb-4">
                         <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="password"
                             placeholder="Mật khẩu"
                             value={password}
                             onChange={handlePassword}
-                            className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-800"
+                            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
                         />
                     </div>
 
@@ -134,8 +135,8 @@ function LoginPage() {
                             Ghi nhớ đăng nhập
                         </label>
                         <Link
-                            to="/forgot-password"
-                            className="text-sm text-gray-600 hover:text-blue-500 hover:underline hover:cursor-pointer"
+                            to="/forgot"
+                            className="text-sm text-gray-700 hover:text-gray-900 hover:underline hover:cursor-pointer font-medium"
                         >
                             Quên mật khẩu?
                         </Link>
@@ -144,7 +145,7 @@ function LoginPage() {
                     {/* Nút đăng nhập */}
                     <button
                         type="submit"
-                        className="flex justify-center items-center gap-1 w-full bg-gray-900 text-white py-2.5 rounded font-medium text-lg hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer"
+                        className="flex justify-center items-center gap-2 w-full bg-gray-900 text-white py-3 rounded-lg font-semibold text-base hover:bg-gray-800 transition-all duration-200 hover:cursor-pointer shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                     >
                         {isProcessing && (
                             <svg
@@ -173,27 +174,27 @@ function LoginPage() {
 
                     {/* Đăng nhập bằng */}
                     <div className="flex flex-col items-center mt-6">
-                        <div className="flex items-center w-full mb-3">
-                            <hr className="flex-grow border-gray-300" />
+                        <div className="flex items-center w-full mb-4">
+                            <hr className="flex-grow border-gray-200" />
                             <span className="px-3 text-gray-500 text-sm">
                                 Hoặc đăng nhập bằng
                             </span>
-                            <hr className="flex-grow border-gray-300" />
+                            <hr className="flex-grow border-gray-200" />
                         </div>
 
                         <a
                             href="http://localhost:8080/oauth2/authorization/google"
-                            className="flex justify-center items-center gap-2 border border-gray-300 w-full py-2.5 rounded hover:bg-gray-50 transition-all duration-200"
+                            className="flex justify-center items-center gap-2 border-2 border-gray-200 w-full py-3 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow"
                         >
                             <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763208448/Google__G__logo.svg_cwv6jj.webp" alt="Google" className="h-5 w-5" />
-                            <span className="text-gray-700 font-medium">Google</span>
+                            <span className="text-gray-700 font-semibold">Google</span>
                         </a>
                     </div>
 
                     {/* Chưa có tài khoản */}
                     <p className="mt-6 text-center text-sm text-gray-600">
                         Chưa có tài khoản?{" "}
-                        <Link to="/register" className="text-blue-600 font-medium hover:underline">
+                        <Link to="/register" className="text-gray-900 font-semibold hover:text-gray-700 hover:underline">
                             Đăng ký ngay
                         </Link>
                     </p>

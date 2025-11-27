@@ -26,6 +26,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import AdminDelivery from "./pages/Admin/Delivery/AdminDelivery";
 import ChatBox from "./components/ChatBox/ChatBox";
 import AdminStaff from "./pages/Admin/Staff/AdminStaff";
+import ForgotPage from "./pages/Account/ForgotPage";
 
 function App() {
   return (
@@ -44,7 +45,7 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-
+              <Route path="/forgot" element={<ForgotPage />} />
               <Route
                 path="/product/:slug"
                 element={
