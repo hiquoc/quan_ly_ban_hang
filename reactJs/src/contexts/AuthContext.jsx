@@ -16,7 +16,6 @@ export function AuthProvider({ children }) {
     const [role, setRole] = useState(initalRole);
     const [ownerId, setOwnerId] = useState(initalOwnerId);
     const [staffWarehouseId, setStaffWarehouseId] = useState(initalWarehouseId);
-
     return <AuthContext.Provider value={
         { username, setUsername, accountId, setAccountId, role, setRole, ownerId, setOwnerId,staffWarehouseId, setStaffWarehouseId }}>
         {children}

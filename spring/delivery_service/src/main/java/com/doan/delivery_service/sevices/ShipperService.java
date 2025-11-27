@@ -208,66 +208,16 @@ public class ShipperService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy shipper!"));
         if (status == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập trạng thái!");
-        if (!status.equals("ONLINE") && !status.equals("OFFLINE") && !status.equals("SHIPPING"))
+        if (!status.equals("ONLINE") && !status.equals("OFFLINE"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái không hợp lệ!");
-
-        String prevStatus = shipper.getStatus();
         shipper.setStatus(status);
 
-        if (prevStatus.equals("ONLINE")
-                && status.equals("SHIPPING")
-                && !shipper.getAssignedOrders().isEmpty()) {
-            List<DeliveryOrder> deliveryOrders = shipper.getAssignedOrders().stream().filter(
-                    deliveryOrder -> deliveryOrder.getStatus().equals(DeliveryStatus.ASSIGNED)).toList();
-            for (DeliveryOrder deliveryOrder : deliveryOrders) {
-                deliveryOrder.setStatus(DeliveryStatus.SHIPPING);
-            }
-            deliveryOrderRepository.saveAll(deliveryOrders);
-            try {
-                orderRepositoryClient.updateOrderStatus(
-                        new UpdateOrderStatusRequest(deliveryOrders.stream().map(DeliveryOrder::getOrderNumber).toList(),
-                                id, 4L, "Đơn hàng đang được giao bởi SP" + id));
-            } catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Lỗi khi tạo phiếu cập nhật trạng thái thành Đã giao cho shipper! " + e.getMessage(), e);
-            }
-            List<OrderTransactionRequest> requests = deliveryOrders.stream()
-                    .map(order -> OrderTransactionRequest.builder()
-                            .orderNumber(order.getOrderNumber())
-                            .note("Phiếu xuất kho tạo bởi nhân viên giao hàng")
-                            .shipperId(id)
-                            .orderItems(order.getItemList().stream()
-                                    .map(it -> OrderItemTransactionRequest.builder()
-                                            .variantId(it.getVariantId())
-                                            .pricePerItem(it.getUnitPrice())
-                                            .quantity(it.getQuantity())
-                                            .build())
-                                    .toList())
-                            .build())
-                    .toList();
-            try {
-                inventoryRepositoryClient.createOrderTransaction(requests);
-            } catch (Exception e) {
-                try {
-                    System.out.println("Tạo phiếu xuất kho thất bại!\nĐang hoàn tác cập nhật trạng thái đơn hàng");
-                    orderRepositoryClient.updateOrderStatus(
-                            new UpdateOrderStatusRequest(deliveryOrders.stream().map(DeliveryOrder::getOrderNumber).toList(),
-                                    id, 3L, "Đơn hàng đang được giao bởi SP" + id));
-                } catch (Exception ex) {
-                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                            "Lỗi khi hoàn tác cập nhật trạng thái thành Đã giao cho shipper! " + ex.getMessage(), ex);
-                }
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Lỗi khi tạo phiếu xuất kho cho shipper! " + e.getMessage(), e);
-            }
-
-        }
         return shipper;
     }
 
     private ShipperDetailsResponse mapToDetailsResponse(Shipper shipper) {
         return new ShipperDetailsResponse(shipper.getId(), shipper.getFullName(),
-                shipper.getEmail(), shipper.getPhone(), shipper.getCreatedAt(),
+                shipper.getEmail(), shipper.getPhone(), shipper.getCreatedAt(),shipper.getIsActive(),
                 shipper.getStatus(), getShipperDeliveries(shipper.getId()));
     }
 

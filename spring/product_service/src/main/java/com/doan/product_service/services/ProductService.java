@@ -670,4 +670,8 @@ public class ProductService {
         return basePredicates.isEmpty() ? cb.conjunction() : cb.and(basePredicates.toArray(new Predicate[0]));
     }
 
+    @Cacheable("activeProducts")
+    public List<Long>  getAvailableProducts() {
+        return productRepository.getAvailableProducts();
+    }
 }

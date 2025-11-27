@@ -459,7 +459,7 @@ export default function CustomerPage() {
                               x{item.quantity}
                             </span>
 
-                            <span className="text-gray-800 font-semibold">{item.totalPrice.toLocaleString("vi-VN")}₫</span>
+                            <span className="text-gray-800 font-semibold w-30 text-right">{item.totalPrice.toLocaleString("vi-VN")}₫</span>
                           </div>
 
                         </div>
@@ -510,7 +510,7 @@ export default function CustomerPage() {
 
                     {/* Actions */}
                     <div className="flex gap-2 justify-end mr-3">
-                      {order.statusName !== "DELIVERED" && order.statusName !== "CANCELLED" && (
+                      {order.statusName === "PENDING" && (
                         <>
                           {getPaymentButton(order)}
                           <button

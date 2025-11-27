@@ -44,6 +44,7 @@ function AdminOrder() {
     const [isLoading, setIsLoading] = useState(false)
 
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+    const [warehouseMap, setWarehouseMap] = useState(null)
 
     useEffect(() => { handlLoadWarehouses() }, [])
 
@@ -74,11 +75,9 @@ function AdminOrder() {
             return showPopup(res.error);
         }
         let warehouseData = res.data;
-        if (role === "STAFF") {
-            warehouseData = warehouseData.filter(w => w.id === staffWarehouseId)
-        }
         setWarehouses(warehouseData);
-        setSortWarehouse(warehouseData[0].code)
+        setSortWarehouse(warehouseData[0].id)
+        setWarehouseMap(Object.fromEntries(warehouseData.map(w => [w.id, w.code])));
         // console.log(warehouseData)
     }
 
@@ -109,6 +108,7 @@ function AdminOrder() {
             case "PENDING": return "bg-yellow-500 text-white";
             case "CONFIRMED": return "bg-blue-500 text-white";
             case "PROCESSING": return "bg-orange-500 text-white";
+            case "WAITING": return "bg-indigo-500 text-white";
             case "SHIPPED": return "bg-purple-500 text-white";
             case "DELIVERED": return "bg-green-500 text-white";
             case "CANCELLED": return "bg-rose-500 text-white";
@@ -116,11 +116,13 @@ function AdminOrder() {
             default: return "";
         }
     };
+
     const statusColor = (status) => {
         switch (status) {
             case "PENDING": return "text-yellow-600";
             case "CONFIRMED": return "text-blue-600";
             case "PROCESSING": return "text-orange-600";
+            case "WAITING": return "text-indigo-600";
             case "SHIPPED": return "text-purple-600";
             case "DELIVERED": return "text-green-600";
             case "CANCELLED": return "text-rose-600";
@@ -134,6 +136,7 @@ function AdminOrder() {
             case "PENDING": return "Đang chờ";
             case "CONFIRMED": return "Đã xác nhận";
             case "PROCESSING": return "Đang xử lý";
+            case "WAITING": return "Chờ xử lý";
             case "SHIPPED": return "Đang giao";
             case "DELIVERED": return "Đã giao";
             case "CANCELLED": return "Đã hủy";
@@ -141,6 +144,7 @@ function AdminOrder() {
             default: return status;
         }
     };
+
     const paymentStatusMap = {
         PENDING: { label: "Chờ thanh toán", bg: "bg-yellow-500" },
         PAID: { label: "Đã thanh toán", bg: "bg-green-500" },
@@ -155,7 +159,8 @@ function AdminOrder() {
         SHIPPED: [],
         DELIVERED: [],
         CANCELLED: [],
-        RETURNED: []
+        RETURNED: [],
+        WAITING: ["PROCESSING", "CANCELLED"]
     };
 
     function getPaymentStatusLabel(status) {
@@ -209,17 +214,18 @@ function AdminOrder() {
                             <option value="RETURNED">Trả lại</option>
                         </select>
                         <select
-                            value={sortWarehouse||""}
+                            value={sortWarehouse || ""}
                             onChange={e => setSortWarehouse(e.target.value)}
                             className="p-2 border border-gray-700 rounded"
                         >
-                            {role === "MANAGER" || role === "ADMIN" && (
+                            {(role === "MANAGER" || role === "ADMIN") && (
                                 <option key="ALL" value={""}>Tất cả kho</option>
                             )}
                             {warehouses && (
-                                warehouses.map(w =>
-                                    <option key={w.id} value={w.code}>{w.code}</option>
-                                )
+                                warehouses.map(w => {
+                                    if (w.id === staffWarehouseId)
+                                        return <option key={w.id} value={w.id}>{w.code}</option>
+                                })
                             )}
 
                         </select>
@@ -312,7 +318,7 @@ function AdminOrder() {
                                             {Number(order.totalAmount).toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
                                         </td>
                                         <td className="p-3 border-b border-gray-200 text-center">
-                                            {Object.entries(order.warehouseData).map(([key]) => `${key}`).join(', ')}
+                                            {(order.warehouseData || []).map(w => (warehouseMap?.[w] ?? w)).join(', ')}
                                         </td>
                                         <td className="text-center border-b border-gray-200 relative group status-dropdown">
                                             <button
@@ -473,7 +479,6 @@ function AdminOrder() {
 
                                 <div className="text-gray-600 text-sm pt-2 ">
                                     <p className="font-bold">Mã khách hàng: KH{orderDetails.customerId}</p>
-                                    {Object.entries(orderDetails.warehouseData).map(([key, value]) => `Kho: ${key} - SL: ${value}`).join(', ')}
                                     {orderDetails.createdAt && <p>Ngày tạo: {new Date(orderDetails.createdAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.updatedAt && <p>Ngày cập nhật: {new Date(orderDetails.updatedAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.cancelledDate && <p>Ngày hủy: {new Date(orderDetails.cancelledDate).toLocaleString("vi-VN")}</p>}
@@ -484,7 +489,7 @@ function AdminOrder() {
                             {/* Items List */}
                             <div className="overflow-y-auto max-h-[40vh] flex flex-col gap-3 mb-4">
                                 {orderDetails.items.map(item => (
-                                    <div key={item.id} className="flex items-center bg-gray-100 p-3 rounded-lg">
+                                    <div key={item.id} className="flex items-center bg-gray-100 p-3 rounded-lg relative">
                                         <img
                                             src={item.imageUrl}
                                             alt={item.variantName}
@@ -496,10 +501,14 @@ function AdminOrder() {
                                                 <p className="text-xs text-gray-500">{item.variantSku}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
+
                                                 <p className="text-gray-600 text-sm">x{item.quantity}</p>
                                                 <div className="text-gray-800 font-semibold">{item.totalPrice.toLocaleString()}₫</div>
                                             </div>
                                         </div>
+                                        <p className="text-gray-600 text-xs absolute top-2 right-2" >
+                                            {Object.entries(item.itemWarehouseData).map(([key, value]) => `${warehouseMap?.[key] ?? key} - ${value}`).join(', ')}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
@@ -710,13 +719,17 @@ function AdminOrder() {
 
                                             showPopup("Cập nhật trạng thái thành công!");
                                             setConfirmNotes("");
-                                            setOrders(prev =>
-                                                prev.map(order =>
-                                                    order.id === orderId
-                                                        ? { ...order, statusName: confirmStatusPanel.statusName }
-                                                        : order
-                                                )
-                                            );
+                                            if (statusName === "PROCESSING") {
+                                                getData()
+                                            } else {
+                                                setOrders(prev =>
+                                                    prev.map(order =>
+                                                        order.id === orderId
+                                                            ? { ...order, statusName: confirmStatusPanel.statusName }
+                                                            : order
+                                                    )
+                                                );
+                                            }
                                             setEditingOrderId(null);
                                         }
                                         finally {

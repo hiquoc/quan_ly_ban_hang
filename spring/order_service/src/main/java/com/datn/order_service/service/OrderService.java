@@ -14,8 +14,9 @@ import com.datn.order_service.entity.OrderItem;
 import com.datn.order_service.entity.OrderStatus;
 import com.datn.order_service.enums.PaymentStatus;
 import com.datn.order_service.exception.OrderNotFoundException;
-import com.datn.order_service.repository.*;
-import com.datn.order_service.service.cloud.CloudinaryService;
+import com.datn.order_service.repository.OrderItemRepository;
+import com.datn.order_service.repository.OrderRepository;
+import com.datn.order_service.repository.OrderStatusRepository;
 import com.datn.order_service.utils.WebhookUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,10 +24,15 @@ import feign.FeignException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
@@ -51,18 +57,21 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderStatusRepository orderStatusRepository;
-    private final ReturnOrderRepository returnOrderRepository;
-    private final ReturnOrderItemRepository returnOrderItemRepository;
+//    private final ReturnOrderRepository returnOrderRepository;
+//    private final ReturnOrderItemRepository returnOrderItemRepository;
 
     private final DeliveryServiceClient deliveryServiceClient;
     private final InventoryServiceClient inventoryServiceClient;
     private final PromotionServiceClient promotionServiceClient;
     private final ProductServiceClient productServiceClient;
     private final CartServiceClient cartServiceClient;
-    private final CloudinaryService cloudinaryService;
+    //    private final CloudinaryService cloudinaryService;
+    @Autowired
+    private CacheManager cacheManager;
 
     @Autowired
     private WebhookUtils webhookUtils;
+
     /**
      * Create order from cart (checkout all or selected items)
      */
@@ -212,6 +221,7 @@ public class OrderService {
         // 6. Create order items and calculate revenue
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal itemsProfit = BigDecimal.ZERO;
+        List<Map<Long, Integer>> itemWarehouseData=new ArrayList<>();
 
         try {
             for (OrderItemRequest itemReq : request.getItems()) {
@@ -266,8 +276,9 @@ public class OrderService {
 
                     boolean stockReserved = false;
                     try {
-                        Map<String,Integer> warehouseData= inventoryServiceClient.reserveStock(stockRequest).getData();
-                        order.setWarehouseData(warehouseData);
+                        Map<Long,Integer> reserveStockMap = inventoryServiceClient.reserveStock(stockRequest).getData();
+                        itemWarehouseData.add(reserveStockMap);
+                        orderItem.setItemWarehouseData(reserveStockMap);
                         log.info("Stock reserved - ProductId: {}, VariantId: {}, Quantity: {}",
                                 variant.getProductId(), itemReq.getVariantId(), itemReq.getQuantity());
                         stockReserved = true;
@@ -295,9 +306,13 @@ public class OrderService {
             orderItemRepository.saveAll(orderItems);
             log.info("Saved {} order items", orderItems.size());
             BigDecimal revenue = itemsProfit.subtract(fee).subtract(discountAmount != null ? discountAmount : BigDecimal.ZERO);
+            List<Long> warehouseKeys = itemWarehouseData.stream()
+                    .flatMap(map -> map.keySet().stream())
+                    .distinct()
+                    .toList();
+            order.setWarehouseData(warehouseKeys);
             order.setRevenue(revenue);
             orderRepository.save(order);
-
 
             // 7. Record promotion usage if applicable
             if (promotionId != null && discountAmount != null && discountAmount.compareTo(BigDecimal.ZERO) > 0) {
@@ -446,7 +461,7 @@ public class OrderService {
             LocalDate fromDate,
             LocalDate toDate,
             boolean showRevenue,
-            String warehouseCode) {
+            Long warehouseId) {
 
         Pageable pageable = (page == null || size == null)
                 ? Pageable.unpaged()
@@ -482,14 +497,12 @@ public class OrderService {
             predicates.add(cb.lessThan(root.get("orderDate"), endDateTime));
         }
 
-        if (warehouseCode != null && !warehouseCode.isBlank()) {
-            // FIXED: Use .as(String.class) for implicit cast to text, then LIKE
-            predicates.add(
-                    cb.like(
-                            root.get("warehouseData").as(String.class),
-                            "%\"" + warehouseCode + "\"%"
-                    )
-            );
+        if (warehouseId != null) {
+            predicates.add(cb.isTrue(cb.function(
+                    "jsonb_contains", Boolean.class,
+                    root.get("warehouseData"),
+                    cb.literal("[" + warehouseId + "]")
+            )));
         }
 
         if (keyword != null && !keyword.isBlank() || customerId != null) {
@@ -530,14 +543,12 @@ public class OrderService {
         if (endDateTime != null) {
             countPredicates.add(cb.lessThan(countRoot.get("orderDate"), endDateTime));
         }
-
-        if (warehouseCode != null && !warehouseCode.isBlank()) {
-            countPredicates.add(
-                    cb.like(
-                            countRoot.get("warehouseData").as(String.class),
-                            "%\"" + warehouseCode + "\"%"
-                    )
-            );
+        if (warehouseId != null) {
+            countPredicates.add(cb.isTrue(cb.function(
+                    "jsonb_contains", Boolean.class,
+                    countRoot.get("warehouseData"),
+                    cb.literal("[" + warehouseId + "]")
+            )));
         }
 
         if (keyword != null && !keyword.isBlank() || customerId != null) {
@@ -561,6 +572,7 @@ public class OrderService {
                 total
         );
     }
+
     public Page<OrderDetailResponse> getOrdersDetailsAdvanced(
             Integer page,
             Integer size,
@@ -663,9 +675,8 @@ public class OrderService {
         );
     }
 
-
     @Transactional
-    public OrderResponse updateOrderStatus(Long orderId, Long statusId, String notes, String role, Long staffId) {
+    public OrderResponse updateOrderStatus(Long orderId, Long statusId, String notes, String role, Long staffId,Long currentWarehouseId) {
         log.info("Updating order {} to status {}", orderId, statusId);
 
         if ("CUSTOMER".equals(role)) {
@@ -692,9 +703,23 @@ public class OrderService {
         }
 
         order.setStatus(newStatus);
-        handleStatusChange(order, staffId, oldStatus, newStatus);
-        if (notes != null && !notes.isBlank())
-            order.setNotes(notes);
+        handleStatusChange(order, staffId, oldStatus, newStatus,currentWarehouseId);
+        if (notes != null && !notes.isBlank()) {
+            if (staffId == 2L) { // CONFIRMED
+                String existingNotes = Optional.ofNullable(order.getNotes()).orElse("");
+                String khoPart = "";
+                // Extract "Kho: ..." if present
+                int idx = existingNotes.toLowerCase().lastIndexOf("kho:");
+                if (idx != -1) {
+                    khoPart = existingNotes.substring(idx).trim();
+                }
+                // Set notes with new content + preserved "Kho: ..." part
+                order.setNotes(notes.trim() + (khoPart.isEmpty() ? "" : " - " + khoPart));
+            } else {
+                order.setNotes(notes);
+            }
+        }
+
 
         if ("DELIVERED".equals(newStatusName)) {
 //            if(!"SHIPPER".equals(role))
@@ -719,9 +744,9 @@ public class OrderService {
             } catch (Exception e) {
                 log.error("Failed to release stock for orderNumber: {}", order.getOrderNumber(), e);
             }
-            if(oldStatusName.equals("PROCESSING")){
+            if (oldStatusName.equals("PROCESSING")) {
                 try {
-                    deliveryServiceClient.cancelDeliveryOrderStatus(new CancelDeliveryOrderRequest(orderId,staffId,"Đơn hàng bị hủy bởi nhân viên NV"+staffId+"\nLý do: "+notes));
+                    deliveryServiceClient.cancelDeliveryOrderStatus(new CancelDeliveryOrderRequest(orderId, staffId, "Đơn hàng bị hủy bởi nhân viên NV" + staffId + "\nLý do: " + notes));
                 } catch (FeignException e) {
                     log.error("Feign error canceling delivery order: Status={}", e.status());
                 } catch (Exception e) {
@@ -730,6 +755,13 @@ public class OrderService {
             }
         }
         order = orderRepository.save(order);
+        if (cacheManager != null) {
+            Cache cache = cacheManager.getCache("customerOrders");
+            if (cache != null) {
+                String key = order.getCustomerId() + ":ALL:";
+                cache.evict(key);
+            }
+        }
         webhookUtils.postToWebhook(order.getId(), "update");
         log.info("Order status updated successfully - OrderId: {}, NewStatus: {}", orderId, newStatus.getName());
         return mapToResponse(order);
@@ -754,6 +786,13 @@ public class OrderService {
                 log.info("Order status updated to PENDING after payment");
             }
         }
+        if (cacheManager != null) {
+            Cache cache = cacheManager.getCache("customerOrders");
+            if (cache != null) {
+                String key = order.getCustomerId() + ":ALL:";
+                cache.evict(key);
+            }
+        }
         webhookUtils.postToWebhook(order.getId(), "update");
         return mapToResponse(order);
     }
@@ -769,7 +808,7 @@ public class OrderService {
             throw new IllegalStateException("You don't have the permission to cancel this order!");
 
         String currentStatus = order.getStatus().getName();
-        if ("DELIVERED".equals(currentStatus) || "CANCELLED".equals(currentStatus)) {
+        if (!"PENDING".equals(currentStatus) && !"CONFIRMED".equals(currentStatus)) {
             throw new IllegalStateException("Order cannot be cancelled in current status: " + currentStatus);
         }
 
@@ -807,6 +846,13 @@ public class OrderService {
         }
 
         order = orderRepository.save(order);
+        if (cacheManager != null) {
+            Cache cache = cacheManager.getCache("customerOrders");
+            if (cache != null) {
+                String key = order.getCustomerId() + ":ALL:";
+                cache.evict(key);
+            }
+        }
         webhookUtils.postToWebhook(order.getId(), "update");
         log.info("Order cancelled successfully - OrderId: {}", orderId);
 
@@ -897,7 +943,7 @@ public class OrderService {
         return snapshot;
     }
 
-    private void handleStatusChange(Order order, Long staffId, OrderStatus oldStatus, OrderStatus newStatus) {
+    private void handleStatusChange(Order order, Long staffId, OrderStatus oldStatus, OrderStatus newStatus,Long currentWarehouseId) {
         String newStatusName = newStatus.getName();
 
         switch (newStatusName) {
@@ -907,61 +953,133 @@ public class OrderService {
 
             case "PROCESSING":
                 log.info("Order processing started - OrderId: {}", order.getId());
+                System.out.println(currentWarehouseId);
+                List<Long> warehouses = order.getWarehouseData();
+                if (warehouses == null || warehouses.isEmpty()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn hàng không có dữ liệu kho");
+                }
 
-//                List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-//                List<OrderItemTransactionRequest> stockItemRequestList = items.stream()
-//                        .map(item -> OrderItemTransactionRequest.builder()
-//                                .variantId(item.getVariantId())
-//                                .pricePerItem(item.getUnitPrice())
-//                                .quantity(item.getQuantity())
-//                                .build())
-//                        .toList();
-//
-//                OrderTransactionRequest orderRequest = OrderTransactionRequest.builder()
-//                        .orderNumber(order.getOrderNumber())
-//                        .orderItems(stockItemRequestList)
-//                        .staffId(staffId)
-//                        .note("ORDER_PROCESSING")
-//                        .build();
-//
-//                try {
-//                    inventoryServiceClient.createOrderTransaction(orderRequest);
-//                    log.info("Created order transaction for OrderNumber: {}", order.getOrderNumber());
-//                } catch (Exception e) {
-//                    log.error("Failed to create order transaction for OrderNumber: {}", order.getOrderNumber(), e);
-//                    throw new RuntimeException("Cannot process inventory for OrderNumber: " + order.getOrderNumber(), e);
-//                }
+                String note = Optional.ofNullable(order.getNotes()).orElse("");
+                List<Long> processedWarehouses = new ArrayList<>();
+
+                String lower = note.toLowerCase();
+                int idx = lower.lastIndexOf("kho:");
+                if (idx != -1) {
+                    String part = note.substring(idx + 4).trim();
+                    processedWarehouses = Arrays.stream(part.split(","))
+                            .map(String::trim)
+                            .filter(s -> s.matches("\\d+"))
+                            .map(Long::parseLong)
+                            .collect(Collectors.toCollection(ArrayList::new));
+                }
+
+                // Admin/manager override → mark all warehouses as processed
+                if (currentWarehouseId != null && currentWarehouseId == -1L) {
+                    processedWarehouses = new ArrayList<>(warehouses);
+
+                    note = note.split("(?i)kho:")[0].trim();
+                    note = (note + " - Kho: " +
+                            processedWarehouses.stream().map(String::valueOf).collect(Collectors.joining(",")))
+                            .trim();
+
+                    order.setNotes(note);
+                } else {
+                    // Thêm kho mới nếu chưa có
+                    if (currentWarehouseId == null) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Vui lòng nhập mã kho khi đơn có nhiều kho");
+                    }
+
+                    if (!processedWarehouses.contains(currentWarehouseId)) {
+                        processedWarehouses.add(currentWarehouseId);
+
+                        note = note.split("(?i)kho:")[0].trim();
+                        note = (note + " - Kho: " +
+                                processedWarehouses.stream()
+                                        .map(String::valueOf)
+                                        .collect(Collectors.joining(",")))
+                                .trim();
+
+                        order.setNotes(note);
+                    }
+                }
+
+                // Kiểm tra kho chưa xử lý
+                List<Long> finalProcessedWarehouses = processedWarehouses;
+                boolean stillLeft = warehouses.stream()
+                        .anyMatch(id -> !finalProcessedWarehouses.contains(id));
+
+                if (stillLeft) {
+                    order.setStatus(orderStatusRepository.findByName("WAITING")
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                    "Không tìm thấy status WAITING!")));
+                    orderRepository.save(order);
+
+                    log.info("Order still has unprocessed warehouses → WAITING");
+                    break;
+                }
+
+                log.info("All warehouses processed. Creating delivery orders...");
+
                 try {
                     List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
-                    List<Long> usedWarehouseIds = inventoryServiceClient.getItemsWarehouseId(order.getOrderNumber());
-                    for (Long warehouseId : usedWarehouseIds) {
-                        deliveryServiceClient.createDeliveryOrder(new DeliveryOrderRequest(
-                                order.getId(), order.getOrderNumber(), order.getShippingName(),
-                                order.getShippingAddress(), order.getShippingPhone(),
-                                order.getPaymentMethod(), warehouseId,
-                                order.getPaymentMethod().equals("COD") ? order.getTotalAmount() : BigDecimal.ZERO,
-                                orderItems.stream().map(it -> {
-                                    Map<String,Object> snapshot=it.getProductSnapshot();
-                                    ObjectMapper mapper = new ObjectMapper();
+                    Map<Long, List<DeliveryOrderItemRequest>> itemsByWarehouse = new HashMap<>();
 
-                                    Map<String, Object> imageUrls = mapper.convertValue(
-                                            it.getProductSnapshot().get("imageUrls"),
-                                            new TypeReference<Map<String, Object>>() {}
-                                    );
-                                    String mainImage = imageUrls.get("main").toString();
+                    for (OrderItem item : orderItems) {
+                        Map<Long, Integer> splitData = item.getItemWarehouseData();
+                        if (splitData == null) continue;
+                        log.info("Processing item {} with warehouse data {}", item.getId(), splitData);
+                        for (Map.Entry<Long, Integer> entry : splitData.entrySet()) {
+                            Long warehouseId = entry.getKey();
+                            Integer qty = entry.getValue();
 
-                                    return new DeliveryOrderItemRequest(
-                                            it.getId(),
-                                            it.getVariantId(),
-                                            snapshot.get("name").toString(),
-                                            snapshot.get("sku").toString(),
-                                            it.getUnitPrice(),
-                                            mainImage,
-                                            it.getQuantity()
-                                    );
-                                }).toList()
-                        ));
+                            if (qty == null || qty <= 0) continue;
+
+                            Map<String, Object> snapshot = item.getProductSnapshot();
+                            ObjectMapper mapper = new ObjectMapper();
+                            Map<String, Object> imageUrls = mapper.convertValue(
+                                    snapshot.get("imageUrls"),
+                                    new TypeReference<>() {}
+                            );
+                            String mainImage = imageUrls.get("main").toString();
+
+                            DeliveryOrderItemRequest deliveryItem = new DeliveryOrderItemRequest(
+                                    item.getId(),
+                                    item.getVariantId(),
+                                    snapshot.get("name").toString(),
+                                    snapshot.get("sku").toString(),
+                                    item.getUnitPrice(),
+                                    mainImage,
+                                    qty
+                            );
+
+                            itemsByWarehouse
+                                    .computeIfAbsent(warehouseId, k -> new ArrayList<>())
+                                    .add(deliveryItem);
+                        }
                     }
+
+                    for (Map.Entry<Long, List<DeliveryOrderItemRequest>> entry : itemsByWarehouse.entrySet()) {
+                        Long warehouseId = entry.getKey();
+                        List<DeliveryOrderItemRequest> itemsForWarehouse = entry.getValue();
+
+                        if (itemsForWarehouse.isEmpty()) continue;
+
+                        deliveryServiceClient.createDeliveryOrder(
+                                new DeliveryOrderRequest(
+                                        order.getId(),
+                                        order.getOrderNumber(),
+                                        order.getShippingName(),
+                                        order.getShippingAddress(),
+                                        order.getShippingPhone(),
+                                        order.getPaymentMethod(),
+                                        warehouseId,
+                                        order.getPaymentMethod().equals("COD") ? order.getTotalAmount() : BigDecimal.ZERO,
+                                        itemsForWarehouse
+                                )
+                        );
+                    }
+
                 } catch (FeignException e) {
                     log.error("Lỗi nội bộ khi tạo đơn giao hàng: Status={}, Message={}", e.status(), e.getMessage());
                     throw new RuntimeException("Không thể kết nối tới hệ thống giao hàng, vui lòng thử lại sau.");
@@ -996,31 +1114,45 @@ public class OrderService {
 
     @Transactional
     public void updateOrderStatusFromInternal(UpdateOrderStatusFromInvRequest request) {
-        List<Order> pendingOrdersToSave=new ArrayList<>();
-        for(String orderNumber:request.getOrderNumbers()){
+        List<Order> pendingOrdersToSave = new ArrayList<>();
+        for (String orderNumber : request.getOrderNumbers()) {
             Order order = orderRepository.findByOrderNumber(orderNumber)
                     .orElseThrow(() -> new OrderNotFoundException("Order not found with orderNumber: " + orderNumber));
             OrderStatus newStatus = orderStatusRepository.findById(request.getStatusId())
                     .orElseThrow(() -> new RuntimeException("Status not found with ID: " + request.getStatusId()));
-            if (newStatus.getName().equals("SHIPPED")) {
-                order.setShippedDate(OffsetDateTime.now());
-                log.info("Order shipped - OrderId: {}", order.getId());
-            }else if(newStatus.getName().equals("DELIVERED")){
-                order.setDeliveredDate(OffsetDateTime.now());
-                log.info("Order delivered - OrderId: {}", order.getId());
-                if ("COD".equalsIgnoreCase(order.getPaymentMethod()) &&
-                        order.getPaymentStatus() == PaymentStatus.PENDING) {
-                    order.setPaymentStatus(PaymentStatus.PAID);
-                    log.info("Auto-updated payment status to PAID for COD order");
+            switch (newStatus.getName()) {
+                case "SHIPPED" -> {
+                    order.setShippedDate(OffsetDateTime.now());
+                    log.info("Order shipped - OrderId: {}", order.getId());
                 }
-            }else if (newStatus.getName().equals("PROCESSING")) {
-                log.info("Order processing - OrderId: {}", order.getId());
+                case "DELIVERED" -> {
+                    List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+                    if (!orderItems.isEmpty()) {
+                        try {
+                            for (OrderItem item : orderItems) {
+                                productServiceClient.updateVariantSold(item.getVariantId(), item.getQuantity());
+                            }
+                        } catch (FeignException e) {
+                            log.error("Failed to update variant sold count: {}", e.getMessage());
+                            throw new RuntimeException("Failed to update variant sold count.");
+                        }
+                    }
+                    order.setDeliveredDate(OffsetDateTime.now());
+                    log.info("Order delivered - OrderId: {}", order.getId());
+                    if ("COD".equalsIgnoreCase(order.getPaymentMethod()) &&
+                            order.getPaymentStatus() == PaymentStatus.PENDING) {
+                        order.setPaymentStatus(PaymentStatus.PAID);
+                        log.info("Auto-updated payment status to PAID for COD order");
+                    }
+                }
+                case "PROCESSING" -> log.info("Order processing - OrderId: {}", order.getId());
+                case "CANCELLED" -> {
+                    order.setCancelledDate(OffsetDateTime.now());
+                    log.info("Order cancelled - OrderId: {}", order.getId());
+                }
+                default ->
+                        throw new RuntimeException("Status change with name: " + newStatus.getName() + " is not allowed!");
             }
-            else if (newStatus.getName().equals("CANCELLED")) {
-                order.setCancelledDate(OffsetDateTime.now());
-                log.info("Order cancelled - OrderId: {}", order.getId());
-            } else
-                throw new RuntimeException("Status change with name: " + newStatus.getName() + " is not allowed!");
             order.setStatus(newStatus);
             order.setNotes(request.getNotes());
             pendingOrdersToSave.add(order);
@@ -1130,6 +1262,7 @@ public class OrderService {
                 .totalPrice(item.getTotalPrice())
                 .imageUrl(imageUrl)
                 .returnRequested(item.isReturnRequested())
+                .itemWarehouseData(item.getItemWarehouseData())
                 .build();
     }
 
@@ -1140,7 +1273,8 @@ public class OrderService {
             "SHIPPED", List.of("DELIVERED"),
             "DELIVERED", List.of(),
             "CANCELLED", List.of(),
-            "RETURNED", List.of()
+            "RETURNED", List.of(),
+            "WAITING",List.of("PROCESSING","CANCELLED")
     );
 
     public OrderDetailResponse getOrder(Long orderId) {

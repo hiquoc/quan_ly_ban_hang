@@ -16,6 +16,7 @@ import com.doan.auth_service.repositories.AccountRepository;
 import com.doan.auth_service.repositories.PendingActionRepository;
 import com.doan.auth_service.repositories.VerificationCodeRepository;
 import com.doan.auth_service.utils.JwtUtil;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
@@ -438,7 +439,9 @@ public class AccountService {
 
     @Transactional
     public void createStaff(RegisterRequest request) {
-
+        if(request.getWarehouseId()==null){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập kho");
+        }
         checkRegisterRequest(request);
 
         StaffRequest body = new StaffRequest(
@@ -459,7 +462,10 @@ public class AccountService {
         Long ownerId = null;
 
         try {
-            if (request.getIsStaff()) {
+            if ( request.getIsStaff()==null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Vui lòng nhập dạng tài khoản");
+
+            if ( request.getIsStaff()) {
                 response = staffServiceClient.createStaff(body);
                 ownerId = response.getOwnerId();
 

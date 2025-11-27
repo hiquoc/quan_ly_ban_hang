@@ -14,7 +14,7 @@ import java.util.Map;
 public interface InventoryServiceClient {
 
     @PostMapping("/internal/transactions/reserve")
-    ApiResponse<Map<String,Integer>> reserveStock(@RequestBody ReserveStockRequest request);
+    ApiResponse<Map<Long,Integer>> reserveStock(@RequestBody ReserveStockRequest request);
 
     @PostMapping("/internal/transactions/reserve/{orderNumber}")
     ApiResponse<Void> releaseStock(@PathVariable String orderNumber,@RequestBody ReleaseStockRequest request);

@@ -321,10 +321,10 @@ export default function CheckoutPage() {
                                             <img onClick={() => navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
                                                 src={item.imageUrls?.main} alt={item.variantName}
                                                 className="w-20 h-20 object-cover rounded mr-6 hover:cursor-pointer" />
-                                            <div className="min-h-[2.5rem] w-80 flex items-center">
+                                            <div className="min-h-[2.5rem] w-90 flex items-center">
                                                 <p className="text-lg font-medium line-clamp-2 leading-tight">{item.variantName}</p>
                                             </div>
-                                            <div className="flex-1 flex justify-between items-center ml-4">
+                                            <div className="flex-1 flex justify-between items-center ml-8">
                                                 <div className="flex items-center space-x-3">
                                                     <button onClick={() => updateCart(item.id, item.quantity - 1)} className="p-1 hover:cursor-pointer">-</button>
                                                     <span className="w-8 h-8 border border-gray-300 flex items-center justify-center rounded">{item.quantity}</span>

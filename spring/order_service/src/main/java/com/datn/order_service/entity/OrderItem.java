@@ -4,7 +4,9 @@ import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -45,6 +47,10 @@ public class OrderItem {
     @Type(JsonBinaryType.class)
     @Column(name = "product_snapshot", columnDefinition = "jsonb")
     private Map<String, Object> productSnapshot;
+
+    @Column(name = "item_warehouse_data")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<Long,Integer> itemWarehouseData;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

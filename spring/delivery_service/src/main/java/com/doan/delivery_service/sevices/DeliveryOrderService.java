@@ -1,6 +1,8 @@
 package com.doan.delivery_service.sevices;
 
 import com.doan.delivery_service.dtos.delivery.*;
+import com.doan.delivery_service.dtos.inventory.OrderItemTransactionRequest;
+import com.doan.delivery_service.dtos.inventory.OrderTransactionRequest;
 import com.doan.delivery_service.dtos.inventory.ReturnedOrderTransactionRequest;
 import com.doan.delivery_service.dtos.order.UpdateOrderStatusRequest;
 import com.doan.delivery_service.enums.DeliveryStatus;
@@ -109,8 +111,8 @@ public class DeliveryOrderService {
         if (!Boolean.TRUE.equals(newShipper.getIsActive()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipper đang bị khóa!");
 
-//        if (!"ONLINE".equals(newShipper.getStatus()))
-//            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipper không online!");
+        if (!"ONLINE".equals(newShipper.getStatus()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipper không thể nhận đơn hàng lúc này!");
 
         long activeCount = deliveryOrderRepository.countByAssignedShipper_IdAndStatusIn(
                 newShipper.getId(), ACTIVE_STATUSES
@@ -188,17 +190,53 @@ public class DeliveryOrderService {
 
     private void changeDeliveryOrderStatus(DeliveryOrder order, DeliveryStatus newStatus, String reason, MultipartFile image) {
         DeliveryStatus currentStatus = order.getStatus();
-
+        Shipper shipper= order.getAssignedShipper();
         if (!canChangeStatus(currentStatus, newStatus)) {
             throw new IllegalStateException("Không thể thay đổi trạng thái từ "
                     + currentStatus + " sang " + newStatus);
         }
         if(newStatus==DeliveryStatus.PENDING){
-            Shipper shipper=order.getAssignedShipper();
             if(shipper!=null){
                 shipper.getAssignedOrders()
                         .removeIf(o -> Objects.equals(o.getId(), order.getOrderId()));
                 shipperRepository.save(shipper);
+            }
+        }
+        if(newStatus==DeliveryStatus.SHIPPING && currentStatus!=DeliveryStatus.FAILED){
+            try {
+                orderRepositoryClient.updateOrderStatus(
+                        new UpdateOrderStatusRequest(List.of(order.getOrderNumber()),
+                                shipper.getId(), 4L, "Đơn hàng đang được giao bởi SP" + shipper.getId()));
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Lỗi khi tạo phiếu cập nhật trạng thái thành Đã giao cho shipper! " + e.getMessage(), e);
+            }
+            OrderTransactionRequest request = OrderTransactionRequest.builder()
+                            .orderNumber(order.getOrderNumber())
+                            .note("Phiếu xuất kho tạo bởi SP +"+shipper.getId())
+                            .shipperId(shipper.getId())
+                            .orderItems(order.getItemList().stream()
+                                    .map(it -> OrderItemTransactionRequest.builder()
+                                            .variantId(it.getVariantId())
+                                            .pricePerItem(it.getUnitPrice())
+                                            .quantity(it.getQuantity())
+                                            .build())
+                                    .toList())
+                            .build();
+            try {
+                inventoryRepositoryClient.createOrderTransaction(List.of(request));
+            } catch (Exception e) {
+                try {
+                    System.out.println("Tạo phiếu xuất kho thất bại!\nĐang hoàn tác cập nhật trạng thái đơn hàng");
+                    orderRepositoryClient.updateOrderStatus(
+                            new UpdateOrderStatusRequest(List.of(order.getOrderNumber()),
+                                    shipper.getId(), 3L, null));
+                } catch (Exception ex) {
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Lỗi khi hoàn tác cập nhật trạng thái thành Đã giao cho shipper! " + ex.getMessage(), ex);
+                }
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Lỗi khi tạo phiếu xuất kho cho shipper! " + e.getMessage(), e);
             }
         }
         if(newStatus==DeliveryStatus.CANCELLED){

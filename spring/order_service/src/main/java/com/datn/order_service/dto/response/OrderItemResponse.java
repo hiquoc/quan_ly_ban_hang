@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -24,4 +26,5 @@ public class OrderItemResponse implements Serializable {
     private BigDecimal totalPrice;
     private String imageUrl;
     private boolean returnRequested;
+    private Map<Long,Integer> itemWarehouseData;
 }

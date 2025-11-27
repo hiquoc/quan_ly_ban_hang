@@ -1,9 +1,6 @@
 package com.doan.product_service.repositories;
 
 import com.doan.product_service.models.Product;
-import jakarta.validation.constraints.NotBlank;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -33,19 +30,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
 
     @Query(value = """
-            SELECT p.*
-            FROM products p
-            LEFT JOIN product_variants v
-                   ON v.product_id = p.id
-            WHERE p.is_active = true
-            GROUP BY p.id
-            HAVING MAX(v.discount_percent) > 0
-            ORDER BY MAX(v.discount_percent) DESC
-            LIMIT :size OFFSET :offset
-            """, nativeQuery = true)
-    List<Product> findDiscountedProducts(@Param("size") int size, @Param("offset") int offset);
-
-    @Query(value = """
             SELECT p.id,p.name,p.product_code,p.slug,p.total_sold,p.image_url
             FROM product p
             WHERE p.is_active=true
@@ -65,5 +49,18 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             """, nativeQuery = true)
     List<Product> getRandomActiveProductByCategorySlug(@Param("categorySlug") String categorySlug,
                                                        @Param("size") int size);
+
+    @Query("""
+                SELECT p.id
+                FROM Product p
+                WHERE p.isActive = TRUE
+                  AND EXISTS (
+                    SELECT 1 FROM ProductVariant v
+                    WHERE v.product = p
+                      AND v.status != 'OUT_OF_STOCK'
+                      AND v.isDeleted = FALSE
+                  )
+            """)
+    List<Long> getAvailableProducts();
 
 }

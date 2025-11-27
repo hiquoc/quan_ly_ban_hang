@@ -206,7 +206,7 @@ public class OrderController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestHeader("X-User-Role") String role,
-            @RequestParam(required = false) String warehouseCode) {
+            @RequestParam(required = false) Long warehouseId) {
         try {
                 LocalDate start = null;
             LocalDate end = null;
@@ -225,7 +225,7 @@ public class OrderController {
                 }
             }
             Page<OrderResponse> orders = orderService.getOrdersAdvanced(page, size, status,keyword,
-                    start, end, Objects.equals(role, "ADMIN") || Objects.equals(role, "MANAGER"),warehouseCode);
+                    start, end, Objects.equals(role, "ADMIN") || Objects.equals(role, "MANAGER"),warehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu đơn hàng thành công!", true, orders));
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(new ApiResponse<>(ex.getReason(), false, null));
@@ -304,8 +304,10 @@ public class OrderController {
             @PathVariable Long orderId,
             @Valid @RequestBody UpdateOrderStatusRequest request,
             @RequestHeader("X-User-Role") String role,
-            @RequestHeader("X-Owner-Id") Long staffId) {
-        OrderResponse response = orderService.updateOrderStatus(orderId, request.getStatusId(), request.getNotes(), role,staffId);
+            @RequestHeader("X-Owner-Id") Long staffId,
+            @RequestHeader("X-Warehouse-Id") Long staffWarehouseId) {
+        OrderResponse response = orderService.updateOrderStatus(orderId, request.getStatusId(), request.getNotes(),
+                role,staffId, Objects.equals(role, "ADMIN") || Objects.equals(role, "MANAGER") ?-1:staffWarehouseId);
         return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái đơn hàng thành công!", true, response));
     }
 

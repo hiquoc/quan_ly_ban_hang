@@ -251,6 +251,14 @@ public class ProductController {
     public List<ProductResponse> getProductsByIds(@RequestParam List<Long> ids) {
         return productService.getProductsByIds(ids);
     }
+    @GetMapping("/public/active-products")
+    public List<Long> getAvailableProductsPublic() {
+        return productService.getAvailableProducts();
+    }
+    @GetMapping("/internal/active-products")
+    public List<Long> getAvailableProducts() {
+        return productService.getAvailableProducts();
+    }
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {
         Map<String, Object> error = new HashMap<>();

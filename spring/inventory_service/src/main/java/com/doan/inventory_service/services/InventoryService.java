@@ -122,8 +122,8 @@ public class InventoryService {
 
     // ---------------------- RESERVE / RELEASE STOCK ----------------------
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Map<String,Integer> reserveStock(ReserveStockRequest request) {
-        Map<String,Integer> warehouseData = new HashMap<>();
+    public Map<Long,Integer> reserveStock(ReserveStockRequest request) {
+        Map<Long,Integer> warehouseData = new HashMap<>();
         List<Inventory> inventories = inventoryRepository.findByVariantId(request.getVariantId());
         int pending = request.getQuantity();
         int totalAvailable = inventories.stream()
@@ -142,7 +142,7 @@ public class InventoryService {
             int add = Math.min(pending, available);
             inv.setReservedQuantity(inv.getReservedQuantity() + add);
             inventoryRepository.save(inv);
-            warehouseData.merge(inv.getWarehouse().getCode(), add, Integer::sum);
+            warehouseData.merge(inv.getWarehouse().getId(), add, Integer::sum);
             updateVariantStatusInternal(inv.getVariantId(),
                     inv.getQuantity() - (inv.getReservedQuantity() - add),
                     inv.getQuantity() - inv.getReservedQuantity()
@@ -399,12 +399,10 @@ public class InventoryService {
         inventoryTransactionRepository.save(transaction);
         if ("ORDER".equals(transaction.getReferenceType())) {
             String orderNumber = transaction.getReferenceCode();
-
             UpdateOrderStatusFromInvRequest orderUpdateRequest = new UpdateOrderStatusFromInvRequest(
                     List.of(orderNumber),
                     staffId,
-                    "COMPLETED".equals(status) ? 4L : // 4 = shipped
-                            "CANCELLED".equals(status) ? 6L : null,
+                    Objects.equals(transaction.getTransactionType(), "EXPORT")? 4L :6L, // 4 = shipped, 6 cancelled
                     note
             );
 

@@ -31,7 +31,7 @@ export const getCustomerOrders = async (page, size, statusName) => {
 
     return safeApiCall(() => api.get(`orders/customer`, { params }))
 }
-export const getAllOrders = async (page, size, status, keyword, startDate, endDate,warehouseCode) => {
+export const getAllOrders = async (page, size, status, keyword, startDate, endDate,warehouseId) => {
     const params = {}
     if (page != null) params.page = page;
     if (size != null) params.size = size;
@@ -39,7 +39,7 @@ export const getAllOrders = async (page, size, status, keyword, startDate, endDa
     if (keyword) params.keyword = keyword;
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
-    if (warehouseCode) params.warehouseCode = warehouseCode;
+    if (warehouseId) params.warehouseId = warehouseId;
 
     return safeApiCall(() => api.get(`orders/secure/orders`, { params }))
 }

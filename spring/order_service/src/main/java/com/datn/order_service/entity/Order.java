@@ -91,9 +91,9 @@ public class Order {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
-    @Column(name = "warehouse_data")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String,Integer> warehouseData;
+    @Type(JsonBinaryType.class)
+    @Column(name = "warehouse_data", columnDefinition = "jsonb")
+    private List<Long> warehouseData;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

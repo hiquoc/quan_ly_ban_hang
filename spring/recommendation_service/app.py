@@ -303,6 +303,19 @@ def fetch_reviews(start_date: str = None, end_date: str = None) -> List[Dict[str
     ]
     print("Reviews filtered:", len(reviews_filtered), flush=True)
     return reviews_filtered
+def fetch_active_products() -> List[int]:
+    active_product_url=resolve_service_url("product-service","/internal/active-products")
+    r = requests.get(active_product_url)
+    r.raise_for_status()
+    raw = r.json()
+    data_block = raw
+    if isinstance(data_block, str):
+        data_block = json.loads(data_block)
+
+    products = data_block
+    return products
+
+
 # Process functions (from your code)
 def process_orders(orders: List[Dict[str, Any]]) -> pd.DataFrame:
     df = pd.DataFrame(orders)
@@ -560,6 +573,7 @@ def train_model(augmented_df: pd.DataFrame, num_epochs: int = 20) -> tuple[RecMo
     print("Training completed!")
     return model, user_map, item_map
 def get_recommendations(model: RecModel, user_map: Dict[int, int], item_map: Dict[int, int], augmented_df: pd.DataFrame, customer_id: int, n: int = 3):
+    active_products = fetch_active_products()
     if customer_id not in user_map:
         popular = augmented_df.groupby('productId')['final_rating'].mean().sort_values(ascending=False).head(n)
         return [{'product_id': int(pid), 'score': float(score)} for pid, score in popular.items()]
@@ -568,6 +582,8 @@ def get_recommendations(model: RecModel, user_map: Dict[int, int], item_map: Dic
     seen_products = augmented_df[augmented_df['customerId'] == customer_id]['productId'].unique()
     all_products = list(item_map.keys())
     unseen = [p for p in all_products if p not in seen_products]
+    if active_products is not None:
+        unseen = [p for p in unseen if p in active_products]
     if not unseen:
         return []
    

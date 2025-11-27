@@ -215,7 +215,7 @@ public class InventoryController {
     @PostMapping("/internal/transactions/reserve")
     public ResponseEntity<?> reserveStock(@RequestBody ReserveStockRequest request) {
         try {
-            Map<String, Integer> warehouseData = inventoryService.reserveStock(request);
+            Map<Long, Integer> warehouseData = inventoryService.reserveStock(request);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật số lượng sản phẩm khả dụng thành công!", true, warehouseData));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);

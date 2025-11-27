@@ -77,21 +77,21 @@ export default function DeliveryManager() {
 
     const handleBatchAssignment = async () => {
         if (selectedOrders.length === 0) { showPopup("Vui lòng chọn ít nhất một đơn hàng"); return; }
-        if (!shippers.some(s => s.warehouseId === selectedWarehouseId)) {
-            const res = await getAllShippersDetails(0, null, null, "", selectedWarehouseId, true);
-            if (res.error) return showPopup(res.error);
-            setShippers(prev => [...prev, { warehouseId: selectedWarehouseId, shippersList: res.data.content }]);
-        }
+        // if (!shippers.some(s => s.warehouseId === selectedWarehouseId)) {
+        const res = await getAllShippersDetails(0, null, null, "ONLINE", selectedWarehouseId, true);
+        if (res.error) return showPopup(res.error);
+        setShippers(prev => [...prev, { warehouseId: selectedWarehouseId, shippersList: res.data.content }]);
+        // }
         setAssignmentSelect({ visible: true, selectedOrdersData: orders.filter(order => selectedOrders.includes(order.id)) });
         setExpandedShipperId(null)
     };
 
     const handleViewAllShippers = async () => {
-        if (!shippers.some(s => s.warehouseId === selectedWarehouseId)) {
-            const res = await getAllShippersDetails(0, null, null, "", selectedWarehouseId, true);
-            if (res.error) return showPopup(res.error);
-            setShippers(prev => [...prev, { warehouseId: selectedWarehouseId, shippersList: res.data.content }]);
-        }
+        // if (!shippers.some(s => s.warehouseId === selectedWarehouseId)) {
+        const res = await getAllShippersDetails(0, null, null, "ONLINE", selectedWarehouseId, true);
+        if (res.error) return showPopup(res.error);
+        setShippers(prev => [...prev, { warehouseId: selectedWarehouseId, shippersList: res.data.content }]);
+        // }
         setAssignmentSelect({ visible: true, selectedOrdersData: [] });
         setExpandedShipperId(null)
     }
@@ -103,7 +103,7 @@ export default function DeliveryManager() {
             const res = await assignDeliveriesToShipper(shipperId, deliveryIds);
             if (res.error) return showPopup(res.error);
             setOrders(prev => prev.map(order => deliveryIds.includes(order.id) ? { ...order, status: "ASSIGNED", assignedShipperId: shipperId } : order));
-            const shipperRes = await getAllShippersDetails(0, null, null, "", selectedWarehouseId, true);
+            const shipperRes = await getAllShippersDetails(0, null, null, "ONLINE", selectedWarehouseId, true);
             if (shipperRes.error) return showPopup(shipperRes.error);
             setShippers(prev => {
                 const existingIndex = prev.findIndex(w => w.warehouseId === selectedWarehouseId);
@@ -203,7 +203,8 @@ export default function DeliveryManager() {
                 <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
                     <thead className="bg-gray-200 text-gray-700">
                         <tr>
-                            <th className="p-3 border-b border-gray-200 text-center"><input type="checkbox" checked={orders && selectedOrders.length === orders.length} onChange={toggleSelectAll} className="w-4 h-4 cursor-pointer" /></th>
+                            {/* <th className="p-3 border-b border-gray-200 text-center"><input type="checkbox" checked={orders && selectedOrders.length === orders.length} onChange={toggleSelectAll} className="w-4 h-4 cursor-pointer" /></th> */}
+                            <th></th>
                             {["Mã giao hàng", "Mã đơn hàng", "Địa chỉ", "Tiền phải thu", "Trạng thái", "Phân công", "Chi tiết"].map(head => <th key={head} className="p-3 border-b border-gray-200 text-center">{head}</th>)}
                         </tr>
                     </thead>
@@ -347,17 +348,13 @@ export default function DeliveryManager() {
                                                                 <span
                                                                     className={`px-2 py-1 rounded-full text-xs font-semibold ${shipper.status === "ONLINE"
                                                                         ? "bg-green-100 text-green-700"
-                                                                        : shipper.status === "SHIPPING"
-                                                                            ? "bg-blue-100 text-blue-700"
-                                                                            : "bg-gray-100 text-gray-600"
+                                                                        : "bg-gray-100 text-gray-600"
                                                                         }`}
                                                                 >
                                                                     {
                                                                         shipper.status === "ONLINE"
                                                                             ? "Trực tuyến"
-                                                                            : shipper.status === "SHIPPING"
-                                                                                ? "Đang giao"
-                                                                                : "Ngoại tuyến"
+                                                                            : "Ngoại tuyến"
                                                                     }
                                                                 </span>
                                                                 {expandedShipperId === shipper.id ? <FiChevronUp /> : <FiChevronDown />}
