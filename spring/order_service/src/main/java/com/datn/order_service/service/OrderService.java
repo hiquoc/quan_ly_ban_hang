@@ -6,6 +6,7 @@ import com.datn.order_service.client.dto.request.ReleaseStockRequest;
 import com.datn.order_service.client.dto.request.ReserveStockRequest;
 import com.datn.order_service.client.dto.request.ValidatePromotionRequest;
 import com.datn.order_service.client.dto.response.PromotionValidationResponse;
+import com.datn.order_service.dto.OrderEvent;
 import com.datn.order_service.dto.PageCacheWrapper;
 import com.datn.order_service.dto.request.*;
 import com.datn.order_service.dto.response.*;
@@ -17,6 +18,7 @@ import com.datn.order_service.exception.OrderNotFoundException;
 import com.datn.order_service.repository.OrderItemRepository;
 import com.datn.order_service.repository.OrderRepository;
 import com.datn.order_service.repository.OrderStatusRepository;
+import com.datn.order_service.utils.OrderEventPublisher;
 import com.datn.order_service.utils.WebhookUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,6 +68,8 @@ public class OrderService {
     private final ProductServiceClient productServiceClient;
     private final CartServiceClient cartServiceClient;
     //    private final CloudinaryService cloudinaryService;
+    private final OrderEventPublisher eventPublisher;
+
     @Autowired
     private CacheManager cacheManager;
 
@@ -90,6 +94,7 @@ public class OrderService {
         handleCartAfterCheckout(request.getCustomerId(), request.getClearCart(),
                 extractVariantIds(request.getItems()));
 
+        eventPublisher.publish(new OrderEvent("ORDER_CREATED", orderResponse.getId(), orderResponse.getStatusName()));
         return orderResponse;
     }
 
@@ -123,6 +128,7 @@ public class OrderService {
         log.info("Buy Now order created successfully - OrderNumber: {}",
                 orderResponse.getOrderNumber());
 
+        eventPublisher.publish(new OrderEvent("ORDER_CREATED", orderResponse.getId(), orderResponse.getStatusName()));
         return orderResponse;
     }
 
@@ -461,7 +467,8 @@ public class OrderService {
             LocalDate fromDate,
             LocalDate toDate,
             boolean showRevenue,
-            Long warehouseId) {
+            Long warehouseId,
+            boolean sortByDeliveredDate) {
 
         Pageable pageable = (page == null || size == null)
                 ? Pageable.unpaged()
@@ -491,10 +498,16 @@ public class OrderService {
         }
 
         if (startDateTime != null) {
-            predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), startDateTime));
+            if(sortByDeliveredDate)
+                predicates.add(cb.greaterThanOrEqualTo(root.get("deliveredDate"), startDateTime));
+            else
+                predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), startDateTime));
         }
         if (endDateTime != null) {
-            predicates.add(cb.lessThan(root.get("orderDate"), endDateTime));
+            if(sortByDeliveredDate)
+                predicates.add(cb.lessThan(root.get("deliveredDate"), endDateTime));
+            else
+                predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), startDateTime));
         }
 
         if (warehouseId != null) {
@@ -763,6 +776,7 @@ public class OrderService {
             }
         }
         webhookUtils.postToWebhook(order.getId(), "update");
+        eventPublisher.publish(new OrderEvent("ORDER_STATUS_UPDATED", order.getId(), order.getStatus().getName()));
         log.info("Order status updated successfully - OrderId: {}, NewStatus: {}", orderId, newStatus.getName());
         return mapToResponse(order);
     }
@@ -794,6 +808,7 @@ public class OrderService {
             }
         }
         webhookUtils.postToWebhook(order.getId(), "update");
+        eventPublisher.publish(new OrderEvent("ORDER_STATUS_UPDATED", order.getId(), order.getStatus().getName()));
         return mapToResponse(order);
     }
 
@@ -854,6 +869,7 @@ public class OrderService {
             }
         }
         webhookUtils.postToWebhook(order.getId(), "update");
+        eventPublisher.publish(new OrderEvent("ORDER_STATUS_UPDATED", order.getId(), order.getStatus().getName()));
         log.info("Order cancelled successfully - OrderId: {}", orderId);
 
         return mapToResponse(order);
@@ -1074,7 +1090,12 @@ public class OrderService {
                                         order.getShippingPhone(),
                                         order.getPaymentMethod(),
                                         warehouseId,
-                                        order.getPaymentMethod().equals("COD") ? order.getTotalAmount() : BigDecimal.ZERO,
+                                        order.getPaymentMethod().equals("COD")
+                                                ? itemsForWarehouse.stream()
+                                                .map(item -> item.getUnitPrice()
+                                                        .multiply(BigDecimal.valueOf(item.getQuantity())))
+                                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                                : BigDecimal.ZERO,
                                         itemsForWarehouse
                                 )
                         );
@@ -1157,6 +1178,7 @@ public class OrderService {
             order.setNotes(request.getNotes());
             pendingOrdersToSave.add(order);
             webhookUtils.postToWebhook(order.getId(), "update");
+            eventPublisher.publish(new OrderEvent("ORDER_STATUS_UPDATED", order.getId(), order.getStatus().getName()));
         }
         orderRepository.saveAll(pendingOrdersToSave);
     }
@@ -1300,6 +1322,7 @@ public class OrderService {
                 .orderDate(order.getOrderDate())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .deliveredDate(order.getDeliveredDate())
                 .warehouseData(order.getWarehouseData())
                 .build();
     }

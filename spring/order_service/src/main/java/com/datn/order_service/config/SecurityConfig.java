@@ -25,8 +25,7 @@ public class SecurityConfig {
                         auth.requestMatchers("/internal/**","/payments/**").permitAll()
                         .anyRequest().authenticated() //tin tuong gateway
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .cors(cors->{});
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

@@ -50,16 +50,16 @@ public class OrderController {
             @RequestHeader("X-Owner-Id") Long customerId,
             @Valid @RequestBody CreateOrderRequest request,
             HttpServletRequest httpRequest) {
-//        try {
-//            Boolean verified = authServiceClient.checkAccountIsVerified(accountId).getBody();
-//            if (verified != null && !verified) {
-//                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                        .body(new ApiResponse<>( "Bạn chưa xác thực tài khoản!",false,null));
-//            }
-//        } catch (FeignException e) {
-//            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-//                    .body(new ApiResponse<>( "Không thể kiểm tra trạng thái xác thực của tài khoản!",false,null));
-//        }
+        try {
+            Boolean verified = authServiceClient.checkAccountIsVerified(accountId).getBody();
+            if (verified != null && !verified) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse<>( "Bạn chưa xác thực tài khoản!",false,null));
+            }
+        } catch (FeignException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new ApiResponse<>( "Không thể kiểm tra trạng thái xác thực của tài khoản!",false,null));
+        }
 
         request.setCustomerId(customerId);
         OrderDetailResponse orderResponse = orderService.createOrderFromCart(request);
@@ -109,8 +109,19 @@ public class OrderController {
     @PostMapping("/buy-now")
     public ResponseEntity<ApiResponse<Map<String, Object>>> buyNow(
             @RequestHeader("X-Owner-Id") Long customerId,
+            @RequestHeader("X-Account-Id") Long accountId,
             @Valid @RequestBody BuyNowRequest request,
             HttpServletRequest httpRequest) {
+        try {
+            Boolean verified = authServiceClient.checkAccountIsVerified(accountId).getBody();
+            if (verified != null && !verified) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse<>( "Bạn chưa xác thực tài khoản!",false,null));
+            }
+        } catch (FeignException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new ApiResponse<>( "Không thể kiểm tra trạng thái xác thực của tài khoản!",false,null));
+        }
 
         request.setCustomerId(customerId);
         OrderDetailResponse orderResponse = orderService.buyNow(request);
@@ -206,7 +217,8 @@ public class OrderController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestHeader("X-User-Role") String role,
-            @RequestParam(required = false) Long warehouseId) {
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Boolean sortByDeliveredDate) {
         try {
                 LocalDate start = null;
             LocalDate end = null;
@@ -225,7 +237,8 @@ public class OrderController {
                 }
             }
             Page<OrderResponse> orders = orderService.getOrdersAdvanced(page, size, status,keyword,
-                    start, end, Objects.equals(role, "ADMIN") || Objects.equals(role, "MANAGER"),warehouseId);
+                    start, end, Objects.equals(role, "ADMIN") || Objects.equals(role, "MANAGER"),warehouseId,
+                    sortByDeliveredDate!=null?sortByDeliveredDate:false);
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu đơn hàng thành công!", true, orders));
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(new ApiResponse<>(ex.getReason(), false, null));

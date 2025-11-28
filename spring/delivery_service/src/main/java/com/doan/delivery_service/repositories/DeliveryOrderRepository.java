@@ -34,7 +34,7 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder,Lon
 
     long countByAssignedShipper_IdAndStatusIn(Long id, List<DeliveryStatus> activeStatuses);
 
-    Optional<DeliveryOrder> findByOrderId(Long orderId);
+    List<DeliveryOrder> findByOrderId(Long orderId);
 
     Page<DeliveryOrder> findByAssignedShipper_IdAndDeliveryNumberContainingIgnoreCase(
             Long shipperId, String keyword, Pageable pageable);

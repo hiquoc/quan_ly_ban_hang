@@ -181,11 +181,13 @@ public class DeliveryOrderService {
     }
     @Transactional
     public void handleCancelDeliveryOrderStatusFromInternal(CancelDeliveryOrderRequest request) {
-        DeliveryOrder order = deliveryOrderRepository.findByOrderId(request.getOrderId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với orderId: " + request.getOrderId()));
-
-        changeDeliveryOrderStatus(order, DeliveryStatus.CANCELLED, request.getReason(),null);
+        List<DeliveryOrder> orders = deliveryOrderRepository.findByOrderId(request.getOrderId());
+        if(orders.isEmpty())
+            throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với orderId: " + request.getOrderId());
+        for(DeliveryOrder order:orders){
+            changeDeliveryOrderStatus(order, DeliveryStatus.CANCELLED, request.getReason(),null);
+        }
     }
 
     private void changeDeliveryOrderStatus(DeliveryOrder order, DeliveryStatus newStatus, String reason, MultipartFile image) {
@@ -251,25 +253,41 @@ public class DeliveryOrderService {
                         "Lỗi khi tạo phiếu trả hàng cho shipper! " + e.getMessage(), e);
             }
         }
-        if(newStatus==DeliveryStatus.DELIVERED){
-            if(image==null)
+        if (newStatus == DeliveryStatus.DELIVERED) {
+            if (image == null)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Vui lòng chụp ảnh xác nhận!");
-            try{
-                String imageUrl= cloudinaryService.uploadFile(image);
+
+            try {
+                String imageUrl = cloudinaryService.uploadFile(image);
                 order.setDeliveredImageUrl(imageUrl);
             } catch (IOException e) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                         "Lỗi khi upload hình ảnh xác thực đơn giao hàng\nVui lòng lưu lại ảnh để xác thực sau!");
             }
+
             order.setDeliveredAt(OffsetDateTime.now());
-            Long shipperId=order.getAssignedShipper().getId();
-            try {
-                orderRepositoryClient.updateOrderStatus(
-                        new UpdateOrderStatusRequest(List.of(order.getOrderNumber()), shipperId,5L,"Giao hàng thành công bởi SP"+shipperId));
-            }catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Lỗi khi tạo phiếu cập nhật trạng thái thành Đã giao cho shipper! " + e.getMessage(), e);
+            Long shipperId = order.getAssignedShipper().getId();
+
+            List<DeliveryOrder> deliveryOrders =
+                    deliveryOrderRepository.findByOrderId(order.getOrderId());
+
+            boolean hasOtherUndelivered = deliveryOrders.stream()
+                    .filter(o -> !o.getId().equals(order.getId()))
+                    .anyMatch(o -> o.getStatus() != DeliveryStatus.DELIVERED);
+
+            if (!hasOtherUndelivered) {
+                try {
+                    orderRepositoryClient.updateOrderStatus(
+                            new UpdateOrderStatusRequest(
+                                    List.of(order.getOrderNumber()),
+                                    shipperId,
+                                    5L,
+                                    "Giao hàng thành công bởi SP" + shipperId));
+                } catch (Exception e) {
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Lỗi khi tạo phiếu cập nhật trạng thái thành Đã giao cho shipper! " + e.getMessage(), e);
+                }
             }
         }
         order.setStatus(newStatus);

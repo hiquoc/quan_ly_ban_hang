@@ -29,5 +29,6 @@ public class OrderResponse {
     private OffsetDateTime orderDate;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private OffsetDateTime deliveredDate;
     private List<Long> warehouseData;
 }

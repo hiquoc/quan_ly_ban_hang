@@ -10,6 +10,7 @@ import { FiEye, FiMapPin, FiPhone, FiRefreshCcw, FiUser } from "react-icons/fi";
 import { createPortal } from "react-dom";
 import { Helmet } from "react-helmet-async";
 import { getAllWarehouses } from "../../../apis/inventoryApi";
+import { connectWebSocket, disconnectWebSocket } from "../../../apis/websocket";
 
 function AdminOrder() {
     const { role, staffWarehouseId } = useContext(AuthContext);
@@ -52,6 +53,18 @@ function AdminOrder() {
         if (warehouses === null) return;
         getData();
     }, [currentPage, sortStatus, startDate, endDate, sortWarehouse]);
+
+    useEffect(() => {
+        if (!warehouses) return;
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+        connectWebSocket(token, (event) => {
+            console.log("Order event:", event);
+            getData();
+        });
+
+        return () => disconnectWebSocket();
+    }, [warehouses]);
+
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -219,15 +232,18 @@ function AdminOrder() {
                             className="p-2 border border-gray-700 rounded"
                         >
                             {(role === "MANAGER" || role === "ADMIN") && (
-                                <option key="ALL" value={""}>Tất cả kho</option>
+                                <option value="">Tất cả kho</option>
                             )}
-                            {warehouses && (
-                                warehouses.map(w => {
-                                    if (w.id === staffWarehouseId)
-                                        return <option key={w.id} value={w.id}>{w.code}</option>
-                                })
-                            )}
-
+                            {warehouses?.map(w => {
+                                if (role === "MANAGER" || role === "ADMIN" || w.id === staffWarehouseId) {
+                                    return (
+                                        <option key={w.id} value={w.id}>
+                                            {w.code}
+                                        </option>
+                                    );
+                                }
+                                return null;
+                            })}
                         </select>
                     </div>
 
@@ -719,17 +735,17 @@ function AdminOrder() {
 
                                             showPopup("Cập nhật trạng thái thành công!");
                                             setConfirmNotes("");
-                                            if (statusName === "PROCESSING") {
-                                                getData()
-                                            } else {
-                                                setOrders(prev =>
-                                                    prev.map(order =>
-                                                        order.id === orderId
-                                                            ? { ...order, statusName: confirmStatusPanel.statusName }
-                                                            : order
-                                                    )
-                                                );
-                                            }
+                                            // if (statusName === "PROCESSING") {
+                                            //     getData()
+                                            // } else {
+                                            //     setOrders(prev =>
+                                            //         prev.map(order =>
+                                            //             order.id === orderId
+                                            //                 ? { ...order, statusName: confirmStatusPanel.statusName }
+                                            //                 : order
+                                            //         )
+                                            //     );
+                                            // }
                                             setEditingOrderId(null);
                                         }
                                         finally {

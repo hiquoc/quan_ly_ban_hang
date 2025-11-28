@@ -78,14 +78,16 @@ const AdminDashboard = () => {
       null,
       null,
       formatLocalDate(from),
-      formatLocalDate(to)
+      formatLocalDate(to),
+      null,
+      true
     );
 
     if (res.error) return showPopup(res.error);
-    // console.log(res.data.content)
+    console.log(res.data)
     setRecentOrdersData(res.data.content);
     setRecentOrderPage(currentPage);
-    setTotalRecentOrderPages(res.data.totalPages);
+    setTotalRecentOrderPages(res.data.totalPages - 1);
   }
   async function handleLoadInventoryData(page = 0) {
     if (loadingInventory) return;
@@ -318,7 +320,8 @@ const AdminDashboard = () => {
     revenue: o.revenue,
     status: o.statusName,
     revenueTextGreen: o.statusName === "DELIVERED",
-    time: new Date(o.updatedAt).toLocaleString(),
+    orderDate: new Date(o.orderDate).toLocaleString(),
+    deliveredDate: o.deliveredDate? new Date(o.deliveredDate).toLocaleString():"-",
   }));
 
   function getPageNumbers() {
@@ -653,7 +656,7 @@ const AdminDashboard = () => {
                         {/* Content */}
                         <div className="flex-1 ml-2">
                           <p className="font-semibold text-gray-900 group-hover:text-orange-700 transition-colors">
-                            {item.name}
+                            {item.sku}
                           </p>
                           <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
                             <span className="flex items-center gap-1">
@@ -759,7 +762,8 @@ const AdminDashboard = () => {
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Tổng tiền</th>
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Lợi nhuận</th>
                     <th className="py-4 px-4 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
-                    <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Thời gian</th>
+                    <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Ngày đặt</th>
+                    <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Ngày giao</th>
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Chi tiết</th>
                   </tr>
                 </thead>
@@ -779,7 +783,8 @@ const AdminDashboard = () => {
                           {statusMap[order.status]?.label}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-sm text-gray-600">{order.time}</td>
+                      <td className="py-4 px-4 text-sm text-gray-600">{order.orderDate}</td>
+                      <td className="py-4 px-4 text-sm text-gray-600">{order.deliveredDate}</td>
                       <td className="p-2 text-sm text-gray-600">
                         <button
                           onClick={() => handleGetOrderDetails(order.orderNumber)}

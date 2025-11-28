@@ -228,7 +228,7 @@ public class ShipperService {
     public Page<DeliveryOrderResponse> getShipperDeliveriesResponse(
             Long shipperId, Integer page, Integer size, String keyword, String status) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page!=null?page:0, size!=null?size:10);
 
         String kw = (keyword == null || keyword.isBlank()) ? "" : keyword.trim();
 

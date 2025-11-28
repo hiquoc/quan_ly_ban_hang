@@ -14,7 +14,7 @@ function LoginPage() {
     const [rememberMe, setRememberMe] = useState(false)
     const [popup, setPopup] = useState({ message: "", type: "error" })
     const [processingToken, setProcessingToken] = useState(false)
-    const { setUsername, setAccountId, setRole, setOwnerId,setStaffWarehouseId } = useContext(AuthContext)
+    const { setUsername, setAccountId, setRole, setOwnerId, setStaffWarehouseId } = useContext(AuthContext)
     const navigate = useNavigate()
     const location = useLocation()
     const [isProcessing, setIsProcessing] = useState(false)
@@ -51,32 +51,37 @@ function LoginPage() {
                 setPopup({ message: response.error || "Sai tên tài khoản hoặc mật khẩu" })
                 return
             }
-            handleTokenLogin(response.data.token)
+
+            handleTokenLogin(response.data.token, rememberMe)
         } finally {
             setIsProcessing(false)
         }
     }
 
-    function handleTokenLogin(token) {
-        if (rememberMe) localStorage.setItem("token", token)
+    function handleTokenLogin(token, remember) {
+        if (remember) localStorage.setItem("token", token)
         else sessionStorage.setItem("token", token)
 
-        const decoded = getDecodedToken();
+        const decoded = getDecodedToken()
+        if (!decoded) return
+
         setUsername(decoded.sub)
         setAccountId(decoded.id)
         setRole(decoded.role)
         setOwnerId(decoded.ownerId)
         setStaffWarehouseId(decoded.warehouseId)
+
         if (decoded.role === "CUSTOMER") navigate("/")
         else {
-            localStorage.clear("cartData")
+            localStorage.removeItem("cartData")
             navigate("/admin/orders")
         }
     }
 
+
     if (processingToken) return null
 
-   return (
+    return (
         <>
             <Helmet>
                 <title>Đăng nhập</title>

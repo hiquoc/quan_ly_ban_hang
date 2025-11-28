@@ -26,7 +26,6 @@ public class JwtAuthFilter implements GatewayFilter {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String token = null;
 
-        // 1. Check Authorization header
         String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
@@ -34,6 +33,10 @@ public class JwtAuthFilter implements GatewayFilter {
 
         if (token == null && exchange.getRequest().getCookies().containsKey("jwt")) {
             token = Objects.requireNonNull(exchange.getRequest().getCookies().getFirst("jwt")).getValue();
+        }
+        if (token == null && exchange.getRequest().getQueryParams().containsKey("token")) {
+            token = exchange.getRequest().getQueryParams().getFirst("token");
+            authHeader = "Bearer " + token;
         }
 
         if (token == null) {

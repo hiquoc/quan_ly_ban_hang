@@ -12,7 +12,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-
+import org.springframework.cloud.gateway.filter.factory.DedupeResponseHeaderGatewayFilterFactory;
 import java.util.List;
 
 @Configuration
@@ -77,9 +77,11 @@ public class GatewayConfig {
 
                 // ORDER SERVICE
                 .route("order", r -> r.path("/orders/**")
-                        .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
+                        .filters(f -> f.filter(jwtAuthFilter)
+                                .stripPrefix(1)
+                                .dedupeResponseHeader("Access-Control-Allow-Origin", "RETAIN_FIRST")
+                                .dedupeResponseHeader("Access-Control-Allow-Credentials", "RETAIN_FIRST"))
                         .uri("lb://ORDER-SERVICE"))
-
                 .route("order-vnpay", r -> r.path("/payments/vnpay-callback")
                         .uri("lb://ORDER-SERVICE"))
 

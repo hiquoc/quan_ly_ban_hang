@@ -41,7 +41,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             SELECT COUNT(id) AS total_orders,
                    COALESCE(SUM(revenue), 0) AS total_revenue
             FROM orders
-            WHERE order_date >= :from AND order_date < :to
+            WHERE delivered_date >= :from AND delivered_date < :to
               AND (:statusId IS NULL OR status_id = :statusId)
             """, nativeQuery = true)
     List<Object[]> getOrderSummary(@Param("from") OffsetDateTime from,
@@ -51,22 +51,22 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("""
             SELECT o.status.name, COUNT(o)
             FROM Order o
-            WHERE o.orderDate >= :from AND o.orderDate < :to
+            WHERE o.deliveredDate >= :from AND o.deliveredDate < :to
             GROUP BY o.status.name
             """)
     List<Object[]> getOrderStatusStats(@Param("from") OffsetDateTime from,
                                        @Param("to") OffsetDateTime to);
 
     @Query(value = """
-            SELECT DATE(order_date) AS order_date,
+            SELECT DATE(delivered_date) AS delivered_date,
                    COUNT(*) AS total_orders,
                    COALESCE(SUM(total_amount),0) AS total_amount,
                    COALESCE(SUM(revenue),0) AS total_revenue
             FROM orders
-            WHERE order_date >= :from AND order_date < :to
+            WHERE delivered_date >= :from AND delivered_date < :to
               AND (:statusId IS NULL OR status_id = :statusId)
-            GROUP BY DATE(order_date)
-            ORDER BY DATE(order_date)
+            GROUP BY DATE(delivered_date)
+            ORDER BY DATE(delivered_date)
             """, nativeQuery = true)
     List<Object[]> getDailyStats(@Param("from") OffsetDateTime from,
                                  @Param("to") OffsetDateTime to,
