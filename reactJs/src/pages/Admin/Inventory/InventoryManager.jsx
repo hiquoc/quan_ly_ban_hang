@@ -1,10 +1,11 @@
 import { useContext, useEffect, useState } from "react";
 import { getAllInventories, getAllWarehouses, getInventoryQuantityChanges, getInventoryTransaction, updateInventoryActive } from "../../../apis/inventoryApi";
-import Popup from "../../../components/Popup";
 import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye, FiClock } from "react-icons/fi";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import { AuthContext } from "../../../contexts/AuthContext";
+import InventoryExportFileModal from "./InventoryExportFileModal";
+import { PopupContext } from "../../../contexts/PopupContext";
 
 export default function InventoryManager() {
   const { role, staffWarehouseId } = useContext(AuthContext)
@@ -13,7 +14,7 @@ export default function InventoryManager() {
   const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [searchText, setSearchText] = useState("");
-  const [popup, setPopup] = useState({ message: "", type: "" });
+  const {showPopup} = useContext(PopupContext)
   const [showOnlyActive, setShowOnlyActive] = useState(true)
   const [warehouses, setWarehouses] = useState(null)
   const [sortWarehouseId, setSortWarehouseId] = useState(null)
@@ -29,6 +30,7 @@ export default function InventoryManager() {
   const [endDate, setEndDate] = useState("");
   const [showTransactions, setShowTransactions] = useState(false);
   const [confirmPanel, setConfirmPanel] = useState({ visible: false, message: "", onConfirm: null });
+  const [showExportModal, setShowExportModal] = useState(false)
 
   const [from, setFrom] = useState(() => {
     const d = new Date();
@@ -67,7 +69,7 @@ export default function InventoryManager() {
     ]);
     if (inventoryRes?.error) {
       console.log(inventoryRes.error)
-      setPopup({ message: "Không thể tải dữ liệu!" });
+      showPopup("Không thể tải dữ liệu!");
       setIsLoading(false);
       return;
     }
@@ -79,7 +81,7 @@ export default function InventoryManager() {
   async function loadWareHouse() {
     const res = await getAllWarehouses();
     if (res.error) {
-      setPopup({ message: res.error || "Lỗi khi tải danh sách kho!" });
+      showPopup(res.error || "Lỗi khi tải danh sách kho!");
       return
     }
     let warehouseData = res.data;
@@ -103,7 +105,7 @@ export default function InventoryManager() {
 
     if (res.error) {
       console.error(res.error);
-      setPopup({ message: res.error || "Lỗi khi tải lịch sử phiếu!" });
+      showPopup(res.error || "Lỗi khi tải lịch sử phiếu!");
       setIsLoadingTrans(false);
       return
     }
@@ -127,15 +129,15 @@ export default function InventoryManager() {
   async function handleChangeInventoryActive(id) {
     const res = await updateInventoryActive(id);
     if (res.error)
-      return setPopup({ message: res.error });
-    setPopup({ message: "Cập nhật trạng thái thành công!" });
+      return showPopup(res.error);
+    showPopup("Cập nhật trạng thái thành công!" );
     setInventories(prev => prev.map(t => t.id === id ? { ...t, active: !t.active } : t))
   }
 
   async function handleGetInventoryQuantityChanges(selectedInventory) {
     const res = await getInventoryQuantityChanges(selectedInventory.id, from, to);
     if (res.error) {
-      setPopup({ message: res.error });
+      showPopup(res.error );
       setQuantityData(null);
       return;
     }
@@ -250,6 +252,12 @@ export default function InventoryManager() {
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h2 className="text-2xl font-semibold text-gray-800">Quản lý tồn kho</h2>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-500 transition"
+          >
+            Xuất file
+          </button>
           <button
             onClick={() => { loadData(0) }}
             className="flex items-center px-4 py-2 border border-gray-700 text-gray-800 rounded hover:bg-gray-200 transition"
@@ -755,11 +763,6 @@ export default function InventoryManager() {
                 <p className="text-center py-10 text-gray-500">Không có dữ liệu</p>
               )}
             </div>
-
-
-            {popup.message && (
-              <p className="text-red-500 mt-4">{popup.message}</p>
-            )}
           </div>
         </div>
       )
@@ -921,14 +924,6 @@ export default function InventoryManager() {
         )
       }
 
-
-      <Popup
-        message={popup.message}
-        type={popup.type}
-        onClose={() => setPopup({ message: "", type: "" })}
-        duration={3000}
-      />
-
       <ConfirmPanel
         visible={confirmPanel.visible}
         message={confirmPanel.message}
@@ -940,6 +935,13 @@ export default function InventoryManager() {
         }}
         onCancel={closeConfirmPanel}
       />
+      {showExportModal && (
+        <InventoryExportFileModal
+          warehouseId={sortWarehouseId}
+          showPopup={showPopup}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
     </div >
   );
 

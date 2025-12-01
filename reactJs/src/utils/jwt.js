@@ -6,7 +6,6 @@ export function getDecodedToken() {
 
     const token = localToken || sessionToken;
     const useLocal = !!localToken;
-    console.log(token)
     if (!token) return null;
 
     try {

@@ -1,8 +1,6 @@
 package com.doan.inventory_service.repositories;
 
-import com.doan.inventory_service.dtos.inventory.InventoryResponse;
 import com.doan.inventory_service.models.Inventory;
-import com.doan.inventory_service.models.InventoryTransaction;
 import feign.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,26 +21,54 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     boolean existsByWarehouseId(Long warehouseId);
 
     @Query("""
-                SELECT i\s
-                FROM Inventory i\s
-                JOIN i.warehouse w\s
-                WHERE i.isActive = :isActive
-                  AND w.id = :warehouseId
-           \s""")
+                 SELECT i\s
+                 FROM Inventory i\s
+                 JOIN i.warehouse w\s
+                 WHERE i.isActive = :isActive
+                   AND w.id = :warehouseId
+            \s""")
     Page<Inventory> findAllByIsActiveAndWarehouseId(
             @Param("isActive") Boolean isActive,
             @Param("warehouseId") Long warehouseId,
             Pageable pageable
     );
 
-    Page<Inventory> findAllByIsActive(Boolean isActive, Pageable pageable);
+    @Query("""
+                SELECT i
+                FROM Inventory i
+                JOIN i.warehouse w
+                WHERE i.isActive = :isActive
+                AND (:warehouseId IS NULL OR w.id = :warehouseId)
+                AND i.createdAt BETWEEN :fromDate AND :toDate
+            """)
+    List<Inventory> findAllByIsActiveAndWarehouseIdAndCreatedAtBetween(
+            boolean isActive,
+            Long warehouseId,
+            OffsetDateTime fromDate,
+            OffsetDateTime toDate
+    );
 
     @Query("""
-    SELECT i FROM Inventory i
-    WHERE i.isActive = :isActive
-      AND (:variantIds IS NULL OR i.variantId IN :variantIds)
-      AND (:warehouseId IS NULL OR i.warehouse.id = :warehouseId)
-""")
+            SELECT i
+            FROM Inventory i
+            JOIN i.warehouse w
+            WHERE i.isActive = :isActive
+              AND (:warehouseId IS NULL OR w.id = :warehouseId)
+            """)
+    List<Inventory> findAllByIsActiveAndWarehouseId(
+            @Param("isActive") Boolean isActive,
+            @Param("warehouseId") Long warehouseId
+    );
+
+
+    List<Inventory> findAllByIsActive(Boolean isActive);
+
+    @Query("""
+                SELECT i FROM Inventory i
+                WHERE i.isActive = :isActive
+                  AND (:variantIds IS NULL OR i.variantId IN :variantIds)
+                  AND (:warehouseId IS NULL OR i.warehouse.id = :warehouseId)
+            """)
     Page<Inventory> searchInventories(
             @Param("variantIds") List<Long> variantIds,
             @Param("isActive") Boolean isActive,
@@ -51,15 +77,17 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     );
 
     @Query("""
-    SELECT i FROM Inventory i
-    WHERE i.isActive = :isActive
-      AND (:variantIds IS NULL OR i.variantId IN :variantIds)
-""")
-    Page<Inventory> findAllByIsActiveAndVariantIdIn(@Param("isActive")Boolean isActive,
+                SELECT i FROM Inventory i
+                WHERE i.isActive = :isActive
+                  AND (:variantIds IS NULL OR i.variantId IN :variantIds)
+            """)
+    Page<Inventory> findAllByIsActiveAndVariantIdIn(@Param("isActive") Boolean isActive,
                                                     @Param("variantIds") List<Long> variantIds,
                                                     Pageable pageable);
 
     @Query("SELECT i FROM Inventory i " +
             "WHERE i.isActive = true " +
             "ORDER BY (i.quantity - i.reservedQuantity) ASC")
-    Page<Inventory> findAllOrderByAvailableStock(Pageable pageable);}
+    Page<Inventory> findAllOrderByAvailableStock(Pageable pageable);
+
+}

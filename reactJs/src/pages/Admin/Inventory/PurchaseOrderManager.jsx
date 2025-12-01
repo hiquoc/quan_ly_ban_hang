@@ -55,6 +55,7 @@ export default function PurchaseOrderManager() {
             setIsLoading(false);
             return;
         }
+        console.log(ordersRes.data.content)
         setPage(currentPage)
         setTotalPages(ordersRes.data.totalPages);
         setOrders(ordersRes.data.content || []);

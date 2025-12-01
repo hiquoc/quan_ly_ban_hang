@@ -25,6 +25,21 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
     List<InventoryTransaction> findByInventoryIdAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(Long id, String status, OffsetDateTime from, OffsetDateTime to);
     List<InventoryTransaction> findByInventoryIdAndStatusAndUpdatedAtBetweenOrderByCreatedAtAsc(Long id, String status, OffsetDateTime from, OffsetDateTime to);
 
+    @Query("""
+       SELECT t
+       FROM InventoryTransaction t
+       WHERE t.inventory.id IN :inventoryIds
+         AND t.status = :status
+         AND t.updatedAt BETWEEN :from AND :to
+       ORDER BY t.inventory.id, t.createdAt ASC
+       """)
+    List<InventoryTransaction> findAllByInventoryIdsAndStatusAndUpdatedAtBetween(
+            @Param("inventoryIds") List<Long> inventoryIds,
+            @Param("status") String status,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
+
 
     Page<InventoryTransaction> findByInventoryId(Long inventoryId, Pageable pageable);
 

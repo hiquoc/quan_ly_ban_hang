@@ -1,6 +1,7 @@
 package com.doan.product_service.dtos.product_variant;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -9,6 +10,7 @@ import java.time.OffsetDateTime;
 
 @Data
 @AllArgsConstructor
+@Builder
 public class VariantResponse {
     private Long id;
     private Long productId;

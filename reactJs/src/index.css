@@ -52,8 +52,10 @@ body {
 }
 
 .rich-editor .ql-editor {
-  height: 100%;       /* minimum editor height */
-  overflow-y: auto;        /* scroll when content exceeds max */
+  height: 100%;
+  /* minimum editor height */
+  overflow-y: auto;
+  /* scroll when content exceeds max */
   line-height: 1.6;
 }
 
@@ -71,9 +73,11 @@ body {
   background: #ccc;
   border-radius: 6px;
 }
+
 .rich-text-content img {
-  display: block;   
-  margin: 0 auto;
-  max-width: 100%; 
-  height: auto; 
+  display: block;
+  margin: 16px auto;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
 }

@@ -117,7 +117,7 @@ public class ProductService {
         if (page == null || size == null) {
             pageable = Pageable.unpaged();
         } else {
-            Sort sort = Sort.by("updatedAt");
+            Sort sort = Sort.by("createdAt");
             if(!isPriceSort){
                 if ("sold".equalsIgnoreCase(sortBy)) {
                     sort = Sort.by("totalSold");

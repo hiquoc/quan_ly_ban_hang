@@ -299,7 +299,7 @@ public class DeliveryOrderService {
     private Map<DeliveryStatus, Set<DeliveryStatus>> allowedTransitions() {
         Map<DeliveryStatus, Set<DeliveryStatus>> map = new EnumMap<>(DeliveryStatus.class);
         map.put(DeliveryStatus.PENDING, Set.of(DeliveryStatus.ASSIGNED, DeliveryStatus.CANCELLED));
-        map.put(DeliveryStatus.ASSIGNED, Set.of(DeliveryStatus.PENDING,DeliveryStatus.ASSIGNED,DeliveryStatus.SHIPPING));
+        map.put(DeliveryStatus.ASSIGNED, Set.of(DeliveryStatus.PENDING,DeliveryStatus.CANCELLED,DeliveryStatus.SHIPPING));
         map.put(DeliveryStatus.SHIPPING, Set.of(DeliveryStatus.DELIVERED, DeliveryStatus.FAILED, DeliveryStatus.CANCELLED));
         map.put(DeliveryStatus.DELIVERED, Set.of());
         map.put(DeliveryStatus.FAILED, Set.of(DeliveryStatus.ASSIGNED,DeliveryStatus.SHIPPING, DeliveryStatus.CANCELLED));
@@ -344,10 +344,27 @@ public class DeliveryOrderService {
                 .orderItemId(item.getOrderItemId())
                 .variantId(item.getVariantId())
                 .variantName(item.getVariantName())
+                .sku(item.getSku())
                 .unitPrice(item.getUnitPrice())
                 .quantity(item.getQuantity())
                 .imageUrl(item.getImageUrl())
                 .build();
     }
 
+    @Transactional
+    public void cancellingAssignedDeliveryOrder(Long id, Long shipperId) {
+        DeliveryOrder order = deliveryOrderRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với id: " + id));
+        Long assignedShipperId=order.getAssignedShipper().getId();
+        if(assignedShipperId==null || !assignedShipperId.equals(shipperId)){
+            throw  new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể hủy nhận đơn hàng này!");
+        }
+        DeliveryStatus currentStatus=order.getStatus();
+        if(currentStatus!=DeliveryStatus.ASSIGNED&&currentStatus!=DeliveryStatus.SHIPPING&&currentStatus!=DeliveryStatus.FAILED)
+            throw  new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể hủy nhận đơn hàng này!");
+        order.setAssignedShipper(null);
+        order.setStatus(DeliveryStatus.PENDING);
+        order.setAssignedAt(null);
+    }
 }

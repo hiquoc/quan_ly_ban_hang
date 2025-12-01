@@ -44,7 +44,7 @@ export default function CategoryManager() {
     setIsLoading(true);
     const res = await getAllCategories(currentPage, 10, searchText, newStatus);
     if (res.error) {
-      console.error(res.error);
+      // console.error(res.error);
       setCategories([]);
       setPopup({ message: "Có lỗi khi lấy dữ liệu danh mục!", type: "error" });
       setIsLoading(false);
@@ -72,7 +72,7 @@ export default function CategoryManager() {
       setShowForm(false);
       setForm({ name: "", slug: "", imageUrl: "", isActive: false });
       setImageFile(null);
-      handleLoadCategories();
+      setCategories(prev => [response.data, ...prev])
     } finally {
       setIsProcessing(false)
     }
@@ -94,7 +94,7 @@ export default function CategoryManager() {
       setForm({ name: "", slug: "", imageUrl: "", isActive: false });
       setEditingCategoryId(null);
       setImageFile(null);
-      handleLoadCategories();
+      setCategories(prev => prev.map(c=>c.id===editingCategoryId?response.data:c))
     } finally {
       setIsProcessing(false)
     }
@@ -111,7 +111,7 @@ export default function CategoryManager() {
     // Success
     setPopup({ message: response.message || "Cập nhật trạng thái thành công!", type: "success" });
     setCategories((prev) =>
-      prev.map((c) =>( c.id === id ? { ...c, isActive: !c.isActive } : c))
+      prev.map((c) => (c.id === id ? { ...c, isActive: !c.isActive } : c))
     );
   };
   const handleDeleteCategory = async (id) => {

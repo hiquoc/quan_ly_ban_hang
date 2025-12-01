@@ -10,7 +10,7 @@ export default function Popup({ message, onClose, type = "error" }) {
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-52 pb-20">
+        <div className="fixed inset-0 flex items-center justify-center z-[9999] pb-20">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"

@@ -3,6 +3,7 @@ package com.doan.product_service.models;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.OffsetDateTime;
 
@@ -29,6 +30,10 @@ public class Category {
 
     @Column(name = "created_At", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
 
     public Category(String name, String slug,String imageUrl) {
         this.name = name;

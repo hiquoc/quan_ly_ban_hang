@@ -216,6 +216,10 @@ public class ProductVariantController {
     public List<VariantResponse> getVariantByIds(@RequestParam List<Long> ids) {
         return productVariantService.getVariantByIds(ids);
     }
+    @GetMapping("/internal/variants/limited")
+    public List<VariantResponse> getVariantByIdsLimited(@RequestParam List<Long> ids) {
+        return productVariantService.getVariantByIdsLimited(ids);
+    }
 
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {

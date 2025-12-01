@@ -47,7 +47,7 @@ function AdminAccounts() {
     }
     setAccounts(res.data.content || []);
     setTotalPages(res.data.totalPages || 1);
-    console.log(res.data)
+    // console.log(res.data)
     setIsLoading(false);
   };
 
@@ -59,15 +59,14 @@ function AdminAccounts() {
     setCurrentPage(0);
   }, [sortRole, sortActive]);
 
-  // Handlers
-  const handleRoleChange = async (accountId, newRole) => {
-    const roleMap = { MANAGER: 2, STAFF: 3, SHIPPER: 5 };
-    const result = await changeAccountRole(accountId, roleMap[newRole]);
-    if (result?.error) return showPopup(result.error);
-    showPopup("Thay đổi quyền thành công!", "success");
-    setAccounts(prev => prev.map(acc => acc.id === accountId ? { ...acc, role: newRole } : acc));
-    setPendingRoles(prev => { const copy = { ...prev }; delete copy[accountId]; return copy; });
-  };
+  // const handleRoleChange = async (accountId, newRole) => {
+  //   const roleMap = { MANAGER: 2, STAFF: 3, SHIPPER: 5 };
+  //   const result = await changeAccountRole(accountId, roleMap[newRole]);
+  //   if (result?.error) return showPopup(result.error);
+  //   showPopup("Thay đổi quyền thành công!", "success");
+  //   setAccounts(prev => prev.map(acc => acc.id === accountId ? { ...acc, role: newRole } : acc));
+  //   setPendingRoles(prev => { const copy = { ...prev }; delete copy[accountId]; return copy; });
+  // };
 
   const handleToggleActive = async (id) => {
     const result = await changeAccountActive(id);
@@ -231,7 +230,7 @@ function AdminAccounts() {
                     <td className="p-3 border-b border-gray-200 text-center">{acc.email || "-"}</td>
                     <td className="p-3 border-b border-gray-200 text-center">{acc.phone || "-"}</td>
                     <td className="p-3 border-b border-gray-200 text-center">
-                      {acc.role !== "CUSTOMER" && acc.role !== "SHIPPER" ? (
+                      {/* {acc.role !== "CUSTOMER" && acc.role !== "SHIPPER" ? (
                         <select
                           value={pendingRoles[acc.id] ?? acc.role}
                           onChange={e => {
@@ -247,7 +246,8 @@ function AdminAccounts() {
                           <option value="STAFF">STAFF</option>
                           <option value="MANAGER">MANAGER</option>
                         </select>
-                      ) : acc.role}
+                      ) : acc.role} */}
+                      {acc.role}
                     </td>
                     <td className="p-3 border-b border-gray-200 text-center">
                       <button

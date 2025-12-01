@@ -53,7 +53,7 @@ public class InventoryController {
                                               @RequestHeader("X-Warehouse-Id") Long staffWarehouseId,
                                               @PathVariable Long id) {
         try {
-            inventoryService.changeItemActive(id,role,staffWarehouseId);
+            inventoryService.changeItemActive(id, role, staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -120,7 +120,7 @@ public class InventoryController {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày kết thúc không hợp lệ!");
                 }
             }
-            Page<InventoryTransactionResponse> transactions = inventoryService.getTransaction(variantId, page, size, start, end,role,staffWarehouseId);
+            Page<InventoryTransactionResponse> transactions = inventoryService.getTransaction(variantId, page, size, start, end, role, staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu phiếu thành công!", true, transactions));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -134,8 +134,8 @@ public class InventoryController {
                                                 @Valid @RequestBody InventoryTransactionRequest request,
                                                 @RequestHeader("X-Owner-Id") Long staffId) {
         try {
-            if(role.equals("STAFF")&&!Objects.equals(request.getWarehouseId(), staffWarehouseId))
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền tạo đơn!");
+            if (role.equals("STAFF") && !Objects.equals(request.getWarehouseId(), staffWarehouseId))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền tạo đơn!");
             InventoryTransactionResponse response = inventoryService.createTransactions(Collections.singletonList(request), staffId);
             return ResponseEntity.ok(new ApiResponse<>("Tạo phiếu phiếu thành công!", true, response));
         } catch (ResponseStatusException ex) {
@@ -150,7 +150,7 @@ public class InventoryController {
                                                      @PathVariable Long id, @RequestBody UpdateTransactionStatusRequest request,
                                                      @RequestHeader("X-Owner-Id") Long staffId) {
         try {
-            inventoryService.updateTransactionStatus(id, request.getStatus().replace("\"", "").trim(), request.getNote(), staffId,role,staffWarehouseId);
+            inventoryService.updateTransactionStatus(id, request.getStatus().replace("\"", "").trim(), request.getNote(), staffId, role, staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái phiếu thành công!", true, null));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
@@ -188,8 +188,40 @@ public class InventoryController {
             @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
 
-        InventoryQuantityChangeResponse response = inventoryService.calculateNumOfItemWithDailyChanges(id, from, to,role,staffWarehouseId);
+        InventoryQuantityChangeResponse response = inventoryService.calculateNumOfItemWithDailyChanges(id, from, to, role, staffWarehouseId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/secure/inventory-report")
+    public ResponseEntity<?> getInventoryQuantityChangesForReport(
+            @RequestHeader("X-User-Role") String role,
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(required = false) Long warehouseId) {
+        try {
+            if (!Objects.equals(role, "ADMIN") && !Objects.equals(role, "MANAGER"))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền truy vấn dữ liệu này!");
+            LocalDate start=null;
+            LocalDate end=null;
+            if (startDate != null && !startDate.isBlank()) {
+                try {
+                    start = LocalDate.parse(startDate);
+                } catch (DateTimeParseException ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày bắt đầu không hợp lệ!");
+                }
+            }
+            if (endDate != null && !endDate.isBlank()) {
+                try {
+                    end = LocalDate.parse(endDate);
+                } catch (DateTimeParseException ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày kết thúc không hợp lệ!");
+                }
+            }
+            List<InventoryQuantityChangeResponse> responses = inventoryService.calculateNumOfItemChanges(start, end, warehouseId);
+            return ResponseEntity.ok(responses);
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
+        }
     }
 
     @PostMapping("/internal/transactions")

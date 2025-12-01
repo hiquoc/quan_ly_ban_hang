@@ -397,4 +397,12 @@ public class ProductVariantService {
     public List<VariantResponse> getVariantByIds(List<Long> ids) {
         return productVariantRepository.findAllById(ids).stream().map(this::toVariantResponse).toList();
     }
+    public List<VariantResponse> getVariantByIdsLimited(List<Long> ids) {
+        return productVariantRepository.findAllById(ids).stream().map(productVariant ->
+                VariantResponse.builder()
+                .id(productVariant.getId())
+                .sku(productVariant.getSku())
+                .name(productVariant.getName())
+                .build()).toList();
+    }
 }

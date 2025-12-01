@@ -60,8 +60,7 @@ public class CategoryController {
     public ResponseEntity<?> createCategory(@RequestPart("category") @Valid CategoryRequest categoryRequest,
                                             @RequestPart(value = "image", required = false) MultipartFile image){
         try {
-            categoryService.createCategory(categoryRequest,image);
-            return ResponseEntity.ok(new ApiResponse<>("Tạo danh mục thành công!",true,  null));
+            return ResponseEntity.ok(new ApiResponse<>("Tạo danh mục thành công!",true,  categoryService.createCategory(categoryRequest,image)));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }
@@ -71,8 +70,7 @@ public class CategoryController {
     public ResponseEntity<?> updateCategory(@PathVariable Long id, @RequestPart("category") @Valid CategoryRequest categoryRequest,
                                             @RequestPart(value = "image", required = false) MultipartFile image){
         try {
-            categoryService.updateCategory(id,categoryRequest,image);
-            return ResponseEntity.ok(new ApiResponse<>("Cập nhật danh mục thành công!",true,  null));
+            return ResponseEntity.ok(new ApiResponse<>("Cập nhật danh mục thành công!",true,  categoryService.updateCategory(id,categoryRequest,image)));
         } catch (ResponseStatusException ex) {
             return errorResponse(ex);
         }

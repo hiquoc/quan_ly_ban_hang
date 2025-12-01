@@ -44,7 +44,7 @@ export default function HomePage() {
   const [canScrollCategoryLeft, setCanScrollCategoryLeft] = useState(false);
   const [canScrollCategoryRight, setCanScrollCategoryRight] = useState(true);
 
-  const [heroSlides, setHeroSlides] = useState([
+  const heroSlides = [
     {
       title: "iPhone 17 Pro Max",
       subtitle: "Trải nghiệm công nghệ đỉnh cao – Mua ngay hôm nay!",
@@ -65,7 +65,7 @@ export default function HomePage() {
       cta: "Xem thêm",
       imageUrl: "https://media.vietnamplus.vn/images/7c9de47923aa66aa3d70a2b6ee174cec84805872a0d596f69af26df51fa3ba96412351bb99fc88a0d50181b29f4e3bac23c824218db520a9ae8e9975906456124f9efb0c8972265f49d8f86164867992/samsung-galaxy-s25-ultra-1024x576-1.jpg"
     }
-  ]);
+  ];
 
 
   useEffect(() => {
@@ -394,7 +394,7 @@ export default function HomePage() {
                       href={`search?categories=${cat.slug}`}
                       className="group py-4"
                     >
-                      <div className="bg-white rounded-2xl p-4 transition transform hover:scale-105 hover:shadow-xl group flex-shrink-0 w-35">
+                      <div className="bg-white rounded-2xl p-4 transition transform hover:scale-105 hover:shadow-xl group flex-shrink-0 w-40">
                         <div className="overflow-hidden rounded-xl mb-4">
                           <img
                             src={cat.imageUrl}
@@ -402,7 +402,7 @@ export default function HomePage() {
                             alt={cat.name}
                           />
                         </div>
-                        <span className="text-gray-800 text-sm font-semibold text-center block group-hover:text-blue-600 transition">
+                        <span className="text-gray-800 -mx-4 text-sm font-semibold text-center block group-hover:text-blue-600 transition">
                           {cat.name}
                         </span>
                       </div>
@@ -698,7 +698,7 @@ export default function HomePage() {
                       </div>
                       <div className="p-6 -mt-4">
                         <h3 className="text-xl font-bold text-gray-900 mb-2">{b.name}</h3>
-                        <p className="text-gray-600 text-sm mb-6 line-clamp-4">{b.description}</p>
+                        <p className="text-gray-600 text-sm mb-6 line-clamp-4" title={b.description}>{b.description}</p>
                         <Link
                           to={`search?brands=${b.slug}`}
                           className="text-center border border-gray-400 px-6 py-3 mt-5 rounded font-semibold transition transform hover:bg-gray-200 "

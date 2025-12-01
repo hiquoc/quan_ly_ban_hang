@@ -31,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -219,20 +220,21 @@ public class InventoryService {
                                 "ORDER", order.getOrderNumber(), "RESERVE", "PENDING");
 
                 int pending = orderItem.getQuantity();
-
                 for (InventoryTransaction reserve : reserves) {
-                    if (pending <= 0) break;
-
-                    if (!reserve.getInventory().getVariantId().equals(orderItem.getVariantId())) continue;
-
+                    if (pending <= 0) {
+                        break;
+                    }
+                    if (!reserve.getInventory().getVariantId().equals(orderItem.getVariantId())) {
+                        continue;
+                    }
                     int reservedQty = reserve.getQuantity();
-                    if (reservedQty <= 0) continue;
-
+                    if (reservedQty <= 0) {
+                        continue;
+                    }
                     int exportQty = Math.min(reservedQty, pending);
-
                     InventoryTransaction exportTransaction = InventoryTransaction.builder()
                             .code(generateTransactionCode("EXPORT"))
-                            .inventory(reserve.getInventory())  // QUAN TRỌNG: Dùng cùng inventory (cùng kho)
+                            .inventory(reserve.getInventory())
                             .transactionType("EXPORT")
                             .quantity(exportQty)
                             .pricePerItem(orderItem.getPricePerItem())
@@ -242,19 +244,30 @@ public class InventoryService {
                             .createdBy(order.getShipperId())
                             .build();
                     inventoryTransactionRepository.save(exportTransaction);
-                    updateTransactionStatus(exportTransaction.getId(), "COMPLETED", null, exportTransaction.getCreatedBy(),"",null);
 
+                    updateTransactionStatus(
+                            exportTransaction.getId(),
+                            "COMPLETED",
+                            null,
+                            exportTransaction.getCreatedBy(),
+                            "",
+                            null
+                    );
                     pending -= exportQty;
                 }
-
                 if (pending > 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Không đủ số lượng đã reserve cho sản phẩm! Cần: " + orderItem.getQuantity() + ", Đã reserve: " + (orderItem.getQuantity() - pending));
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Không đủ số lượng đã reserve cho sản phẩm! Cần: "
+                                    + orderItem.getQuantity()
+                                    + ", Đã reserve: "
+                                    + (orderItem.getQuantity() - pending)
+                    );
                 }
             }
         }
-
     }
+
 
 
     @Transactional
@@ -325,18 +338,24 @@ public class InventoryService {
 
     @Transactional
     public void updateTransactionStatus(Long id, String status, String note, Long staffId,String role,Long staffWarehouseId) {
+
         InventoryTransaction transaction = inventoryTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phiếu!"));
-        if(role.equals("STAFF")&&!Objects.equals(transaction.getInventory().getWarehouse().getId(), staffWarehouseId))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật!");
+
+        if (role.equals("STAFF") &&
+                !Objects.equals(transaction.getInventory().getWarehouse().getId(), staffWarehouseId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền cập nhật!");
+        }
 
         if ("RESERVE".equals(transaction.getTransactionType())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không được phép chỉnh sửa phiếu này!");
         }
 
         Inventory inventory = transaction.getInventory();
-        if (!inventory.isActive())
+        if (!inventory.isActive()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Món hàng này hiện tại đang bị khóa!");
+        }
+
         int oldQuantity = inventory.getQuantity();
         int oldReserved = inventory.getReservedQuantity();
         int newQuantity;
@@ -348,8 +367,9 @@ public class InventoryService {
                     newQuantity = oldQuantity - Math.abs(transaction.getQuantity());
                     newReserved = oldReserved - Math.abs(transaction.getQuantity());
 
-                    if (newQuantity < 0 || newReserved < 0)
+                    if (newQuantity < 0 || newReserved < 0) {
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số lượng hàng trong kho không đủ!");
+                    }
 
                     inventory.setQuantity(newQuantity);
                     inventory.setReservedQuantity(newReserved);
@@ -377,7 +397,6 @@ public class InventoryService {
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loại giao dịch không hợp lệ! " + transaction.getTransactionType());
             }
 
-            // Only update variant status if it actually changed
             refreshVariantStatus(inventory.getVariantId());
         } else if ("CANCELLED".equals(status)) {
             if ("EXPORT".equals(transaction.getTransactionType())) {
@@ -390,12 +409,13 @@ public class InventoryService {
         } else {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái giao dịch không hợp lệ!");
         }
-        transaction.setNote(note);
-        transaction.setUpdatedBy(staffId);
         inventoryRepository.save(inventory);
         WebhookUtils.postToWebhook(inventory.getId(), "update");
 
+        transaction.setNote(note);
+        transaction.setUpdatedBy(staffId);
         transaction.setStatus(status);
+
         inventoryTransactionRepository.save(transaction);
         if ("ORDER".equals(transaction.getReferenceType())) {
             String orderNumber = transaction.getReferenceCode();
@@ -458,7 +478,6 @@ public class InventoryService {
                 }
             }
         }
-
     }
 
     // ---------------------- TRANSACTION QUERIES ----------------------
@@ -614,7 +633,6 @@ public class InventoryService {
         if (to == null) to = OffsetDateTime.now();
         if (from == null) from = OffsetDateTime.MIN;
 
-        // Use 'to', not now()
         List<InventoryTransaction> transactions = inventoryTransactionRepository
                 .findByInventoryIdAndStatusAndUpdatedAtBetweenOrderByCreatedAtAsc(
                         id, "COMPLETED", from, to);
@@ -659,6 +677,89 @@ public class InventoryService {
 
         return new InventoryQuantityChangeResponse(fromQuantity, finalToQuantity, dailyChanges);
     }
+    @Transactional(readOnly = true)
+    public List<InventoryQuantityChangeResponse> calculateNumOfItemChanges(
+            LocalDate from, LocalDate to, Long warehouseId) {
+
+        ZoneOffset offset = ZoneOffset.ofHours(7);
+        OffsetDateTime fromDate = (from == null)
+                ? OffsetDateTime.of(1970,1,1,0,0,0,0, offset)
+                : from.atStartOfDay().atOffset(offset);
+
+        OffsetDateTime toDate = (to == null)
+                ? OffsetDateTime.now().withOffsetSameInstant(offset)
+                : to.atTime(LocalTime.MAX).atOffset(offset);
+
+        List<Inventory> inventories =
+                inventoryRepository.findAllByIsActiveAndWarehouseId(true, warehouseId);
+
+        if (inventories.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy món hàng nào!");
+        }
+
+        List<Long> ids = inventories.stream().map(Inventory::getId).toList();
+        List<InventoryTransaction> allTransactions =
+                inventoryTransactionRepository
+                        .findAllByInventoryIdsAndStatusAndUpdatedAtBetween(
+                                ids, "COMPLETED", fromDate, toDate);
+        List<Long> variantIds=inventories.stream().map(Inventory::getVariantId).toList();
+
+        List<VariantResponse> variantResponses=productServiceClient.getVariantsByIdsLimited(variantIds);
+        Map<Long, VariantResponse> variantMap = variantResponses.stream()
+                .collect(Collectors.toMap(VariantResponse::getId, v -> v));
+
+        Map<Long, List<InventoryTransaction>> grouped =
+                allTransactions.stream()
+                        .collect(Collectors.groupingBy(t -> t.getInventory().getId()));
+
+        List<InventoryQuantityChangeResponse> responses = new ArrayList<>();
+
+        for (Inventory inv : inventories) {
+            int currentQuantity = inv.getQuantity();
+            List<InventoryTransaction> tx =
+                    grouped.getOrDefault(inv.getId(), List.of());
+
+            int startQuantity = currentQuantity;
+
+            int totalImport = 0;
+            int totalExport = 0;
+            int totalAdjust = 0;
+
+            for (InventoryTransaction t : tx) {
+                int qty = t.getQuantity();
+                int delta = switch (t.getTransactionType()) {
+                    case "IMPORT" -> qty;
+                    case "EXPORT", "ADJUST" -> -qty;
+                    default -> 0;
+                };
+                startQuantity -= delta;
+                switch (t.getTransactionType()) {
+                    case "IMPORT" -> totalImport += qty;
+                    case "EXPORT" -> totalExport += qty;
+                    case "ADJUST" -> totalAdjust += qty;
+                }
+            }
+            int toQuantity = currentQuantity;
+
+            InventoryQuantityChangeResponse response =
+                    new InventoryQuantityChangeResponse(startQuantity, toQuantity, null);
+
+            response.setTotalImport(totalImport);
+            response.setTotalExport(totalExport);
+            response.setTotalAdjust(totalAdjust);
+            response.setWarehouseCode(inv.getWarehouse().getCode());
+            VariantResponse variantResponse = variantMap.get(inv.getVariantId());
+            if (variantResponse != null) {
+                response.setSku(variantResponse.getSku());
+                response.setName(variantResponse.getName());
+            }
+
+            responses.add(response);
+        }
+
+        return responses;
+    }
+
 
     @Transactional
     private List<InventoryTransactionResponse> transactionResponseMapper(List<InventoryTransaction> list) {

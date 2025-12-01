@@ -20,6 +20,8 @@ public interface ProductVariantRepository {
 
     @GetMapping("")
     List<VariantResponse> getVariantByIds(@RequestParam List<Long> ids);
+    @GetMapping("/limited")
+    List<VariantResponse> getVariantByIdsLimited(@RequestParam List<Long> ids);
 
     @PostMapping("/status/{id}")
     void changeProductVariantStatus(@PathVariable("id") Long id,@RequestParam(name = "status") String status);

@@ -47,7 +47,7 @@ const AdminDashboard = () => {
 
     const handler = setTimeout(() => {
       handleLoadOrderDashboard();
-      handleLoadRecenOrderData(0);
+      handleLoadRecentOrderData(0);
       handleLoadInventoryData(0);
       handleLoadCustomerData();
     }, 500);
@@ -71,7 +71,8 @@ const AdminDashboard = () => {
     setTopVariantData(res.data.topVariants);
 
   }
-  async function handleLoadRecenOrderData(currentPage = recentOrderPage) {
+  async function handleLoadRecentOrderData(currentPage = recentOrderPage) {
+    // console.log(currentPage)
     const res = await getAllOrders(
       currentPage,
       10,
@@ -84,10 +85,10 @@ const AdminDashboard = () => {
     );
 
     if (res.error) return showPopup(res.error);
-    console.log(res.data)
+    // console.log(res.data)
     setRecentOrdersData(res.data.content);
     setRecentOrderPage(currentPage);
-    setTotalRecentOrderPages(res.data.totalPages - 1);
+    setTotalRecentOrderPages(res.data.totalPages || 1);
   }
   async function handleLoadInventoryData(page = 0) {
     if (loadingInventory) return;
@@ -120,7 +121,7 @@ const AdminDashboard = () => {
   const handleGetOrderDetails = async (ownerNumber) => {
     const res = await getOrderDetails(ownerNumber);
     if (res.error) return showPopup(res.error);
-    console.log(res.data)
+    // console.log(res.data)
     setOrderDetails(res.data);
     setIsDetailOpen(true);
   }
@@ -157,34 +158,49 @@ const AdminDashboard = () => {
         end.setHours(23, 59, 59, 999);
         break;
 
-      case '7days':
-        start = new Date();
-        start.setDate(start.getDate() - 6);
+      case 'thisWeek':
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        start = new Date(now.setDate(diff));
         start.setHours(0, 0, 0, 0);
         end = new Date();
         end.setHours(23, 59, 59, 999);
         break;
 
-      case '30days':
-        start = new Date();
-        start.setDate(start.getDate() - 29);
+      case 'lastWeek':
+        const lastWeekEnd = new Date(now.setDate(now.getDate() - now.getDay()));
+        end = new Date(lastWeekEnd);
+        end.setHours(23, 59, 59, 999);
+        start = new Date(end);
+        start.setDate(end.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+        break;
+
+      case 'thisMonth':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
         start.setHours(0, 0, 0, 0);
         end = new Date();
         end.setHours(23, 59, 59, 999);
         break;
 
-      case '6months':
-        start = new Date();
-        start.setMonth(start.getMonth() - 6);
+      case 'lastMonth':
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         start.setHours(0, 0, 0, 0);
-        end = new Date();
+        end = new Date(now.getFullYear(), now.getMonth(), 0);
         end.setHours(23, 59, 59, 999);
         break;
 
-      case 'year':
+      case 'thisYear':
         start = new Date(now.getFullYear(), 0, 1);
         start.setHours(0, 0, 0, 0);
         end = new Date();
+        end.setHours(23, 59, 59, 999);
+        break;
+
+      case 'lastYear':
+        start = new Date(now.getFullYear() - 1, 0, 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now.getFullYear() - 1, 11, 31);
         end.setHours(23, 59, 59, 999);
         break;
 
@@ -321,7 +337,7 @@ const AdminDashboard = () => {
     status: o.statusName,
     revenueTextGreen: o.statusName === "DELIVERED",
     orderDate: new Date(o.orderDate).toLocaleString(),
-    deliveredDate: o.deliveredDate? new Date(o.deliveredDate).toLocaleString():"-",
+    deliveredDate: o.deliveredDate ? new Date(o.deliveredDate).toLocaleString() : "-",
   }));
 
   function getPageNumbers() {
@@ -403,10 +419,12 @@ const AdminDashboard = () => {
               >
                 <option value="today">Hôm nay</option>
                 <option value="yesterday">Hôm qua</option>
-                <option value="7days">7 ngày qua</option>
-                <option value="30days">30 ngày qua</option>
-                <option value="6months">6 tháng qua</option>
-                <option value="year">Năm nay</option>
+                <option value="thisWeek">Tuần này</option>
+                <option value="lastWeek">Tuần trước</option>
+                <option value="thisMonth">Tháng này</option>
+                <option value="lastMonth">Tháng trước</option>
+                <option value="thisYear">Năm nay</option>
+                <option value="lastYear">Năm trước</option>
                 <option value="custom">Tùy chỉnh</option>
               </select>
 
@@ -802,7 +820,7 @@ const AdminDashboard = () => {
           {totalRecentOrderPages > 0 && (
             <div className="flex justify-center items-center gap-3 mt-10 pb-5">
               <button
-                onClick={() => handleLoadRecenOrderData(recentOrderPage - 1)}
+                onClick={() => handleLoadRecentOrderData(recentOrderPage - 1)}
                 disabled={recentOrderPage === 0}
                 className={`p-3 rounded ${recentOrderPage === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
               >
@@ -815,7 +833,7 @@ const AdminDashboard = () => {
                 ) : (
                   <button
                     key={i}
-                    onClick={() => handleLoadRecenOrderData(num)}
+                    onClick={() => handleLoadRecentOrderData(num)}
                     className={`w-8 h-8 flex items-center justify-center rounded border transition-all
                         ${recentOrderPage === num ? "bg-black text-white border-black" : "bg-white hover:bg-gray-100"}`}
                   >
@@ -824,7 +842,7 @@ const AdminDashboard = () => {
                 )
               )}
               <button
-                onClick={() => handleLoadRecenOrderData(recentOrderPage + 1)}
+                onClick={() => handleLoadRecentOrderData(recentOrderPage + 1)}
                 disabled={recentOrderPage >= totalRecentOrderPages - 1}
                 className={`p-3 rounded ${recentOrderPage >= totalRecentOrderPages - 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-200"}`}
               >
@@ -832,6 +850,7 @@ const AdminDashboard = () => {
               </button>
             </div>
           )}
+
         </div>
         {isDetailOpen && orderDetails && (
           <div onClick={() => setIsDetailOpen(false)}

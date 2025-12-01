@@ -42,6 +42,13 @@ public class ProductServiceClient {
             throw parseFeignException(ex);
         }
     }
+    public List<VariantResponse> getVariantsByIdsLimited(List<Long> ids) {
+        try {
+            return productVariantRepository.getVariantByIdsLimited(ids);
+        } catch (FeignException ex) {
+            throw parseFeignException(ex);
+        }
+    }
 
 
     public void changeProductVariantStatus(Long id, String status) {

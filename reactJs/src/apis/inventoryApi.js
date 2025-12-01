@@ -138,4 +138,14 @@ export const getInventoryQuantityChanges = async (id, from, to) => {
   return safeApiCall(() =>
     api.get(`inventory/secure/inventory-quantity/${id}?${params.toString()}`)
   );
+}
+export const getInventoryQuantityChangesForReport = async (startDate, endDate,warehouseId) => {
+  const params = new URLSearchParams();
+  params.append("startDate", startDate);
+  params.append("endDate", endDate);
+  params.append("warehouseId",warehouseId)
+
+  return safeApiCall(() =>
+    api.get(`inventory/secure/inventory-report?${params.toString()}`)
+  );
 };

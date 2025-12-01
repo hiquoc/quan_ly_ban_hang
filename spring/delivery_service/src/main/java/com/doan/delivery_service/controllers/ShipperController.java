@@ -120,7 +120,6 @@ public class ShipperController {
     }
     @PostMapping("/internal/shippers/{id}/active")
     public void changeShipperActive(@PathVariable Long id){
-        System.out.println("Controller hit with id = " + id);
         shipperService.updateShipperActive(id,false);
     }
     @PostMapping("/internal/shippers")

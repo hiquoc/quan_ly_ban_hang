@@ -57,7 +57,6 @@ export default function ProductDetails() {
     const [hoverRating, setHoverRating] = useState(0);
 
     const [editingReview, setEditingReview] = useState(null);
-    const [reviewExpanded, setReviewExpanded] = useState(false);
     const [content, setContent] = useState("");
     const [rating, setRating] = useState(null);
     const [images, setImages] = useState([]);
@@ -68,6 +67,8 @@ export default function ProductDetails() {
     const relativeRef = useRef(null);
     const [canScrollRelativeLeft, setCanScrollRelativeLeft] = useState(false);
     const [canScrollRelativeRight, setCanScrollRelativeRight] = useState(true);
+
+    const [showImageModal, setShowImageModal] = useState({ visible: false, imageUrl: null })
 
     useEffect(() => {
         handleLoadProduct();
@@ -298,7 +299,6 @@ export default function ProductDetails() {
     }
     const handleEditReview = (review) => {
         setEditingReview(review);
-        setReviewExpanded(true);
         setRating(review.rating);
         setContent(review.content || "");
 
@@ -349,7 +349,6 @@ export default function ProductDetails() {
             if (res.error) return showPopup(res.error);
             fetchReviews();
             setEditingReview(null);
-            setReviewExpanded(false);
             setRating(null);
             setContent("");
             setImages([]);
@@ -461,6 +460,7 @@ export default function ProductDetails() {
                                         src={selectedImage}
                                         alt="Selected"
                                         className={`object-contain max-h-[480px] rounded-lg transition-opacity ${isOutOfStock ? "opacity-50" : "opacity-100"}`}
+                                        onClick={() => setShowImageModal({ visible: true, imageUrl: selectedImage })}
                                     />
 
                                     {isOutOfStock && (
@@ -780,7 +780,7 @@ export default function ProductDetails() {
                                 Thông tin chi tiết
                             </h2>
                             <p
-                                className={`${!detailsExpanded ? "line-clamp-6" : ""} text-gray-600 rich-text-content`}
+                                className={`${!detailsExpanded ? "line-clamp-6" : ""} text-gray-600 rich-text-content px-5`}
                                 dangerouslySetInnerHTML={{ __html: product.description }}
                             />
 
@@ -921,6 +921,7 @@ export default function ProductDetails() {
                                                                 src={img.url}
                                                                 alt={`preview-${idx}`}
                                                                 className="w-20 h-20 object-cover border border-gray-300 rounded"
+                                                                onClick={() => setShowImageModal({ visible: true, imageUrl: img.url })}
                                                             />
                                                             <button
                                                                 type="button"
@@ -1046,6 +1047,7 @@ export default function ProductDetails() {
                                                     src={url}
                                                     alt={`review-${idx}`}
                                                     className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                                                    onClick={() => setShowImageModal({ visible: true, imageUrl: url })}
                                                 />
                                             ))}
                                         </div>
@@ -1100,6 +1102,31 @@ export default function ProductDetails() {
                             >
                                 <FaChevronRight />
                             </button>
+                        </div>
+                    )}
+                    {showImageModal.visible && showImageModal.imageUrl && (
+                        <div
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]"
+                            onClick={() => setShowImageModal({ visible: false, imageUrl: null })}
+                        >
+                            <button
+                                onClick={() => setShowImageModal({ visible: false, imageUrl: null })}
+                                className="p-2 hover:bg-white/20 text-white rounded-full transition absolute top-4 right-4"
+                            >
+                                <FiX className="w-6 h-6" />
+                            </button>
+
+                            {/* Modal Content */}
+                            <div
+                                className="rounded-lg shadow-xl max-w-[90%] max-h-[90%] overflow-hidden relative"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <img
+                                    src={showImageModal.imageUrl}
+                                    alt="Hình ảnh"
+                                    className="max-w-full max-h-full object-contain rounded-lg"
+                                />
+                            </div>
                         </div>
                     )}
                 </div>

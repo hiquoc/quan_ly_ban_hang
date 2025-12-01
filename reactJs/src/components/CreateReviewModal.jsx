@@ -9,6 +9,7 @@ export default function CreateReviewModal({ isOpen, onClose, onSuccess, showPopu
     const [content, setContent] = useState("");
     const [images, setImages] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false)
+    const [showImageModal, setShowImageModal] = useState({ visible: false, imageUrl: null })
     const handleReviewImageChange = (e) => {
         const files = Array.from(e.target.files);
         setImages(prev => [...prev, ...files.map(f => ({ file: f, url: URL.createObjectURL(f), isDeleted: false }))]);
@@ -126,7 +127,9 @@ export default function CreateReviewModal({ isOpen, onClose, onSuccess, showPopu
                     <div className="flex flex-wrap gap-3 mb-4">
                         {images.map((img, idx) => !img.isDeleted && (
                             <div key={idx} className="relative">
-                                <img src={img.url} alt={`preview-${idx}`} className="w-20 h-20 object-cover border border-gray-300 rounded" />
+                                <img src={img.url}
+                                    alt={`preview-${idx}`} className="w-20 h-20 object-cover border border-gray-300 rounded"
+                                    onClick={() => setShowImageModal({ visible: true, imageUrl: img.url })}                                />
                                 <button
                                     onClick={() => handleRemoveImage(idx)}
                                     className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
@@ -155,6 +158,31 @@ export default function CreateReviewModal({ isOpen, onClose, onSuccess, showPopu
                     </button>
                 </div>
             </div>
+            {showImageModal && showImageModal.imageUrl && (
+                <div
+                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]"
+                    onClick={() => setShowImageModal({ visible: false, imageUrl: null })}
+                >
+                    <button
+                        onClick={() => setShowImageModal({ visible: false, imageUrl: null })}
+                        className="p-2 hover:bg-white/20 text-white rounded-full transition absolute top-4 right-4"
+                    >
+                        <FiX className="w-6 h-6" />
+                    </button>
+
+                    {/* Modal Content */}
+                    <div
+                        className="rounded-lg shadow-xl max-w-[90%] max-h-[90%] overflow-hidden relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <img
+                            src={showImageModal.imageUrl}
+                            alt="Chứng nhận giao hàng"
+                            className="max-w-full max-h-full object-contain rounded-lg"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

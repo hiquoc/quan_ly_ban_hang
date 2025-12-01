@@ -33,7 +33,7 @@ public class CategoryService {
     private final ProductRepository productRepository;
     private final CloudinaryService cloudinaryService;
 
-    public void createCategory(CategoryRequest categoryRequest, MultipartFile image){
+    public Category createCategory(CategoryRequest categoryRequest, MultipartFile image){
         if(categoryRepository.existsByName(categoryRequest.getName())){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên doanh mục đã tồn tại!");
         }
@@ -53,14 +53,14 @@ public class CategoryService {
                 categoryRequest.getSlug(),
                 imgUrl
         );
-        categoryRepository.save(category);
+        return categoryRepository.save(category);
     }
     @CacheEvict(
             value = "categories",
             allEntries = true
     )
     @Transactional
-    public void updateCategory(Long id,CategoryRequest categoryRequest,MultipartFile image){
+    public Category updateCategory(Long id,CategoryRequest categoryRequest,MultipartFile image){
         Category category = categoryRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found with id: "+id));
         if(categoryRepository.existsByNameAndIdNot(categoryRequest.getName(),id)){
@@ -91,7 +91,7 @@ public class CategoryService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Có lỗi khi cập nhật hình ảnh", ex);
         }
-        categoryRepository.save(category);
+        return categoryRepository.save(category);
     }
     @Cacheable(
             value = "categories",
@@ -102,7 +102,7 @@ public class CategoryService {
         Pageable pageable = PageRequest.of(
                 page != null && page >= 0 ? page : 0,
                 size != null && size > 0 ? size : 50,
-                Sort.by("createdAt").descending()
+                Sort.by("updatedAt").descending()
         );
 
         Specification<Category> spec = (root, query, cb) -> {

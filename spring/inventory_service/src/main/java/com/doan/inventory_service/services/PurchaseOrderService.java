@@ -12,9 +12,13 @@ import com.doan.inventory_service.repositories.PurchaseOrderItemRepository;
 import com.doan.inventory_service.repositories.PurchaseOrderRepository;
 import com.doan.inventory_service.repositories.SupplierRepository;
 import com.doan.inventory_service.repositories.WarehouseRepository;
+import com.doan.inventory_service.services.clients.ProductServiceClient;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.hibernate.cache.spi.support.AbstractReadWriteAccess;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +44,8 @@ public class PurchaseOrderService {
     private final SupplierRepository supplierRepository;
     private final WarehouseRepository warehouseRepository;
     private final InventoryService inventoryService;
+
+    private final ProductServiceClient productServiceClient;
 
     @Transactional
     public PurchaseOrderResponse createPurchaseOrder(PurchaseOrderRequest request, Long staffId) {
@@ -179,16 +185,27 @@ public class PurchaseOrderService {
             if (keyword != null && !keyword.isBlank()) {
                 String likeKeyword = "%" + keyword.trim().toLowerCase() + "%";
 
-                predicates.add(cb.or(
-                        cb.like(
-                                cb.function("unaccent", String.class, cb.lower(root.get("code"))),
-                                cb.function("unaccent", String.class, cb.literal(likeKeyword))
-                        ),
-                        cb.like(
-                                cb.function("unaccent", String.class, cb.lower(root.get("supplier").get("code"))),
-                                cb.function("unaccent", String.class, cb.literal(likeKeyword))
-                        )
+                List<Predicate> keywordPredicates = new ArrayList<>();
+
+                keywordPredicates.add(cb.like(
+                        cb.function("unaccent", String.class, cb.lower(root.get("code"))),
+                        cb.function("unaccent", String.class, cb.literal(likeKeyword))
                 ));
+
+                keywordPredicates.add(cb.like(
+                        cb.function("unaccent", String.class, cb.lower(root.get("supplier").get("code"))),
+                        cb.function("unaccent", String.class, cb.literal(likeKeyword))
+                ));
+
+                List<Long> variantIds = productServiceClient.searchVariantIds(keyword);
+                if (!variantIds.isEmpty()) {
+                    Join<PurchaseOrder, AbstractReadWriteAccess.Item> itemJoin = root.join("items", JoinType.INNER);
+                    Predicate variantPredicate = itemJoin.get("variantId").in(variantIds);
+                    keywordPredicates.add(variantPredicate);
+                }
+
+                Predicate keywordPredicate = cb.or(keywordPredicates.toArray(new Predicate[0]));
+                predicates.add(keywordPredicate);
             }
 
             if (start != null && end != null) {

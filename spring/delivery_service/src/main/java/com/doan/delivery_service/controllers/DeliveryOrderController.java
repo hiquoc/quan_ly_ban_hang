@@ -32,10 +32,15 @@ public class DeliveryOrderController {
     @PostMapping("/secure/deliveries")
     public ResponseEntity<?> assignDeliveryOrders(@RequestBody @Valid AssignDeliveryOrderRequest request){
         return ResponseEntity.ok(
-                new ApiResponse<>("Lấy dữ liệu thành công!",true,deliveryOrderService.assignDeliveryOrders(request)));
+                new ApiResponse<>("Cập nhật  thành công!",true,deliveryOrderService.assignDeliveryOrders(request)));
+    }
+    @PatchMapping("/secure/deliveries/{id}")
+    public void cancellingAssignedDeliveryOrder(@PathVariable Long id,
+                                                @RequestHeader("X-Owner-Id") Long shipperId){
+        deliveryOrderService.cancellingAssignedDeliveryOrder(id,shipperId);
     }
 
-    @PutMapping(path = "/secure/deliveries", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @PutMapping(path = "/secure/deliveries", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public void changeDeliveryOrderStatus( @ModelAttribute @Valid ChangeDeliveryOrderStatusRequest request,
                                           @RequestHeader("X-Owner-Id") Long shipperId){
         deliveryOrderService.handleChangeDeliveryOrderStatus(request,shipperId);

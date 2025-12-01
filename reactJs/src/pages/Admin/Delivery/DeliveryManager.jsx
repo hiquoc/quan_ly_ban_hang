@@ -18,7 +18,6 @@ export default function DeliveryManager() {
     const [selectedWarehouseId, setSelectedWarehouseId] = useState(null)
     const [shippers, setShippers] = useState([])
     const [selectedOrders, setSelectedOrders] = useState([])
-    const [selectedOrder, setSelectedOrder] = useState(null)
     const [assignmentSelect, setAssignmentSelect] = useState({ visible: false, selectedOrdersData: null })
     const [isDetailOpen, setIsDetailOpen] = useState(false)
     const [deliveryDetails, setDeliveryDetails] = useState(null)
@@ -161,7 +160,7 @@ export default function DeliveryManager() {
                             <div className="text-sm text-gray-700">Đơn: {order.orderNumber}</div>
                         </div>
                         <button className="p-2 text-blue-700 hover:bg-blue-100 rounded transition"
-                            onClick={() => { setSelectedOrder(order.id); setDeliveryDetails(order); setIsDetailOpen(true) }}><FiEye /></button>
+                            onClick={() => { setDeliveryDetails(order); setIsDetailOpen(true) }}><FiEye /></button>
                     </div>
                     <div className="text-sm text-gray-700">
                         <div className="flex items-center gap-2">
@@ -250,7 +249,7 @@ export default function DeliveryManager() {
                                 <td className="p-3 border-b border-gray-200 text-center">{Number(order.codAmount).toLocaleString("vi-VN", { style: "currency", currency: "VND" })}</td>
                                 <td className="p-3 border-b border-gray-200 text-center"><span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusBgColor(order.status)}`}>{statusLabel(order.status)}</span></td>
                                 <td className="p-3 border-b border-gray-200 text-center"><span className={`px-3 py-1 rounded-full text-sm font-semibold ${order.assignedShipperId ? "bg-blue-100 text-blue-800" : "bg-yellow-200 text-yellow-800"}`}>{order.assignedShipperId ? `SP${order.assignedShipperId}` : "Chưa phân công"}</span></td>
-                                <td className="p-3 border-b border-gray-200 text-center"><button className="p-2 text-blue-600 hover:bg-blue-100 rounded transition" onClick={() => { setSelectedOrder(order.id); setDeliveryDetails(order); setIsDetailOpen(true) }}><FiEye /></button></td>
+                                <td className="p-3 border-b border-gray-200 text-center"><button className="p-2 text-blue-600 hover:bg-blue-100 rounded transition" onClick={() => {  setDeliveryDetails(order); setIsDetailOpen(true) }}><FiEye /></button></td>
                             </tr>
                         ))}
                     </tbody>
@@ -439,7 +438,7 @@ export default function DeliveryManager() {
                                                                                 <span className="font-semibold text-gray-800">{order.deliveryNumber} </span>
                                                                                 <span className={`px-3 py-1 rounded-full font-semibold ${statusBgColor(order.status)}`}>{statusLabel(order.status)}</span>
                                                                             </div>
-                                                                            <button className="p-2 text-blue-600 hover:bg-blue-100 rounded transition" onClick={() => { setSelectedOrder(order.id); setDeliveryDetails(order); setIsDetailOpen(true) }}><FiEye /></button>
+                                                                            <button className="p-2 text-blue-600 hover:bg-blue-100 rounded transition" onClick={() => { setDeliveryDetails(order); setIsDetailOpen(true) }}><FiEye /></button>
                                                                         </div>
                                                                         <div className="flex-1 flex flex-col gap-0.5 text-gray-700">
                                                                             <div className="flex gap-3 items-center"><FiUser className="text-sm flex-shrink-0" /><p className="">{order.shippingName}</p></div>

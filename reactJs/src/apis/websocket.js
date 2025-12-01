@@ -10,15 +10,33 @@ export const connectWebSocket = (token, onMessageReceived) => {
     stompClient.connect(
         {},
         () => {
-            // console.log("Connected to WebSocket");
-            stompClient.subscribe("/topic/orders", (msg) => {
+            const subscription = stompClient.subscribe("/topic/orders", (msg) => {
                 const event = JSON.parse(msg.body);
                 onMessageReceived(event);
             });
+
+            // Save unsubscribe function for cleanup
+            stompClient.unsubscribeFn = () => {
+                if (subscription) subscription.unsubscribe();
+            };
+        },
+        (error) => {
+            console.error("WebSocket connection error:", error);
         }
     );
 };
 
 export const disconnectWebSocket = () => {
-    if (stompClient) stompClient.disconnect();
+    if (stompClient) {
+        if (stompClient.unsubscribeFn) {
+            stompClient.unsubscribeFn();
+            stompClient.unsubscribeFn = null;
+        }
+        if (stompClient.connected) {
+            stompClient.disconnect(() => {
+                // console.log("WebSocket disconnected");
+            });
+        }
+        stompClient = null;
+    }
 };

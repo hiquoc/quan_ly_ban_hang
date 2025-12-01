@@ -296,6 +296,7 @@ public class ShipperService {
                 .orderItemId(item.getOrderItemId())
                 .variantId(item.getVariantId())
                 .variantName(item.getVariantName())
+                .sku(item.getSku())
                 .unitPrice(item.getUnitPrice())
                 .quantity(item.getQuantity())
                 .imageUrl(item.getImageUrl())

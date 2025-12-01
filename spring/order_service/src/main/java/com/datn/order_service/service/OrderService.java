@@ -551,10 +551,16 @@ public class OrderService {
         }
 
         if (startDateTime != null) {
-            countPredicates.add(cb.greaterThanOrEqualTo(countRoot.get("orderDate"), startDateTime));
+            if(sortByDeliveredDate)
+                countPredicates.add(cb.greaterThanOrEqualTo(countRoot.get("deliveredDate"), startDateTime));
+            else
+                countPredicates.add(cb.greaterThanOrEqualTo(countRoot.get("orderDate"), startDateTime));
         }
         if (endDateTime != null) {
-            countPredicates.add(cb.lessThan(countRoot.get("orderDate"), endDateTime));
+            if(sortByDeliveredDate)
+                countPredicates.add(cb.lessThan(countRoot.get("deliveredDate"), endDateTime));
+            else
+                countPredicates.add(cb.lessThan(countRoot.get("orderDate"), endDateTime));
         }
         if (warehouseId != null) {
             countPredicates.add(cb.isTrue(cb.function(
@@ -721,12 +727,10 @@ public class OrderService {
             if (staffId == 2L) { // CONFIRMED
                 String existingNotes = Optional.ofNullable(order.getNotes()).orElse("");
                 String khoPart = "";
-                // Extract "Kho: ..." if present
                 int idx = existingNotes.toLowerCase().lastIndexOf("kho:");
                 if (idx != -1) {
                     khoPart = existingNotes.substring(idx).trim();
                 }
-                // Set notes with new content + preserved "Kho: ..." part
                 order.setNotes(notes.trim() + (khoPart.isEmpty() ? "" : " - " + khoPart));
             } else {
                 order.setNotes(notes);
@@ -735,8 +739,6 @@ public class OrderService {
 
 
         if ("DELIVERED".equals(newStatusName)) {
-//            if(!"SHIPPER".equals(role))
-//                throw new IllegalStateException("Bạn không có quyền hoàn tất đơn hàng!");
             List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
             if (!orderItems.isEmpty()) {
                 try {

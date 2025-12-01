@@ -101,7 +101,7 @@ function AdminOrder() {
             setIsLoading(false);
             return showPopup(res.error);
         }
-        // console.log(res.data)
+        console.log(res.data)
         setOrders(res.data.content || []);
         setTotalPages(res.data.totalPages || 1);
         setIsLoading(false);
@@ -735,17 +735,6 @@ function AdminOrder() {
 
                                             showPopup("Cập nhật trạng thái thành công!");
                                             setConfirmNotes("");
-                                            // if (statusName === "PROCESSING") {
-                                            //     getData()
-                                            // } else {
-                                            //     setOrders(prev =>
-                                            //         prev.map(order =>
-                                            //             order.id === orderId
-                                            //                 ? { ...order, statusName: confirmStatusPanel.statusName }
-                                            //                 : order
-                                            //         )
-                                            //     );
-                                            // }
                                             setEditingOrderId(null);
                                         }
                                         finally {

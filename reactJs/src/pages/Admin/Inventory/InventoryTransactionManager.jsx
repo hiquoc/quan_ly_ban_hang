@@ -8,18 +8,19 @@ import { FaGear } from "react-icons/fa6";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { createPortal } from "react-dom";
 import { AuthContext } from "../../../contexts/AuthContext";
+import { PopupContext } from "../../../contexts/PopupContext"
+import InventoryTransactionExportFileModal from "./InventoryTransactionExportFileModal";
 
 export default function InventoryTransactionManager() {
     const { role, staffWarehouseId } = useContext(AuthContext)
+    const { showPopup } = useContext(PopupContext)
     const [transactions, setTransactions] = useState([]);
     const [transactionPage, setTransactionPage] = useState(0);
     const [transactionTotalPages, setTransactionTotalPages] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [popup, setPopup] = useState({ message: "", type: "" });
     const [confirmPanel, setConfirmPanel] = useState({})
 
     const [inventories, setInventories] = useState([]);
-    const [variants, setVariants] = useState([]);
     const [size, setSize] = useState(10);
 
     const [warehouseSort, setWarehouseSort] = useState(null)
@@ -54,6 +55,8 @@ export default function InventoryTransactionManager() {
     });
     const buttonRefs = useRef({});
     const [dropdownOpen, setDropdownOpen] = useState({});
+
+    const [showExportModal, setShowExportModal] = useState(false)
 
     const DropdownMenu = ({ buttonRef, dropdownOpen, setDropdownOpen, onSelect }) => {
         const dropdownRef = useRef(null);
@@ -117,12 +120,12 @@ export default function InventoryTransactionManager() {
     }, []);
 
     useEffect(() => {
-        if (warehouses===null) return;
+        if (warehouses === null) return;
         loadInventoriesBaseOnWarehouseId();
     }, [form.warehouseId])
 
     useEffect(() => {
-        if (warehouses===null) return;
+        if (warehouses === null) return;
         loadTransactions(0);
     }, [warehouseSort])
 
@@ -155,11 +158,11 @@ export default function InventoryTransactionManager() {
             );
 
             if (transactionsRes?.error) {
-                setPopup({ message: transactionsRes.error || "Lỗi khi tải giao dịch!", type: "error" });
+                showPopup(transactionsRes.error || "Lỗi khi tải giao dịch!");
                 return;
             }
-
             const data = transactionsRes.data;
+            // console.log(data)
             setTransactions(data.content || []);
             setTransactionTotalPages(data.totalPages || 0);
         } finally {
@@ -169,7 +172,7 @@ export default function InventoryTransactionManager() {
 
     async function loadWarehouse() {
         const res = await getAllWarehouses();
-        if (res.error) return setPopup({ message: res.error })
+        if (res.error) return showPopup(res.error)
         let warehouseData = res.data
         if (role === "STAFF") {
             warehouseData = warehouseData.filter(w => w.id === staffWarehouseId)
@@ -180,7 +183,7 @@ export default function InventoryTransactionManager() {
     }
     async function loadInventoriesBaseOnWarehouseId(keyword = "") {
         const res = await getAllInventories(0, 5, keyword, form.warehouseId, true)
-        if (res.error) return //setPopup({ message: res.error })
+        if (res.error) return
         setInventories(res.data.content);
     }
 
@@ -209,12 +212,12 @@ export default function InventoryTransactionManager() {
         });
         if (res.error) {
             console.log(res.error)
-            setPopup({ message: res.error || "Có lỗi khi tạo phiếu!", type: "error" });
+            showPopup(res.error || "Có lỗi khi tạo phiếu!");
             setIsProcessing(false);
             return;
         }
 
-        setPopup({ message: "Tạo phiếu thành công!", type: "success" });
+        showPopup("Tạo phiếu thành công!");
         setShowForm(false);
         setTransactions(prev => [res.data, ...prev])
         setIsProcessing(false);
@@ -241,12 +244,20 @@ export default function InventoryTransactionManager() {
             <div className=" md:flex-row justify-between items-center mb-6 gap-4">
                 <div className="flex justify-between">
                     <h3 className="text-2xl font-semibold text-gray-800">Lịch sử phiếu</h3>
-                    <button
-                        onClick={handleOpenForm}
-                        className="px-3 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
-                    >
-                        Tạo phiếu
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={()=>setShowExportModal(true)}
+                            className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-500 transition"
+                        >
+                            Xuất file
+                        </button>
+                        <button
+                            onClick={handleOpenForm}
+                            className="px-3 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+                        >
+                            Tạo phiếu
+                        </button>
+                    </div>
                 </div>
 
                 <div className="pt-3 flex justify-between sm:flex-row items-center gap-2 w-full sm:w-auto">
@@ -482,8 +493,6 @@ export default function InventoryTransactionManager() {
                 </div>
             )}
 
-            {/* Popup */}
-            <Popup message={popup.message} type={popup.type} onClose={() => setPopup({ message: "", type: "" })} duration={3000} />
             {showSortSettings && (
                 <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 pb-20">
                     <div className="bg-white p-6 rounded-lg w-[400px] shadow-lg">
@@ -1003,9 +1012,8 @@ export default function InventoryTransactionManager() {
 
 
                                         const res = await updateInventoryTransactionStatus(id, status, confirmNotes);
-                                        if (res.error) return setPopup({ message: res.error });
+                                        if (res.error) return showPopup(res.error);
                                         setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: status } : t))
-                                        // setPopup({ message: "Cập nhật trạng thái thành công!", type: "success" });
                                         setConfirmNotes("");
                                     }
                                     finally {
@@ -1032,6 +1040,13 @@ export default function InventoryTransactionManager() {
                 }}
                 onCancel={closeConfirmPanel}
             />
+            {showExportModal && (
+                <InventoryTransactionExportFileModal
+                    warehouseId={warehouseSort}
+                    showPopup={showPopup}
+                    onClose={() => setShowExportModal(false)}
+                />
+            )}
         </div >
     );
 }
