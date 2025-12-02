@@ -101,7 +101,7 @@ function AdminOrder() {
             setIsLoading(false);
             return showPopup(res.error);
         }
-        console.log(res.data)
+        // console.log(res.data)
         setOrders(res.data.content || []);
         setTotalPages(res.data.totalPages || 1);
         setIsLoading(false);

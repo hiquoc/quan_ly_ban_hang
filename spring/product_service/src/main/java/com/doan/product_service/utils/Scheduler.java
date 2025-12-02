@@ -20,7 +20,7 @@ public class Scheduler {
     private final PendingActionRepository pendingActionRepository;
     private final CloudinaryService cloudinaryService;
 
-    @Scheduled(cron = "0 0 2 * * ?")
+    @Scheduled(cron = "0 0 2 * * ?", zone = "Asia/Ho_Chi_Minh")
     public void rebuildRecommendations() {
         try {
             productService.rebuildRecommendations();

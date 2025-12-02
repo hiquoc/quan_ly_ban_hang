@@ -358,10 +358,10 @@ public class DeliveryOrderService {
                         HttpStatus.NOT_FOUND, "Không tìm thấy đơn giao hàng với id: " + id));
         Long assignedShipperId=order.getAssignedShipper().getId();
         if(assignedShipperId==null || !assignedShipperId.equals(shipperId)){
-            throw  new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể hủy nhận đơn hàng này!");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể hủy nhận đơn hàng này!");
         }
         DeliveryStatus currentStatus=order.getStatus();
-        if(currentStatus!=DeliveryStatus.ASSIGNED&&currentStatus!=DeliveryStatus.SHIPPING&&currentStatus!=DeliveryStatus.FAILED)
+        if(currentStatus!=DeliveryStatus.ASSIGNED&&currentStatus!=DeliveryStatus.FAILED)
             throw  new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể hủy nhận đơn hàng này!");
         order.setAssignedShipper(null);
         order.setStatus(DeliveryStatus.PENDING);
