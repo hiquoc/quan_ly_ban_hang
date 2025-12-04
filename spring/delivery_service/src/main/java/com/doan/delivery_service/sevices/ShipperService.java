@@ -15,10 +15,7 @@ import com.doan.delivery_service.repositories.feign.AuthRepositoryClient;
 import com.doan.delivery_service.repositories.feign.InventoryRepositoryClient;
 import com.doan.delivery_service.repositories.feign.OrderRepositoryClient;
 import lombok.AllArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -228,7 +225,7 @@ public class ShipperService {
     public Page<DeliveryOrderResponse> getShipperDeliveriesResponse(
             Long shipperId, Integer page, Integer size, String keyword, String status) {
 
-        Pageable pageable = PageRequest.of(page!=null?page:0, size!=null?size:10);
+        Pageable pageable = PageRequest.of(page!=null?page:0, size!=null?size:10,Sort.by("createdAt").descending());
 
         String kw = (keyword == null || keyword.isBlank()) ? "" : keyword.trim();
 

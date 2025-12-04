@@ -36,7 +36,9 @@ public class VerificationService {
         try {
             Long ownerId;
             if (role != null) {
-                if (role.equals("STAFF") || role.equals("ADMIN") || role.equals("MANAGER"))
+                if(role.equals("CUSTOMER"))
+                    ownerId = customerServiceClient.getCustomerIdByEmail(email).getOwnerId();
+                else if (role.equals("STAFF") || role.equals("ADMIN") || role.equals("MANAGER"))
                     ownerId = staffServiceClient.getStaffIdByEmail(email).getOwnerId();
                 else
                     ownerId = deliveryServiceClient.getShipperIdByEmail(email).getOwnerId();
