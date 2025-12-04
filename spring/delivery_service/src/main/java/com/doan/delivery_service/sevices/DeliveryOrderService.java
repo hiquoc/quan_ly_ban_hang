@@ -28,6 +28,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -164,6 +165,55 @@ public class DeliveryOrderService {
                 .map(this::mapToResponse)
                 .toList();
     }
+    @Transactional
+    public void autoAssignDeliveryOrders() {
+        int MAX_ALLOWED = 10;
+        List<DeliveryOrder> ordersToSave = new ArrayList<>();
+
+        List<DeliveryOrder> pendingOrders = deliveryOrderRepository.findByStatus(DeliveryStatus.PENDING);
+        if (pendingOrders.isEmpty()) return;
+
+        List<Object[]> shipperData = shipperRepository.getAllActiveShippersWithOrderCounts();
+        if (shipperData.isEmpty()) return;
+
+        Map<Long, Map<Shipper, Integer>> shipperMapByWarehouse = new HashMap<>();
+        for (Object[] row : shipperData) {
+            Shipper shipper = (Shipper) row[0];
+            Integer count = ((Number) row[1]).intValue();
+            Long warehouseId = shipper.getWarehouseId();
+            shipperMapByWarehouse.computeIfAbsent(warehouseId, k -> new HashMap<>())
+                    .put(shipper, count);
+        }
+
+        for (DeliveryOrder order : pendingOrders) {
+            Map<Shipper, Integer> shippersInWarehouse = shipperMapByWarehouse.get(order.getWarehouseId());
+
+            if (shippersInWarehouse == null || shippersInWarehouse.isEmpty()) {
+                continue;
+            }
+
+            Optional<Shipper> shipperOpt = shippersInWarehouse.entrySet().stream()
+                    .filter(entry -> entry.getValue() < MAX_ALLOWED)
+                    .min(Comparator.comparingInt(Map.Entry::getValue))
+                    .map(Map.Entry::getKey);
+
+            if (shipperOpt.isEmpty()) {
+                continue;
+            }
+
+            Shipper shipper = shipperOpt.get();
+
+            order.setAssignedShipper(shipper);
+            order.setAssignedAt(OffsetDateTime.now());
+            changeDeliveryOrderStatus(order, DeliveryStatus.ASSIGNED, null, null);
+            ordersToSave.add(order);
+
+            shippersInWarehouse.put(shipper, shippersInWarehouse.get(shipper) + 1);
+        }
+
+        deliveryOrderRepository.saveAll(ordersToSave);
+    }
+
 
 
     @Transactional

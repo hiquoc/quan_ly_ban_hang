@@ -388,7 +388,6 @@ export default function DeliveryManager() {
                         <div className={`grid gap-6 overflow-y-auto max-h-[calc(90vh-200px)] ${assignmentSelect.selectedOrdersData?.length > 0 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
                             {/* Shipper List */}
                             <div className="border rounded-lg p-4">
-                                <h4 className="font-semibold text-lg mb-4 text-gray-800">Danh sách Shipper</h4>
                                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
                                     {shippers.find(s => s.warehouseId === selectedWarehouseId)?.shippersList?.length > 0 ? (
                                         shippers.find(s => s.warehouseId === selectedWarehouseId)?.shippersList.map(shipper => (

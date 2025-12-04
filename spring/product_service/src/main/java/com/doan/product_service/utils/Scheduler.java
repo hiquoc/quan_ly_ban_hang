@@ -29,7 +29,7 @@ public class Scheduler {
         }
     }
 
-    @Scheduled(fixedRate = 60 * 60 *1800)
+    @Scheduled(fixedRate = 60 * 1000 *60)
     public void cleanupPendingImages() {
         Instant cutoff = Instant.now().minusSeconds(1800);
 

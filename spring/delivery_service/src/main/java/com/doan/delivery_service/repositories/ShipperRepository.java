@@ -37,7 +37,7 @@ public interface ShipperRepository extends JpaRepository<Shipper, Long> {
             "   OR s.phone ILIKE CONCAT('%', :keyword, '%')) " +
             "   AND (:status IS NULL OR s.status = CAST(:status AS varchar))" +
             "   AND (:active IS NULL OR s.is_active = :active)" +
-            "   AND (:warehouseId IS NULL OR s.warehouse_id = :warehouseId)"+
+            "   AND (:warehouseId IS NULL OR s.warehouse_id = :warehouseId)" +
             "   ORDER BY s.created_at DESC",
             nativeQuery = true)
     Page<Shipper> findAllByKeywordAndStatusAndWarehouseId(@Param("keyword") String keyword,
@@ -45,5 +45,16 @@ public interface ShipperRepository extends JpaRepository<Shipper, Long> {
                                                           @Param("warehouseId") Long warehouseId,
                                                           @Param("active") Boolean active,
                                                           Pageable pageable);
+
+    List<Shipper> findByStatus(String status);
+
+    @Query("""
+                select s, count(o.id)
+                from Shipper s
+                left join DeliveryOrder o on o.assignedShipper = s and o.status = 'ASSIGNED'
+                where s.status = 'ONLINE'
+                group by s
+            """)
+    List<Object[]> getAllActiveShippersWithOrderCounts();
 
 }
