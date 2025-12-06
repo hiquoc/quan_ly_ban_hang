@@ -55,8 +55,8 @@ feign:
 
 vnpay:
   url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-  tmn-code: 6REDFSH2
-  hash-secret: LOG7LAEJEE11L6SKETHT8HBT0R6XODDA
+  tmn-code: 4ZGR78SD
+  hash-secret: GZIZ4BR748ZDKILM6EPFHJXCG8189T19
   return-url: http://localhost:8080/payments/vnpay-callback
   version: 2.1.0
 
@@ -68,7 +68,7 @@ logging:
     org.springframework.security.web.FilterChainProxy: DEBUG
 
 web:
-  url: "http://localhost:5173"
+  url: "http://localhost:3000"
 
 cloudinary:
   cloud_name: dtvs3rgbw
