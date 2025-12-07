@@ -212,15 +212,4 @@ services:
       - service_registry
     restart: unless-stopped
 
-  frontend-service:
-    build:
-      context: ../reactJs
-      dockerfile: dockerfile
-    container_name: frontend
-    ports:
-      - "3000:80"
-    restart:
-      unless-stopped
-    depends_on:
-        - gateway-service
 
