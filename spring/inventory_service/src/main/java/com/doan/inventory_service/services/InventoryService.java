@@ -49,6 +49,8 @@ public class InventoryService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final ProductServiceClient productServiceClient;
     private final OrderServiceClient orderServiceClient;
+    @Autowired
+    private WebhookUtils webhookUtils;
 
     // ---------------------- INVENTORY SEARCH ----------------------
     public Page<InventoryResponse> searchInventories(Integer page, Integer size, String keyword, Long warehouseId, Boolean active) {
@@ -118,7 +120,7 @@ public class InventoryService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật!");
         inventory.setActive(!inventory.isActive());
         inventoryRepository.save(inventory);
-        WebhookUtils.postToWebhook(inventory.getId(), "update");
+        webhookUtils.postToWebhook(inventory.getId(), "update");
     }
 
     // ---------------------- RESERVE / RELEASE STOCK ----------------------
@@ -165,7 +167,7 @@ public class InventoryService {
         if (pending > 0)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không đủ sản phẩm trong kho để đặt giữ");
         for (Inventory inv : inventories) {
-            WebhookUtils.postToWebhook(inv.getId(), "update");
+            webhookUtils.postToWebhook(inv.getId(), "update");
         }
         return warehouseData;
     }
@@ -186,7 +188,7 @@ public class InventoryService {
                 if (newReserved < 0) newReserved = 0;
                 inv.setReservedQuantity(newReserved);
                 inventoryRepository.save(inv);
-                WebhookUtils.postToWebhook(inv.getId(), "update");
+                webhookUtils.postToWebhook(inv.getId(), "update");
                 updateVariantStatusInternal(inv.getVariantId(),
                         inv.getQuantity() - (inv.getReservedQuantity() + quantity),
                         inv.getQuantity() - inv.getReservedQuantity()
@@ -306,7 +308,7 @@ public class InventoryService {
                     });
 
             inventoryRepository.save(inventory);
-            WebhookUtils.postToWebhook(inventory.getId(), existed.get() ? "update" : "insert");
+            webhookUtils.postToWebhook(inventory.getId(), existed.get() ? "update" : "insert");
 
             int quantityToUse = "ADJUST".equals(request.getTransactionType()) ? request.getQuantity() : Math.abs(request.getQuantity());
             InventoryTransaction inventoryTransaction = new InventoryTransaction(
@@ -410,7 +412,7 @@ public class InventoryService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái giao dịch không hợp lệ!");
         }
         inventoryRepository.save(inventory);
-        WebhookUtils.postToWebhook(inventory.getId(), "update");
+       webhookUtils.postToWebhook(inventory.getId(), "update");
 
         transaction.setNote(note);
         transaction.setUpdatedBy(staffId);

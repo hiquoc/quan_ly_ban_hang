@@ -7,6 +7,7 @@ import com.doan.customer_service.repositories.AddressRepository;
 import com.doan.customer_service.repositories.CustomerRepository;
 import com.doan.customer_service.utils.WebhookUtils;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,9 @@ public class AddressService {
     private final CustomerRepository customerRepository;
     private final AddressRepository addressRepository;
 
+    @Autowired
+    private WebhookUtils webhookUtils;
+
     @Transactional
     public Address createAddress(AddressRequest request){
         Customer customer=customerRepository.findById(request.getCustomerId())
@@ -31,7 +35,7 @@ public class AddressService {
         if(customer.getAddresses().isEmpty())
             address.setIsMain(true);
         addressRepository.save(address);
-        WebhookUtils.postToWebhook(customer.getId(),"insert");
+        webhookUtils.postToWebhook(customer.getId(),"insert");
         return address;
     }
     public Address getAddress(Long id){
@@ -57,7 +61,7 @@ public class AddressService {
         address.setWard(request.getWard());
         address.setDistrict(request.getDistrict());
         address.setCity(request.getCity());
-        WebhookUtils.postToWebhook(customerId,"update");
+        webhookUtils.postToWebhook(customerId,"update");
     }
     @Transactional
     public void changeMainAddress(Long id,Long customerId){
@@ -78,6 +82,6 @@ public class AddressService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền chỉnh sửa dữ liệu!");
         }
         addressRepository.delete(address);
-        WebhookUtils.postToWebhook(customerId,"delete");
+        webhookUtils.postToWebhook(customerId,"delete");
     }
 }

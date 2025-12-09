@@ -13,6 +13,7 @@ import com.datn.promotion_service.repository.feign.ProductClientRepository;
 import com.datn.promotion_service.utils.WebhookUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +36,8 @@ public class PromotionService {
     private final PromotionRepository promotionRepository;
     private final PromotionUsageRepository promotionUsageRepository;
     private final ProductClientRepository productClientRepository;
+    @Autowired
+    private WebhookUtils webhookUtils;
 
     // Tạo khuyến mãi mới
     @Transactional
@@ -78,7 +81,7 @@ public class PromotionService {
                 .build();
 
         promotion = promotionRepository.save(promotion);
-        WebhookUtils.postToWebhook(promotion.getId(), "insert");
+        webhookUtils.postToWebhook(promotion.getId(), "insert");
         log.info("Khuyến mãi tạo thành công với ID: {}", promotion.getId());
 
         return mapToResponse(promotion);
@@ -124,7 +127,7 @@ public class PromotionService {
         promotion.setApplicableBrands(request.getApplicableBrands());
 
         promotion = promotionRepository.save(promotion);
-        WebhookUtils.postToWebhook(id, "update");
+        webhookUtils.postToWebhook(id, "update");
         log.info("Khuyến mãi cập nhật thành công: {}", id);
 
         return mapToResponse(promotion);
@@ -137,7 +140,7 @@ public class PromotionService {
                 .orElseThrow(() -> new PromotionNotFoundException("Không tìm thấy khuyến mãi với ID: " + id));
 
         promotion.setIsActive(!promotion.getIsActive());
-        WebhookUtils.postToWebhook(promotion.getId(), "update");
+        webhookUtils.postToWebhook(promotion.getId(), "update");
         return mapToResponse(promotionRepository.save(promotion));
     }
 
@@ -207,7 +210,7 @@ public class PromotionService {
         }
 
         promotionRepository.deleteById(id);
-        WebhookUtils.postToWebhook(id, "delete");
+       webhookUtils.postToWebhook(id, "delete");
         log.info("Khuyến mãi xóa thành công: {}", id);
     }
 
@@ -221,7 +224,7 @@ public class PromotionService {
         promotion = promotionRepository.save(promotion);
 
         log.info("Trạng thái khuyến mãi {} đổi thành: {}", id, promotion.getIsActive() ? "HOẠT ĐỘNG" : "KHÔNG HOẠT ĐỘNG");
-        WebhookUtils.postToWebhook(id, "update");
+        webhookUtils.postToWebhook(id, "update");
         return mapToResponse(promotion);
     }
 
@@ -250,7 +253,7 @@ public class PromotionService {
         if (promotion.getUsageLimit() != null && promotion.getUsageCount() >= promotion.getUsageLimit())
             promotion.setIsActive(false);
         promotionRepository.save(promotion);
-        WebhookUtils.postToWebhook(promotionId, "update");
+        webhookUtils.postToWebhook(promotionId, "update");
         log.info("Ghi nhận sử dụng khuyến mãi thành công");
     }
 

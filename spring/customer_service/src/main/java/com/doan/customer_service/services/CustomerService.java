@@ -6,6 +6,7 @@ import com.doan.customer_service.models.Customer;
 import com.doan.customer_service.repositories.AddressRepository;
 import com.doan.customer_service.repositories.CustomerRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -24,13 +25,15 @@ import java.util.List;
 public class CustomerService {
     private final CustomerRepository customerRepository;
     private final AddressRepository addressRepository;
+    @Autowired
+    private WebhookUtils webhookUtils;
 
     public Customer createCustomer(CustomerRequest request){
         Customer customer=new Customer(request.getFullName()!=null? request.getFullName().trim():null
                 ,request.getEmail()!=null?request.getEmail().trim():null, request.getPhone()!=null?request.getPhone().trim():null);
         customerRepository.save(customer);
 
-        WebhookUtils.postToWebhook(customer.getId(),"insert");
+        webhookUtils.postToWebhook(customer.getId(),"insert");
 
         return customer;
     }
@@ -109,14 +112,14 @@ public class CustomerService {
         }
 
         customerRepository.save(customer);
-        WebhookUtils.postToWebhook(customer.getId(),"update");
+        webhookUtils.postToWebhook(customer.getId(),"update");
     }
 
     public void deleteCustomer(Long id){
         Customer customer=customerRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Không tìm thấy khách hàng với id: "+id));
         customerRepository.delete(customer);
-        WebhookUtils.postToWebhook(customer.getId(),"delete");
+        webhookUtils.postToWebhook(customer.getId(),"delete");
     }
     public void checkRegisterRequest(CustomerRequest request){
         if(request.getEmail() != null && !request.getEmail().isEmpty()

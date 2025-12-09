@@ -19,6 +19,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,8 @@ public class ProductReviewService {
     private final ProductRepository productRepository;
     private final OrderServiceClient orderServiceClient;
     private final CloudinaryService cloudinaryService;
+    @Autowired
+    private WebhookUtils webhookUtils;
 
     @Transactional
     public ProductReviewDetailsResponse createReview(ProductReviewRequest request, List<MultipartFile> images) {
@@ -95,7 +98,7 @@ public class ProductReviewService {
         Product product = variant.getProduct();
         product.addRating(request.getRating());
         productRepository.save(product);
-        WebhookUtils.postToWebhook(product.getId(),"update");
+        webhookUtils.postToWebhook(product.getId(),"update");
 
         return mapToDetailsResponse(review, variant.getAttributes());
     }
@@ -192,7 +195,7 @@ public class ProductReviewService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
             product.updateRating(oldRating, newRating);
             productRepository.save(product);
-            WebhookUtils.postToWebhook(product.getId(),"update");
+            webhookUtils.postToWebhook(product.getId(),"update");
         }
 
         if (request.getContent() != null && !request.getContent().equals(review.getContent()))
@@ -264,7 +267,7 @@ public class ProductReviewService {
 
         product.removeRating(review.getRating());
         productRepository.save(product);
-        WebhookUtils.postToWebhook(product.getId(),"update");
+        webhookUtils.postToWebhook(product.getId(),"update");
 
         productReviewRepository.delete(review);
     }

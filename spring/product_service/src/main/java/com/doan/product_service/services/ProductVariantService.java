@@ -14,6 +14,7 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -41,6 +42,8 @@ public class ProductVariantService {
     private final CloudinaryService cloudinaryService;
     private final InventoryServiceClient inventoryServiceClient;
     private final CacheManager cacheManager;
+    @Autowired
+    private WebhookUtils webhookUtils;
 
     @Transactional
     public VariantResponse createProductVariant(VariantRequest request, List<MultipartFile> images) {
@@ -80,7 +83,7 @@ public class ProductVariantService {
                 imageUrls
         );
         productVariantRepository.save(productVariant);
-        WebhookUtils.postToWebhook(product.getId(), "update");
+        webhookUtils.postToWebhook(product.getId(), "update");
         return toVariantResponse(productVariant);
     }
 
@@ -214,7 +217,7 @@ public class ProductVariantService {
         }
 
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        webhookUtils.postToWebhook(variant.getProduct().getId(), "update");
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
 
@@ -276,7 +279,7 @@ public class ProductVariantService {
         variant.setImageUrls(currentImages);
         productVariantRepository.save(variant);
 
-        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        webhookUtils.postToWebhook(variant.getProduct().getId(), "update");
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
 
@@ -298,7 +301,7 @@ public class ProductVariantService {
                 throw new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE, "Sản phẩm đang có giá bán là 0đ!");
         }
         variant.setIsActive(!variant.getIsActive());
-        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+       webhookUtils.postToWebhook(variant.getProduct().getId(), "update");
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
 
@@ -315,7 +318,7 @@ public class ProductVariantService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy biến thể với id: " + id));
         variant.setStatus(status);
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        webhookUtils.postToWebhook(variant.getProduct().getId(), "update");
     }
 
     public void deleteProductVariant(Long id) {
@@ -324,7 +327,7 @@ public class ProductVariantService {
         if (inventoryServiceClient.checkPurchaseOrderByVariantId(id))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không thể xóa biến thể này!");
         productVariantRepository.delete(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        webhookUtils.postToWebhook(variant.getProduct().getId(), "update");
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
 
@@ -350,7 +353,7 @@ public class ProductVariantService {
 
         variant.setImportPrice(weightedAveragePrice);
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        webhookUtils.postToWebhook(variant.getProduct().getId(), "update");
 
     }
 
@@ -363,7 +366,7 @@ public class ProductVariantService {
         variant.setSoldCount(variant.getSoldCount() + num);
         variant.getProduct().setTotalSold(variant.getProduct().getTotalSold() + num);
         productVariantRepository.save(variant);
-        WebhookUtils.postToWebhook(variant.getProduct().getId(), "update");
+        webhookUtils.postToWebhook(variant.getProduct().getId(), "update");
 
     }
 

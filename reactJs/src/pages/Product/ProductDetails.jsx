@@ -528,7 +528,7 @@ export default function ProductDetails() {
                                     : [...values];
                                 return (
                                     <div key={attrName} className="flex">
-                                        <p className="font-semibold mb-2 w-15">{attrName}:</p>
+                                        <p className="font-semibold mb-2 w-20">{attrName}:</p>
                                         <div className="flex gap-2 flex-wrap ml-5 -mt-2">
                                             {sortedValues.map((value) => {
                                                 const isColor = attrName.toLowerCase().includes("màu");

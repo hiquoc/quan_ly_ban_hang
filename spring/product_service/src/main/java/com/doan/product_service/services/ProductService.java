@@ -19,6 +19,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -50,6 +51,8 @@ public class ProductService {
     private final RecServiceClient recServiceClient;
     private final CloudinaryService cloudinaryService;
     private final CacheManager cacheManager;
+    @Autowired
+    private WebhookUtils webhookUtils;
 
     @CacheEvict(value = "homeProducts", allEntries = true)
     public ProductResponse createProduct(ProductRequest productRequest, MultipartFile image,List<String> newImageUrls) {
@@ -90,7 +93,7 @@ public class ProductService {
                 imageUrl
                 );
         productRepository.save(product);
-        WebhookUtils.postToWebhook(product.getId(),"insert");
+        webhookUtils.postToWebhook(product.getId(),"insert");
         return fromEntity(product);
     }
 
@@ -272,7 +275,7 @@ public class ProductService {
                             "Không tìm thấy thương hiệu với id: " + productRequest.getBrandId()));
             product.setBrand(brand);
         }
-        WebhookUtils.postToWebhook(product.getId(),"update");
+        webhookUtils.postToWebhook(product.getId(),"update");
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
 
@@ -308,7 +311,7 @@ public class ProductService {
 
         product.setIsActive(!product.getIsActive());
         productRepository.save(product);
-        WebhookUtils.postToWebhook(product.getId(),"update");
+        webhookUtils.postToWebhook(product.getId(),"update");
 
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
@@ -327,7 +330,7 @@ public class ProductService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Sản phầm đang bị khóa!");
         product.setIsFeatured(!product.getIsFeatured());
         productRepository.save(product);
-        WebhookUtils.postToWebhook(product.getId(),"update");
+        webhookUtils.postToWebhook(product.getId(),"update");
 
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
@@ -356,7 +359,7 @@ public class ProductService {
 
         }
         productRepository.delete(product);
-        WebhookUtils.postToWebhook(product.getId(),"delete");
+        webhookUtils.postToWebhook(product.getId(),"delete");
 
         Cache homeCache = cacheManager.getCache("homeProducts");
         if (homeCache != null) homeCache.clear();
