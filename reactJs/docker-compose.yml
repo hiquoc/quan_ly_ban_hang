@@ -1,8 +1,9 @@
 services:
   frontend-service:
-    build:
-      context: ./
-      dockerfile: dockerfile
+#    build:
+#      context: ./
+#      dockerfile: dockerfile
+    image: huy404/reactjs-frontend-service:v1
     container_name: frontend
     ports:
       - "3000:80"
