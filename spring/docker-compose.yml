@@ -53,10 +53,10 @@ services:
   # ==================== AUTH ====================
 
   auth-service:
-#    build:
-#      context: ./auth_service
-#      dockerfile: Dockerfile
-    image: huy404/spring-auth-service:v3
+    build:
+      context: ./auth_service
+      dockerfile: Dockerfile
+#    image: huy404/spring-auth-service:v3
     container_name: auth-service
     ports:
       - "${AUTH_SERVICE_PORT}:8080"
@@ -155,10 +155,10 @@ services:
 
   #  # ==================== ORDER ====================
   order-service:
-#    build:
-#      context: ./order_service
-#      dockerfile: Dockerfile
-    image: huy404/spring-order-service:v2
+    build:
+      context: ./order_service
+      dockerfile: Dockerfile
+#    image: huy404/spring-order-service:v2
     container_name: order-service
     ports:
       - "${ORDER_SERVICE_PORT}:8080"

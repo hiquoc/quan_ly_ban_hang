@@ -110,7 +110,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         loginResponse.setRole(principal.getAccount().getRole().getName());
         loginResponse.setToken(token);
 
-        String redirectUrl = webUrl+ "/#/login?token=" + token;
+        String redirectUrl = webUrl+ "/login?token=" + token;
         response.sendRedirect(redirectUrl);
     }
 

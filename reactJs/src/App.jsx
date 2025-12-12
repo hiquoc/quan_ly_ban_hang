@@ -6,7 +6,7 @@ import NotFoundPage from "./pages/Others/NotFoundPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import { PopupProvider } from "./contexts/PopupContext";
-import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Helmet, HelmetProvider } from "react-helmet-async";
 import AdminAccounts from "./pages/Admin/Account/AdminAccounts";
 import AdminLayout from "./components/Layout/AdminLayout";
