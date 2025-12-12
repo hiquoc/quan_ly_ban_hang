@@ -68,7 +68,7 @@ logging:
     org.springframework.security.web.FilterChainProxy: DEBUG
 
 web:
-  url: "http://localhost:3000"
+  url: ${FRONTEND_URL}
 
 cloudinary:
   cloud_name: dtvs3rgbw
