@@ -188,7 +188,7 @@ function LoginPage() {
                         </div>
 
                         <a
-                            href="http://localhost:8080/oauth2/authorization/google"
+                            href="https://api.elecstoredoantotnghiep.id.vn/oauth2/authorization/google"
                             className="flex justify-center items-center gap-2 border-2 border-gray-200 w-full py-3 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow"
                         >
                             <img src="https://res.cloudinary.com/dtvs3rgbw/image/upload/v1763208448/Google__G__logo.svg_cwv6jj.webp" alt="Google" className="h-5 w-5" />
