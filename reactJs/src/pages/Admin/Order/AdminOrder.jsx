@@ -65,6 +65,7 @@ function AdminOrder() {
 
     useEffect(() => {
         if (!warehouses) return;
+        if (sortWarehouse === null) return;
         const token = localStorage.getItem("token") || sessionStorage.getItem("token");
         connectWebSocket(token, (event) => {
             console.log("Order event:", event);
@@ -104,6 +105,8 @@ function AdminOrder() {
     }
 
     const getData = async (page = currentPage) => {
+        console.log(sortWarehouse);
+        console.log(staffWarehouseId);
         setIsLoading(true);
         const res = await getAllOrders(page, 20, sortStatus, keyword, startDate, endDate, sortWarehouse);
         if (res.error) {
