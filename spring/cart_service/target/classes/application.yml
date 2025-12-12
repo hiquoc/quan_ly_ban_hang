@@ -2,11 +2,20 @@ spring:
   application:
     name: cart-service
   datasource:
-    url: jdbc:postgresql://cart-db:5432/cart_db
-    username: ${POSTGRES_USER}
-    password: ${POSTGRES_PASSWORD}
+    url: ${SUPABASE_CART_URL}
+    username: ${SUPABASE_CART_USER}
+    password: ${SUPABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
-  
+  redis:
+    host: ${SPRING_REDIS_HOST:redis}
+    port: ${SPRING_REDIS_PORT:6379}
+    connect-timeout: 15000ms
+    lettuce:
+      retry:
+        enabled: true
+        max-attempts: 10
+        initial-backoff: 500ms
+        max-backoff: 3000ms
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,12 +26,12 @@ spring:
     show-sql: true
 
 server:
-  port: 8086
+  port: 8080
 
 eureka:
   client:
     service-url:
-      defaultZone: http://service-registry:8761/eureka
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
     register-with-eureka: true
     fetch-registry: true
   instance:
