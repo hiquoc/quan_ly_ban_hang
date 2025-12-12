@@ -8,6 +8,6 @@ export default defineConfig({
   define: {
     global: 'window',
   },
-  base: "/quan_ly_ban_hang/",
+  base: "/",
 })
 
