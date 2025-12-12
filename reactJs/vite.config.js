@@ -9,5 +9,11 @@ export default defineConfig({
     global: 'window',
   },
   base: "/",
+  build: {
+    outDir: 'dist'
+  },
+  server: {
+    historyApiFallback: true
+  }
 })
 
