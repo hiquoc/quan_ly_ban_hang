@@ -4,7 +4,7 @@ import { over } from "stompjs";
 let stompClient = null;
 
 export const connectWebSocket = (token, onMessageReceived) => {
-    const socket = new SockJS(`http://localhost:8080/orders/ws?token=${token}`);
+    const socket = new SockJS(`https://api.elecstoredoantotnghiep.id.vn/orders/ws?token=${token}`);
     stompClient = over(socket);
 
     stompClient.connect(

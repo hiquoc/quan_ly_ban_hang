@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://20.189.113.130:8080/",
+    baseURL: "https://api.elecstoredoantotnghiep.id.vn/",
     headers: {
         "Content-Type": "application/json",
     },
