@@ -106,10 +106,10 @@ function AdminOrder() {
 
     const getData = async (page = currentPage) => {
         console.log(sortWarehouse);
-        console.log(staffWarehouseId);
+        console.log(staffWarehouseId); 
         setIsLoading(true);
         const res = await getAllOrders(page, 20, sortStatus, keyword, startDate, endDate, sortWarehouse);
-        if (res.error) {
+        if (res.error) { 
             setIsLoading(false);
             return showPopup(res.error);
         }
