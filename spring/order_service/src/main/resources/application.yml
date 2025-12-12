@@ -57,7 +57,7 @@ vnpay:
   url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
   tmn-code: 4ZGR78SD
   hash-secret: GZIZ4BR748ZDKILM6EPFHJXCG8189T19
-  return-url: http://localhost:8080/payments/vnpay-callback
+  return-url: "${BACKEND_URL}/payments/vnpay-callback"
   version: 2.1.0
 
 logging:

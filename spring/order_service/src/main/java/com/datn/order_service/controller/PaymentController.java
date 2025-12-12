@@ -132,7 +132,7 @@ public class PaymentController {
                     return new RedirectView(webUrl+ "/payment/success?orderNumber=" + orderNumber);
                 } else {
                     String message = (String) result.get("message");
-                    return new RedirectView(webUrl+ "/payment/failure?orderNumber=" + orderNumber +
+                    return new RedirectView(webUrl+ "/#/payment/failure?orderNumber=" + orderNumber +
                             "&message=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
                 }
             }
@@ -143,7 +143,7 @@ public class PaymentController {
             if ("mobile".equalsIgnoreCase(platform)) {
                 return new RedirectView("myapp://payment/error");
             } else {
-                return new RedirectView(webUrl+ "/payment/error");
+                return new RedirectView(webUrl+ "/#/payment/error");
             }
         }
     }

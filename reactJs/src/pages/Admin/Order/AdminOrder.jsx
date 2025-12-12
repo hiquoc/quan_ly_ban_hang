@@ -28,7 +28,9 @@ function AdminOrder() {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [sortStatus, setSortStatus] = useState("");
-    const [sortWarehouse, setSortWarehouse] = useState(null);
+    const [sortWarehouse, setSortWarehouse] = useState(
+        role === "STAFF" ? staffWarehouseId : ""
+    );
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
@@ -89,7 +91,7 @@ function AdminOrder() {
         }
         let warehouseData = res.data;
         setWarehouses(warehouseData);
-        setSortWarehouse(warehouseData[0].id)
+        // setSortWarehouse(warehouseData[0].id)
         setWarehouseMap(Object.fromEntries(warehouseData.map(w => [w.id, w.code])));
         // console.log(warehouseData)
     }

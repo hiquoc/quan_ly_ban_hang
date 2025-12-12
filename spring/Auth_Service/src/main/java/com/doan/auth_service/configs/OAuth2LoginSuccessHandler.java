@@ -40,6 +40,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final CustomerServiceClient customerServiceClient;
     private final ObjectMapper objectMapper;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Value("${frontend.url}")
+    private String webUrl;
 
     @Override
     @Transactional
@@ -108,7 +110,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         loginResponse.setRole(principal.getAccount().getRole().getName());
         loginResponse.setToken(token);
 
-        String redirectUrl = "http://localhost:5173/login?token=" + token;
+        String redirectUrl = webUrl+ "/login?token=" + token;
         response.sendRedirect(redirectUrl);
     }
 
