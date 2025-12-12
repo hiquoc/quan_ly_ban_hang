@@ -28,9 +28,7 @@ function AdminOrder() {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [sortStatus, setSortStatus] = useState("");
-    const [sortWarehouse, setSortWarehouse] = useState(
-        role === "STAFF" ? staffWarehouseId : ""
-    );
+    const [sortWarehouse, setSortWarehouse] = useState(null);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
@@ -52,9 +50,18 @@ function AdminOrder() {
     useEffect(() => { handlLoadWarehouses() }, [])
 
     useEffect(() => {
+        if (role === "STAFF" && staffWarehouseId && sortWarehouse === null) {
+            setSortWarehouse(staffWarehouseId);
+        } else if ((role === "ADMIN" || role === "MANAGER") && sortWarehouse === null) {
+            setSortWarehouse("");
+        }
+    }, [role, staffWarehouseId]);
+
+    useEffect(() => {
         if (warehouses === null) return;
+        if (sortWarehouse === null) return;
         getData();
-    }, [currentPage, sortStatus, startDate, endDate, sortWarehouse]);
+    }, [currentPage, sortStatus, startDate, endDate, sortWarehouse, warehouses]);
 
     useEffect(() => {
         if (!warehouses) return;
