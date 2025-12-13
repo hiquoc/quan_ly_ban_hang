@@ -281,13 +281,13 @@ export default function CustomerPage() {
     <>
       <Helmet>
         <title>Cá nhân</title></Helmet>
-      <div className="px-40 py-10 bg-gray-50 min-h-screen">
+      <div className="px-20 py-10 bg-gray-50 min-h-screen">
         <div className="flex gap-10">
           {/* Left Panel: Addresses */}
           <div className="flex-4 ">
             <h2 className="text-xl font-bold mb-6">Lịch sử đơn hàng</h2>
             {/* Tabs */}
-            <div className="flex justify-between gap-6 px-2 pb-2 mb-2">
+            <div className="flex justify-between gap-2 px-2 pb-2 mb-2">
               {[
                 { key: "ALL", label: "Tất cả", color: "gray-900", icon: null },
                 { key: "PENDING", label: "Chờ xác nhận", color: "yellow-500" },
@@ -597,15 +597,14 @@ export default function CustomerPage() {
 
                 <p className="flex text-gray-700 items-center">
                   <strong>Email:</strong>
-                  <span
-                    className="ml-1 max-w-[300px] inline-block overflow-hidden text-ellipsis whitespace-nowrap"
+                  <span class="ml-1 max-w-[200px] inline-block overflow-hidden text-ellipsis whitespace-nowrap"
                     title={customer?.email}
                   >
                     {customer?.email || "-"}
                   </span>
                 </p>
                 <p className="text-gray-700"><strong>SĐT:</strong> {customer?.phone || "-"}</p>
-                <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender==="MALE"?"Nam":"Nữ" || "-"}</p>
+                <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender === "MALE" ? "Nam" : "Nữ" || "-"}</p>
                 <p className="text-gray-700"><strong>Ngày sinh:</strong> {customer?.dateOfBirth || "-"}</p>
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => { setEditForm(customer); setShowEditForm(true); }} className="px-5 py-2 bg-black text-white rounded hover:bg-gray-900 flex items-center gap-2 hover:cursor-pointer"><FiEdit /> Chỉnh sửa</button>
@@ -613,8 +612,7 @@ export default function CustomerPage() {
                     <FiPenTool></FiPenTool> Đổi mật khẩu</button>
                 </div>
               </div>
-              <div className="w-1 bg-gradient-to-b from-gray-300 via-gray-200 to-gray-300 rounded mx-6"></div>
-              <div className="w-1/3 flex flex-col gap-4">
+              <div className="w-2/5 flex flex-col gap-4">
                 <h2 className="font-bold text-black text-lg">Thống kê</h2>
 
                 <div className="grid grid-cols-1 gap-4">

@@ -395,7 +395,7 @@ export default function SearchPage() {
                             </select>
                         </div>
 
-                        <div className="grid grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 gap-15">
+                        <div className="grid grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 gap-5">
 
                             {!isLoadingProducts && products && products.length === 0 && (
                                 <div className="col-span-full flex flex-col items-center justify-center py-10 text-center">
@@ -425,9 +425,6 @@ export default function SearchPage() {
                                     />
                                 )))
                             )}
-
-
-
                         </div>
 
 

@@ -51,7 +51,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("""
             SELECT o.status.name, COUNT(o)
             FROM Order o
-            WHERE o.deliveredDate >= :from AND o.deliveredDate < :to
+            WHERE o.orderDate >= :from AND o.orderDate < :to
             GROUP BY o.status.name
             """)
     List<Object[]> getOrderStatusStats(@Param("from") OffsetDateTime from,
@@ -71,6 +71,4 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Object[]> getDailyStats(@Param("from") OffsetDateTime from,
                                  @Param("to") OffsetDateTime to,
                                  @Param("statusId") Long statusId);
-
-
 }

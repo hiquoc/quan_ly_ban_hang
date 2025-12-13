@@ -525,7 +525,7 @@ export default function ProductManager() {
           {/* Dropdown panel */}
           {showFilters && (
             <div className="absolute z-10 mt-2 bg-white border shadow-lg rounded-lg p-4 w-80">
-              <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-5">
+              <div className="flex flex-col gap-3 max-h-75 overflow-y-auto pr-5">
                 {/* Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
@@ -827,7 +827,7 @@ export default function ProductManager() {
       {/* Add/Edit Product Form */}
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
-          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] max-h-[calc(100vh-2rem)] overflow-y-auto relative">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] max-h-[95vh] overflow-y-auto relative">
             <div className="flex justify-between">
               <h3 className="text-3xl font-bold mb-5 text-black">
                 {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}

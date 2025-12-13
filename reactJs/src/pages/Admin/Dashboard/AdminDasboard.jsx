@@ -80,8 +80,7 @@ const AdminDashboard = () => {
       null,
       formatLocalDate(from),
       formatLocalDate(to),
-      null,
-      true
+      null
     );
 
     if (res.error) return showPopup(res.error);

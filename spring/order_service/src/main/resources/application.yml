@@ -23,7 +23,18 @@ spring:
     username: ${SUPABASE_ORDER_USER}
     password: ${SUPABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
-  
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 0
+      idle-timeout: 120000
+      max-lifetime: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+      pool-name: AuthHikariPool
+      auto-commit: true
+      validation-timeout: 5000
+      test-on-borrow: true
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -32,6 +43,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: false
+
 order:
   shipping:
     fixed-cost: 30000

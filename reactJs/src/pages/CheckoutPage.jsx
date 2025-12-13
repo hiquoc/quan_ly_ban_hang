@@ -272,7 +272,7 @@ export default function CheckoutPage() {
             <Helmet>
                 <title>Thanh toán</title>
             </Helmet>
-            <div className="px-40 pt-10 flex flex-col">
+            <div className="px-20 pt-10 flex flex-col">
                 <div className="flex justify-center items-center gap-60 mb-10">
                     {stepTitles.map((title, index) => (
                         <div key={index} className="flex flex-col items-center relative">

@@ -53,17 +53,18 @@ export default function HomePage() {
       link: "/product/iphone-17-pro-max?sku=iphone-17-pro-max-cam-256gb"
     },
     {
-      title: "PlayStation 5",
+      title: "PlayStation 5 Pro",
       subtitle: "Giải trí không giới hạn cùng gia đình",
       cta: "Mua ngay",
       imageUrl: "https://i.ytimg.com/vi/1BU4VXofbQk/maxresdefault.jpg",
-      link: "/product/playstation-5?sku=playstation-5"
+      link: "/product/ps5-pro?sku=may-choi-game-ps5-pro"
     },
     {
       title: "Samsung Galaxy S25 Ultra",
       subtitle: "Hiệu năng mạnh mẽ – Giá trị vượt trội",
       cta: "Xem thêm",
-      imageUrl: "https://media.vietnamplus.vn/images/7c9de47923aa66aa3d70a2b6ee174cec84805872a0d596f69af26df51fa3ba96412351bb99fc88a0d50181b29f4e3bac23c824218db520a9ae8e9975906456124f9efb0c8972265f49d8f86164867992/samsung-galaxy-s25-ultra-1024x576-1.jpg"
+      imageUrl: "https://media.vietnamplus.vn/images/7c9de47923aa66aa3d70a2b6ee174cec84805872a0d596f69af26df51fa3ba96412351bb99fc88a0d50181b29f4e3bac23c824218db520a9ae8e9975906456124f9efb0c8972265f49d8f86164867992/samsung-galaxy-s25-ultra-1024x576-1.jpg",
+       link: "/product/samsung-galaxy-s25-ultra?sku=samsung-galaxy-s25-ultra-256gb-xanh-duong"
     }
   ];
 
@@ -467,7 +468,7 @@ export default function HomePage() {
                     key={`discount-${product.id}-${idx}`}
                     className="flex-shrink-0 pb-12 overflow-visible"
                     style={{
-                      width: `calc((100% - 5 * 1.5rem) / 6)`
+                      width: `calc((100% - 5 * 1.5rem) / 5)`
                     }}
                   >
                     <ProductCard
@@ -529,7 +530,7 @@ export default function HomePage() {
                       key={`recommended-${product.id}-${idx}`}
                       className="flex-shrink-0 pb-12 overflow-visible"
                       style={{
-                        width: `calc((100% - 5 * 1.5rem) / 6)`
+                        width: `calc((100% - 5 * 1.5rem) / 5)`
                       }}
                     >
                       <ProductCard
@@ -626,7 +627,7 @@ export default function HomePage() {
                 <p className="text-gray-600">Đang tải...</p>
               </div>
             </div>
-          ) : (<div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-6 gap-6">
+          ) : (<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {(activeTab === "new"
               ? newProducts
               : activeTab === "hot"

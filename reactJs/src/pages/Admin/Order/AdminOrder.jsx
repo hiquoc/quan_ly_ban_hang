@@ -457,7 +457,7 @@ function AdminOrder() {
                 </div>
                 {isDetailOpen && orderDetails && (
                     <div onClick={() => setIsDetailOpen(false)}
-                        className="fixed inset-0 bg-gray-800/30 backdrop-blur-sm flex justify-center items-center pb-30 z-50">
+                        className="fixed inset-0 bg-gray-800/30 backdrop-blur-sm flex justify-center items-center z-50">
                         <div onClick={(e) => e.stopPropagation()}
                             className="bg-white rounded-xl shadow-xl w-[95%] max-w-4xl p-8 overflow-hidden max-h-[90vh] relative">
 
