@@ -1,6 +1,7 @@
 package com.doan.product_service.controllers;
 
 import com.doan.product_service.dtos.ApiResponse;
+import com.doan.product_service.dtos.other.CategoryBrandIdsResponse;
 import com.doan.product_service.dtos.other.HomeRequest;
 import com.doan.product_service.dtos.other.HomeResponse;
 import com.doan.product_service.dtos.product.ProductDetailsResponse;
@@ -258,6 +259,10 @@ public class ProductController {
     @GetMapping("/internal/active-products")
     public List<Long> getAvailableProducts() {
         return productService.getAvailableProducts();
+    }
+    @GetMapping("/internal/productsCategoryBrandIds")
+    public CategoryBrandIdsResponse getCategoryIdsAndBrandIdsByProductsId(@RequestParam List<Long> ids) {
+        return productService.getCategoryIdsAndBrandIdsByProductsId(ids);
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(ResponseStatusException ex) {

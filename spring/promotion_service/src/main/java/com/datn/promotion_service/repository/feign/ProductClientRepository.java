@@ -1,6 +1,7 @@
 package com.datn.promotion_service.repository.feign;
 
 import com.datn.promotion_service.dto.response.BrandResponse;
+import com.datn.promotion_service.dto.response.CategoryBrandIdsResponse;
 import com.datn.promotion_service.dto.response.CategoryResponse;
 import com.datn.promotion_service.dto.response.ProductResponse;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -22,4 +23,7 @@ public interface ProductClientRepository {
 
     @GetMapping("/categories")
      List<CategoryResponse> getCategoriesByIds(@RequestParam List<Long> ids);
+
+    @GetMapping("/productsCategoryBrandIds")
+    public CategoryBrandIdsResponse getCategoryIdsAndBrandIdsByProductsId(@RequestParam List<Long> ids);
 }

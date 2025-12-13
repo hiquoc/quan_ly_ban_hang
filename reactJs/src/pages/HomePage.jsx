@@ -395,7 +395,7 @@ export default function HomePage() {
                       className="group py-4"
                     >
                       <div className="bg-white rounded-2xl p-4 transition transform hover:scale-105 hover:shadow-xl group flex-shrink-0 w-40">
-                        <div className="overflow-hidden rounded-xl mb-4">
+                        <div className="overflow-hidden rounded-xl mb-4 p-1">
                           <img
                             src={cat.imageUrl}
                             className="w-full aspect-square object-cover transform transition-transform duration-300 group-hover:scale-110"

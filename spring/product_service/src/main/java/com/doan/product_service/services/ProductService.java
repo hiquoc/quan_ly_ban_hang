@@ -1,5 +1,6 @@
 package com.doan.product_service.services;
 
+import com.doan.product_service.dtos.other.CategoryBrandIdsResponse;
 import com.doan.product_service.dtos.other.HomeRequest;
 import com.doan.product_service.dtos.other.HomeResponse;
 import com.doan.product_service.dtos.product.ProductDetailsResponse;
@@ -677,4 +678,27 @@ public class ProductService {
     public List<Long>  getAvailableProducts() {
         return productRepository.getAvailableProducts();
     }
+    public CategoryBrandIdsResponse getCategoryIdsAndBrandIdsByProductsId(
+            List<Long> productIds
+    ) {
+        if (productIds == null || productIds.isEmpty()) {
+            return new CategoryBrandIdsResponse(List.of(), List.of());
+        }
+
+        List<Object[]> rows =
+                productRepository.findCategoryAndBrandIdsByProductIds(productIds);
+
+        List<Long> categoryIds = rows.stream()
+                .map(r -> ((Number) r[0]).longValue())
+                .distinct()
+                .toList();
+
+        List<Long> brandIds = rows.stream()
+                .map(r -> ((Number) r[1]).longValue())
+                .distinct()
+                .toList();
+
+        return new CategoryBrandIdsResponse(categoryIds, brandIds);
+    }
+
 }

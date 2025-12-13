@@ -63,4 +63,16 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             """)
     List<Long> getAvailableProducts();
 
+    @Query(
+            value = """
+            SELECT DISTINCT category_id, brand_id
+            FROM products
+            WHERE id IN (:productIds)
+        """,
+            nativeQuery = true
+    )
+    List<Object[]> findCategoryAndBrandIdsByProductIds(
+            @Param("productIds") List<Long> productIds
+    );
+
 }

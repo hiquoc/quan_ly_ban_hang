@@ -1,6 +1,8 @@
 package com.datn.promotion_service.service;
 
 import com.datn.promotion_service.dto.request.ValidatePromotionRequest;
+import com.datn.promotion_service.dto.response.CategoryBrandIdsResponse;
+import com.datn.promotion_service.dto.response.ProductResponse;
 import com.datn.promotion_service.dto.response.PromotionResponse;
 import com.datn.promotion_service.dto.response.PromotionValidationResponse;
 import com.datn.promotion_service.entity.Promotion;
@@ -9,6 +11,7 @@ import com.datn.promotion_service.exception.PromotionNotFoundException;
 import com.datn.promotion_service.exception.PromotionUsageLimitException;
 import com.datn.promotion_service.repository.PromotionRepository;
 import com.datn.promotion_service.repository.PromotionUsageRepository;
+import com.datn.promotion_service.repository.feign.ProductClientRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +20,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +31,7 @@ public class PromotionValidationService {
 
     private final PromotionRepository promotionRepository;
     private final PromotionUsageRepository promotionUsageRepository;
+    private final ProductClientRepository productClientRepository;
 
     // Kiểm tra và tính toán giảm giá
     public PromotionValidationResponse validateAndCalculate(ValidatePromotionRequest request) {
@@ -80,6 +86,7 @@ public class PromotionValidationService {
             Integer customerUsageCount = promotionUsageRepository.countByPromotionIdAndCustomerId(promotion.getId(), request.getCustomerId());
             if (customerUsageCount >= promotion.getUsageLimitPerCustomer()) return "Bạn đã đạt giới hạn sử dụng khuyến mãi này";
         }
+        System.out.println(request);
 
         // Kiểm tra số tiền tối thiểu
         if (promotion.getMinOrderAmount() != null &&
@@ -97,33 +104,57 @@ public class PromotionValidationService {
 
         // Kiểm tra sản phẩm áp dụng
         if (promotion.getApplicableProducts() != null && !promotion.getApplicableProducts().isEmpty()) {
-            if (request.getProductIds() == null || request.getProductIds().isEmpty()) return "Khuyến mãi yêu cầu sản phẩm cụ thể";
+            if (request.getProductIds() == null || request.getProductIds().isEmpty())
+                return "Khuyến mãi yêu cầu sản phẩm cụ thể";
 
             boolean hasApplicableProduct = request.getProductIds().stream()
                     .anyMatch(promotion.getApplicableProducts()::contains);
 
-            if (!hasApplicableProduct) return "Khuyến mãi không áp dụng cho các sản phẩm trong giỏ hàng";
+            if (!hasApplicableProduct)
+                return "Khuyến mãi không áp dụng cho sản phẩm trong giỏ hàng";
         }
 
-        // Kiểm tra danh mục áp dụng
-        else if (promotion.getApplicableCategories() != null && !promotion.getApplicableCategories().isEmpty()) {
-            if (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) return "Khuyến mãi yêu cầu danh mục sản phẩm cụ thể";
+        List<Long> applicableCategories =
+                Optional.ofNullable(promotion.getApplicableCategories()).orElse(List.of());
 
-            boolean hasApplicableCategory = request.getCategoryIds().stream()
-                    .anyMatch(promotion.getApplicableCategories()::contains);
+        List<Long> applicableBrands =
+                Optional.ofNullable(promotion.getApplicableBrands()).orElse(List.of());
 
-            if (!hasApplicableCategory) return "Khuyến mãi không áp dụng cho các danh mục trong giỏ hàng";
+        if (!applicableCategories.isEmpty() || !applicableBrands.isEmpty()) {
+
+            CategoryBrandIdsResponse response =
+                    productClientRepository.getCategoryIdsAndBrandIdsByProductsId(
+                            request.getProductIds()
+                    );
+
+            List<Long> cartCategoryIds =
+                    Optional.ofNullable(response.getCategoryIds()).orElse(List.of());
+
+            List<Long> cartBrandIds =
+                    Optional.ofNullable(response.getBrandIds()).orElse(List.of());
+
+            if (!applicableCategories.isEmpty()) {
+
+                boolean hasCategoryMatch = cartCategoryIds.stream()
+                        .anyMatch(applicableCategories::contains);
+
+                if (!hasCategoryMatch) {
+                    return "Khuyến mãi không áp dụng cho danh mục trong giỏ hàng";
+                }
+            }
+
+            if (!applicableBrands.isEmpty()) {
+
+                boolean hasBrandMatch = cartBrandIds.stream()
+                        .anyMatch(applicableBrands::contains);
+
+                if (!hasBrandMatch) {
+                    return "Khuyến mãi không áp dụng cho thương hiệu trong giỏ hàng";
+                }
+            }
         }
 
-        // Kiểm tra thương hiệu áp dụng
-        else if (promotion.getApplicableBrands() != null && !promotion.getApplicableBrands().isEmpty()) {
-            if (request.getBrandIds() == null || request.getBrandIds().isEmpty()) return "Khuyến mãi yêu cầu thương hiệu cụ thể";
 
-            boolean hasApplicableBrand = request.getBrandIds().stream()
-                    .anyMatch(promotion.getApplicableBrands()::contains);
-
-            if (!hasApplicableBrand) return "Khuyến mãi không áp dụng cho thương hiệu trong giỏ hàng";
-        }
 
         return null; // Hợp lệ
     }

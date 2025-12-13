@@ -21,6 +21,4 @@ public class ValidatePromotionRequest {
     private BigDecimal orderAmount;
 
     private List<Long> productIds;
-    private List<Long> categoryIds;
-    private List<Long> brandIds;
 }
