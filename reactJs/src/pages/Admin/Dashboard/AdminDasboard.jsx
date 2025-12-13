@@ -770,7 +770,7 @@ const AdminDashboard = () => {
 
           {/* Recent Orders Table */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Đơn hàng đã giao gần đây</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Đơn hàng đã giao</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -854,7 +854,7 @@ const AdminDashboard = () => {
         </div>
         {isDetailOpen && orderDetails && (
           <div onClick={() => setIsDetailOpen(false)}
-            className="fixed inset-0 bg-gray-800/30 backdrop-blur-sm flex justify-center items-center pb-30 z-50">
+            className="fixed inset-0 bg-gray-800/30 backdrop-blur-sm flex justify-center items-center z-50">
             <div onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-xl shadow-xl w-[95%] max-w-4xl p-8 overflow-hidden max-h-[90vh] relative">
 
