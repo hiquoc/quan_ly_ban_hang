@@ -80,7 +80,8 @@ const AdminDashboard = () => {
       null,
       formatLocalDate(from),
       formatLocalDate(to),
-      null
+      null,
+      true
     );
 
     if (res.error) return showPopup(res.error);
@@ -769,7 +770,7 @@ const AdminDashboard = () => {
 
           {/* Recent Orders Table */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Đơn hàng gần đây</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Đơn hàng đã giao gần đây</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -778,7 +779,7 @@ const AdminDashboard = () => {
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Khách hàng</th>
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Tổng tiền</th>
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Lợi nhuận</th>
-                    <th className="py-4 px-4 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
+                    {/* <th className="py-4 px-4 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th> */}
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Ngày đặt</th>
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Ngày giao</th>
                     <th className="py-4 px-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Chi tiết</th>
@@ -795,11 +796,11 @@ const AdminDashboard = () => {
                       <td className={`py-4 px-4 font-bold ${order.revenueTextGreen ? " text-green-600" : " text-red-600"}`}>
                         {order.revenue?.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
                       </td>
-                      <td className="py-4 px-4 text-center">
+                      {/* <td className="py-4 px-4 text-center">
                         <span className={`px-4 py-2 rounded text-xs font-bold ${getStatusColor(order.status)}`}>
                           {statusMap[order.status]?.label}
                         </span>
-                      </td>
+                      </td> */}
                       <td className="py-4 px-4 text-sm text-gray-600">{order.orderDate}</td>
                       <td className="py-4 px-4 text-sm text-gray-600">{order.deliveredDate}</td>
                       <td className="p-2 text-sm text-gray-600">

@@ -507,7 +507,7 @@ public class OrderService {
             if(sortByDeliveredDate)
                 predicates.add(cb.lessThan(root.get("deliveredDate"), endDateTime));
             else
-                predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), endDateTime));
+                predicates.add(cb.lessThan(root.get("orderDate"), endDateTime));
         }
 
         if (warehouseId != null) {
