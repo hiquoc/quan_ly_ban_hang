@@ -207,7 +207,7 @@ export default function SearchPage() {
             </Helmet>
             <div className="pb-10">
                 {/* Breadcrumb */}
-                <div className="px-40 py-5 text-base text-gray-600 flex flex-wrap items-center gap-2">
+                <div className="px-20 py-5 text-base text-gray-600 flex flex-wrap items-center gap-2">
                     <a href="/" className="hover:text-black hover:underline transition-colors">Trang chủ</a>
                     <span className="text-gray-400">›</span>
                     <a href="/search" className="hover:text-black hover:underline transition-colors">Tìm kiếm</a>
@@ -216,7 +216,7 @@ export default function SearchPage() {
                 </div>
 
 
-                <div className="flex px-40 pt-3 gap-15">
+                <div className="flex px-20 pt-3 gap-15">
                     {/* Sidebar */}
                     <div className="w-80 flex-shrink-0">
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-20">
@@ -395,7 +395,7 @@ export default function SearchPage() {
                             </select>
                         </div>
 
-                        <div className="grid grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+                        <div className="grid grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 gap-6">
 
                             {!isLoadingProducts && products && products.length === 0 && (
                                 <div className="col-span-full flex flex-col items-center justify-center py-10 text-center">

@@ -26,7 +26,6 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
       (max == null || v.sellingPrice <= max)
     );
 
-    // Prefer discounted variants if requested
     if (preferDiscounted) {
       const discounted = inPriceRange.filter(v => v.discountPercent > 0);
       if (discounted.length > 0) return discounted[0];
@@ -41,10 +40,9 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
     return inPriceRange[0] || available[0];
   }, [product, preferDiscounted, priceRange]);
 
-
   useEffect(() => {
     setSelectedVariant(getDefaultVariant());
-  }, [product, preferDiscounted, priceRange]);
+  }, [product, preferDiscounted, priceRange, getDefaultVariant]);
 
   const toggleAttributes = () => setShowAttributes(prev => !prev);
 
@@ -66,7 +64,6 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
   if (!selectedVariant) return null;
   const isOutOfStock = selectedVariant.status === "OUT_OF_STOCK";
 
-  // Attribute map
   const attributeOptions = {};
   product.variants.forEach((v) => {
     Object.entries(v.attributes || {}).forEach(([k, val]) => {
@@ -93,8 +90,6 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
         </button>
       )}
 
-      {/* Rating Badge */}
-
       <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
         <div className="bg-white/95 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5">
           <FaCartPlus className="text-blue-500 text-sm" />
@@ -109,13 +104,13 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
           )}
         </div>
 
-        {/* Discount Badge */}
         {selectedVariant.discountPercent > 0 && (
           <div className="w-fit bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-md">
             -{selectedVariant.discountPercent}%
           </div>
         )}
       </div>
+
       <div
         className="relative h-56 overflow-hidden cursor-pointer group"
         onClick={() => navigate(`/product/${product.slug}?sku=${selectedVariant.sku}`)}
@@ -123,14 +118,12 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
         <img
           src={selectedVariant.imageUrls?.main || product.imageUrl}
           alt={selectedVariant.name}
-          className="w-full h-full object-contain p-4 transform transition-transform duration-500 group-hover:scale-108"
+          className="w-full h-full object-contain p-4 transform transition-transform duration-500 scale-95 group-hover:scale-105"
         />
-
-        {/* Overlay on hover */}
         <div className="absolute inset-0 transition-all duration-300"></div>
       </div>
 
-      <div className="flex flex-col flex-1 p-4 text-center ">
+      <div className="flex flex-col flex-1 p-4 text-center">
         <h3
           className="text-gray-900 font-semibold leading-tight line-clamp-2 -mt-3 mb-4 h-10 cursor-pointer hover:text-blue-600 transition"
           onClick={() => navigate(`/product/${product.slug}?sku=${selectedVariant.sku}`)}
@@ -139,7 +132,6 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
           {product.name}
         </h3>
 
-        {/* Price Section */}
         <div className="flex flex-col mb-2 mt-auto max-h-[30px] justify-end">
           {selectedVariant.discountPercent > 0 ? (
             <div className="flex flex-col">
@@ -157,8 +149,6 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
           )}
         </div>
 
-
-        {/* Buy Button */}
         <div className="flex gap-2">
           {isOutOfStock ? (
             <button
@@ -179,16 +169,16 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
           )}
         </div>
       </div>
-
       {showAttributes && (
         <div
           ref={panelRef}
-          className="absolute top-0 left-full ml-2 bg-white shadow-lg border border-gray-200 rounded p-3 z-50 max-w-xs min-w-[140px]"
+          className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl z-30 p-6 flex flex-col overflow-y-auto"
         >
+          <h4 className="text-sm font-bold text-gray-900 mb-4">Chọn phân loại</h4>
           {sortedAttributes.map((attrName) => (
-            <div key={attrName} className="flex items-center mb-2">
-              <span className="text-xs font-medium text-gray-600 mr-2 min-w-[40px]">{attrName}:</span>
-              <div className="flex gap-1 flex-wrap">
+            <div key={attrName} className="mb-4">
+              <span className="text-xs font-medium text-gray-600 block mb-2">{attrName}:</span>
+              <div className="flex gap-2 flex-wrap">
                 {[...attributeOptions[attrName]].map((value) => {
                   const isColor = attrName.toLowerCase().includes("màu");
                   const isSelected = selectedVariant.attributes?.[attrName] === value;
@@ -196,10 +186,10 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
                     <button
                       key={value}
                       className={`transition-all duration-150 ${isColor
-                        ? `w-5 h-5 rounded-full border-2 ${isSelected ? "border-gray-700" : "border-gray-300"}`
-                        : `px-2 py-1 rounded border text-xs font-medium ${isSelected
-                          ? "border-black text-black"
-                          : "text-gray-500 border-gray-300 hover:bg-gray-50"
+                        ? `w-8 h-8 rounded-full border-2 ${isSelected ? "border-gray-900 ring-2 ring-gray-300" : "border-gray-300"}`
+                        : `px-3 py-2 rounded-lg border text-xs font-medium ${isSelected
+                          ? "border-black bg-black text-white"
+                          : "text-gray-700 border-gray-300 hover:bg-gray-100"
                         }`
                         }`}
                       style={isColor ? { backgroundColor: ColorMap[value] || "#ccc" } : {}}
@@ -219,8 +209,9 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
             </div>
           ))}
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 });
 

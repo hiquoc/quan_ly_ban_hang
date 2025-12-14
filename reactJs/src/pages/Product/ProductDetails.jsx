@@ -435,7 +435,7 @@ export default function ProductDetails() {
                     <span className="font-semibold text-gray-900">{variant.name}</span>
                 </div>
 
-                <div className="flex flex-wrap gap-15 px-20 justify-center pt-4">
+                <div className="flex flex-wrap gap-5 px-20 justify-center pt-4">
                     {/* LEFT SIDE */}
                     <div className="flex w-full flex-1 gap-6 justify-center items-center pb-0">
                         {/* Thumbnails */}
@@ -480,7 +480,7 @@ export default function ProductDetails() {
                     <div className="flex-1 min-w-[300px] bg-white flex flex-col py-6 gap-5 px-4 rounded-lg">
 
                         {/* Name */}
-                        <h2 className="text-4xl font-semibold text-gray-900 leading-tight">
+                        <h2 className="text-3xl font-semibold text-gray-900 leading-tight">
                             {variant.name}
                         </h2>
 
@@ -989,7 +989,7 @@ export default function ProductDetails() {
                     {/* Reviews list */}
                     <div className="grid gap-6 pb-5">
                         {(!reviews || reviews.length === 0) ? (
-                            <p className="text-gray-500">Chưa có đánh giá nào.</p>
+                            <p className="text-gray-500 text-center">Chưa có đánh giá nào.</p>
                         ) : reviews.map((review) => {
                             if (review.customerId === editingReview?.customerId) return
                             const isUserReview = review.customerId === ownerId && role === "CUSTOMER";
