@@ -174,7 +174,7 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
       {showAttributes && (
         <div
           ref={panelRef}
-          className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm rounded-t-2xl z-30 p-6 max-h-[65%] overflow-y-auto"
+          className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm rounded-t-2xl z-30 p-6 max-h-[70%] overflow-y-auto"
         >
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-sm font-bold text-gray-900">Chọn phân loại</h4>
