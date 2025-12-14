@@ -90,91 +90,101 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
         </button>
       )}
 
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
-        <div className="bg-white/95 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5">
-          <FaCartPlus className="text-blue-500 text-sm" />
-          <span className="text-gray-900">{product.totalSold}</span>
-          {product.ratingCount > 0 && (
-            <>
-              <div className="w-px h-3 bg-gray-300 mx-0.5"></div>
-              <FaStar className="text-yellow-400 text-sm" />
-              <span className="text-gray-900 font-bold">{product.ratingAvg.toFixed(1)}</span>
-              <span className="text-gray-500 text-[10px]">({product.ratingCount})</span>
-            </>
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+          <div className="bg-white/95 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5">
+            <FaCartPlus className="text-blue-500 text-sm" />
+            <span className="text-gray-900">{product.totalSold}</span>
+            {product.ratingCount > 0 && (
+              <>
+                <div className="w-px h-3 bg-gray-300 mx-0.5"></div>
+                <FaStar className="text-yellow-400 text-sm" />
+                <span className="text-gray-900 font-bold">{product.ratingAvg.toFixed(1)}</span>
+                <span className="text-gray-500 text-[10px]">({product.ratingCount})</span>
+              </>
+            )}
+          </div>
+
+          {selectedVariant.discountPercent > 0 && (
+            <div className="w-fit bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-md">
+              -{selectedVariant.discountPercent}%
+            </div>
           )}
         </div>
 
-        {selectedVariant.discountPercent > 0 && (
-          <div className="w-fit bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-md">
-            -{selectedVariant.discountPercent}%
-          </div>
-        )}
-      </div>
-
-      <div
-        className="relative h-56 overflow-hidden cursor-pointer group"
-        onClick={() => navigate(`/product/${product.slug}?sku=${selectedVariant.sku}`)}
-      >
-        <img
-          src={selectedVariant.imageUrls?.main || product.imageUrl}
-          alt={selectedVariant.name}
-          className="w-full h-full object-contain p-4 transform transition-transform duration-500 scale-95 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 transition-all duration-300"></div>
-      </div>
-
-      <div className="flex flex-col flex-1 p-4 text-center">
-        <h3
-          className="text-gray-900 font-semibold leading-tight line-clamp-2 -mt-3 mb-4 h-10 cursor-pointer hover:text-blue-600 transition"
+        <div
+          className="relative h-56 overflow-hidden cursor-pointer group"
           onClick={() => navigate(`/product/${product.slug}?sku=${selectedVariant.sku}`)}
-          title={product.name}
         >
-          {product.name}
-        </h3>
+          <img
+            src={selectedVariant.imageUrls?.main || product.imageUrl}
+            alt={selectedVariant.name}
+            className="w-full h-full object-contain p-4 transform transition-transform duration-500 scale-95 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 transition-all duration-300"></div>
+        </div>
 
-        <div className="flex flex-col mb-2 mt-auto max-h-[30px] justify-end">
-          {selectedVariant.discountPercent > 0 ? (
-            <div className="flex flex-col">
-              <span className="text-gray-400 text-sm line-through -mb-1">
-                {selectedVariant.basePrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
-              </span>
-              <span className="text-red-600 font-bold text-lg">
+        <div className="flex flex-col flex-1 p-4 text-center">
+          <h3
+            className="text-gray-900 font-semibold leading-tight line-clamp-2 -mt-3 mb-4 h-10 cursor-pointer hover:text-blue-600 transition"
+            onClick={() => navigate(`/product/${product.slug}?sku=${selectedVariant.sku}`)}
+            title={product.name}
+          >
+            {product.name}
+          </h3>
+
+          <div className="flex flex-col mb-2 mt-auto max-h-[30px] justify-end">
+            {selectedVariant.discountPercent > 0 ? (
+              <div className="flex flex-col">
+                <span className="text-gray-400 text-sm line-through -mb-1">
+                  {selectedVariant.basePrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
+                </span>
+                <span className="text-red-600 font-bold text-lg">
+                  {selectedVariant.sellingPrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
+                </span>
+              </div>
+            ) : (
+              <span className="text-gray-900 font-bold text-lg">
                 {selectedVariant.sellingPrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
               </span>
-            </div>
-          ) : (
-            <span className="text-gray-900 font-bold text-lg">
-              {selectedVariant.sellingPrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
-            </span>
-          )}
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            {isOutOfStock ? (
+              <button
+                disabled
+                className="flex-1 flex items-center justify-center gap-2 bg-gray-300 text-gray-500 px-4 py-3 rounded font-medium cursor-not-allowed"
+              >
+                <FiXCircle className="text-lg" />
+                <span>Hết hàng</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleBuyNow}
+                className="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-3 rounded-lg font-semibold hover:from-gray-800 hover:to-gray-700 transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-xl"
+              >
+                <FiShoppingCart className="text-lg" />
+                <span>Mua ngay</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          {isOutOfStock ? (
-            <button
-              disabled
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-300 text-gray-500 px-4 py-3 rounded font-medium cursor-not-allowed"
-            >
-              <FiXCircle className="text-lg" />
-              <span>Hết hàng</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleBuyNow}
-              className="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-3 rounded-lg font-semibold hover:from-gray-800 hover:to-gray-700 transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-xl"
-            >
-              <FiShoppingCart className="text-lg" />
-              <span>Mua ngay</span>
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Attribute Panel Overlay - positioned over the card */}
       {showAttributes && (
         <div
           ref={panelRef}
           className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl z-30 p-6 flex flex-col overflow-y-auto"
         >
-          <h4 className="text-sm font-bold text-gray-900 mb-4">Chọn phân loại</h4>
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="text-sm font-bold text-gray-900">Chọn phân loại</h4>
+            <button
+              onClick={() => setShowAttributes(false)}
+              className="bg-gray-900/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium hover:bg-gray-800 transition-all shadow-lg"
+            >
+              Đóng
+            </button>
+          </div>
           {sortedAttributes.map((attrName) => (
             <div key={attrName} className="mb-4">
               <span className="text-xs font-medium text-gray-600 block mb-2">{attrName}:</span>
@@ -185,20 +195,25 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
                   return (
                     <button
                       key={value}
-                      className={`transition-all duration-150 ${isColor
-                        ? `w-8 h-8 rounded-full border-2 ${isSelected ? "border-gray-900 ring-2 ring-gray-300" : "border-gray-300"}`
-                        : `px-3 py-2 rounded-lg border text-xs font-medium ${isSelected
-                          ? "border-black bg-black text-white"
-                          : "text-gray-700 border-gray-300 hover:bg-gray-100"
-                        }`
-                        }`}
+                      className={`transition-all duration-150 ${
+                        isColor
+                          ? `w-8 h-8 rounded-full border-2 ${isSelected ? "border-gray-900 ring-2 ring-gray-300" : "border-gray-300"}`
+                          : `px-3 py-2 rounded-lg border text-xs font-medium ${
+                              isSelected
+                                ? "border-black bg-black text-white"
+                                : "text-gray-700 border-gray-300 hover:bg-gray-100"
+                            }`
+                      }`}
                       style={isColor ? { backgroundColor: ColorMap[value] || "#ccc" } : {}}
                       onClick={() => {
                         const newAttrs = { ...selectedVariant.attributes, [attrName]: value };
                         const matched = product.variants.find((v) =>
                           Object.entries(newAttrs).every(([k, val]) => v.attributes[k] === val)
                         );
-                        if (matched) setSelectedVariant(matched);
+                        if (matched) {
+                          setSelectedVariant(matched);
+                          setShowAttributes(false);
+                        }
                       }}
                     >
                       {isColor ? "" : value}
@@ -209,9 +224,8 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
             </div>
           ))}
         </div>
-      )
-      }
-    </div >
+      )}
+    </div>
   );
 });
 
