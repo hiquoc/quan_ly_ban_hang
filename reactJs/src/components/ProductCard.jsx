@@ -221,8 +221,39 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
               </div>
             </div>
           ))}
-        </div>
-      )}
+                {[...attributeOptions[attrName]].map((value) => {
+                  const isColor = attrName.toLowerCase().includes("màu");
+                  const isSelected = selectedVariant.attributes?.[attrName] === value;
+                  return (
+                    <button
+                      key={value}
+                      className={`transition-all duration-150 ${
+                        isColor
+                          ? `w-8 h-8 rounded-full border-2 ${isSelected ? "border-gray-900 ring-2 ring-gray-300" : "border-gray-300"}`
+                          : `px-3 py-2 rounded-lg border text-xs font-medium ${
+                              isSelected
+                                ? "border-black bg-black text-white"
+                                : "text-gray-700 border-gray-300 hover:bg-gray-100"
+                            }`
+                      }`}
+                      style={isColor ? { backgroundColor: ColorMap[value] || "#ccc" } : {}}
+                      onClick={() => {
+                        const newAttrs = { ...selectedVariant.attributes, [attrName]: value };
+                        const matched = product.variants.find((v) =>
+                          Object.entries(newAttrs).every(([k, val]) => v.attributes[k] === val)
+                        );
+                        if (matched) {
+                          setSelectedVariant(matched);
+                          setShowAttributes(false);
+                        }
+                      }}
+                    >
+                      {isColor ? "" : value}
+                    </button>
+                  );
+                })}
+            </div>
+          )}
     </div>
   );
 });
