@@ -174,19 +174,17 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
       {showAttributes && (
         <div
           ref={panelRef}
-          className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm rounded-t-2xl z-30 p-6 max-h-[75%] overflow-y-auto"
+          className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm rounded-t-2xl z-30 p-4 max-h-[55%] overflow-y-auto"
         >
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-sm font-bold text-gray-900">Chọn phân loại</h4>
-            <button
-              onClick={() => setShowAttributes(false)}
-              className="bg-gray-900/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium hover:bg-gray-800 transition-all shadow-lg"
-            >
-              Đóng
-            </button>
-          </div>
+          <button
+            onClick={() => setShowAttributes(false)}
+            className="absolute top-2 right-2 bg-gray-900/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium hover:bg-gray-800 transition-all shadow-lg"
+          >
+            Đóng
+          </button>
+          <h4 className="text-sm font-bold text-gray-900 mb-3 pr-16">Chọn phân loại</h4>
           {sortedAttributes.map((attrName) => (
-            <div key={attrName} className="mb-4">
+            <div key={attrName} className="mb-3">
               <span className="text-xs font-medium text-gray-600 block mb-2">{attrName}:</span>
               <div className="flex gap-2 flex-wrap">
                 {[...attributeOptions[attrName]].map((value) => {
