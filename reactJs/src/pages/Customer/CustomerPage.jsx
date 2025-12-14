@@ -285,9 +285,9 @@ export default function CustomerPage() {
         <div className="flex gap-10">
           {/* Left Panel: Addresses */}
           <div className="flex-4 ">
-            <h2 className="text-xl font-bold mb-6">Lịch sử đơn hàng</h2>
+            <h2 className="text-xl font-bold mb-2">Lịch sử đơn hàng</h2>
             {/* Tabs */}
-            <div className="flex justify-between gap-2 px-2 pb-2 mb-2">
+            <div className="flex justify-between bg-white rounded-lg shadow gap-2 px-6 pb-2 pt-4 mb-4">
               {[
                 { key: "ALL", label: "Tất cả", color: "gray-900", icon: null },
                 { key: "PENDING", label: "Chờ xác nhận", color: "yellow-500" },
@@ -296,7 +296,7 @@ export default function CustomerPage() {
                 { key: "SHIPPED", label: "Đang giao", color: "purple-500" },
                 { key: "DELIVERED", label: "Đã giao", color: "green-500" },
                 { key: "CANCELLED", label: "Đã hủy", color: "red-500" },
-                { key: "RETURNED", label: "Trả lại", color: "gray-500" },
+                // { key: "RETURNED", label: "Trả lại", color: "gray-500" },
               ].map(tab => {
                 const isActive = sortStatus === tab.key || (tab.key === "ALL" && !sortStatus);
                 return (
@@ -429,7 +429,7 @@ export default function CustomerPage() {
 
                           {/* Product Name */}
                           <div
-                            className="min-h-[2.5rem] w-72 flex items-center hover:cursor-pointer"
+                            className="min-h-[2.5rem] w-90 flex items-center hover:cursor-pointer"
                             onClick={() => navigate(`/product/${item.productSlug}?sku=${item.variantSku}`)}
                           >
                             <p className="text-lg font-medium line-clamp-2 leading-tight text-gray-800">{item.variantName}</p>

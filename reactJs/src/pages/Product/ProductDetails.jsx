@@ -425,7 +425,7 @@ export default function ProductDetails() {
                 <title>Sản phẩm</title>
             </Helmet>
             <>
-                <div className="px-40 pt-5 text-base text-gray-500 flex flex-wrap items-center gap-4">
+                <div className="px-20 pt-5 text-base text-gray-500 flex flex-wrap items-center gap-4">
                     <a href="/" className="hover:underline hover:cursor-pointer">Trang chủ</a>
                     <span>›</span>
                     <NavLink to={`/search?categories=${product.categorySlug}`} className="hover:underline hover:cursor-pointer">{product.categoryName}</NavLink>
@@ -435,7 +435,7 @@ export default function ProductDetails() {
                     <span className="font-semibold text-gray-900">{variant.name}</span>
                 </div>
 
-                <div className="flex flex-wrap gap-15 px-40 justify-center pt-4">
+                <div className="flex flex-wrap gap-15 px-20 justify-center pt-4">
                     {/* LEFT SIDE */}
                     <div className="flex w-full flex-1 gap-6 justify-center items-center pb-0">
                         {/* Thumbnails */}
@@ -477,7 +477,7 @@ export default function ProductDetails() {
                     </div>
 
                     {/* RIGHT SIDE */}
-                    <div className="flex-1 min-w-[300px] bg-white flex flex-col py-6 gap-6 px-4 rounded-lg">
+                    <div className="flex-1 min-w-[300px] bg-white flex flex-col py-6 gap-5 px-4 rounded-lg">
 
                         {/* Name */}
                         <h2 className="text-4xl font-semibold text-gray-900 leading-tight">
@@ -485,7 +485,7 @@ export default function ProductDetails() {
                         </h2>
 
                         {/* Price */}
-                        <div className="mt-2">
+                        <div className="mb-2">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-3 ">
                                     <div className="text-3xl font-bold text-b tracking-wide">
@@ -570,7 +570,7 @@ export default function ProductDetails() {
                             })}
 
                         {/* TECHNICAL SPECS */}
-                        <div className="mt-3">
+                        <div className="mt-0">
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 {Object.entries(combinedSpecs)
                                     .slice(0, specsExpanded ? Object.keys(combinedSpecs).length : 4)
@@ -581,7 +581,7 @@ export default function ProductDetails() {
                                             title={`${key}: ${value}`}
                                         >
                                             {getSpecIcon(key)}
-                                            <div className="max-w-27">
+                                            <div className="max-w-[96px]">
                                                 <p className="text-sm font-semibold text-gray-700" title={key}>
                                                     {key}
                                                 </p>
@@ -641,7 +641,7 @@ export default function ProductDetails() {
                         </div>
 
                         {/* Add to cart full width with cart icon */}
-                        <div className="flex gap-3 mt-4 flex-col sm:flex-row">
+                        <div className="flex gap-3 mt-2 flex-col sm:flex-row">
                             <button
                                 className={`flex-1 px-10 py-4 rounded-lg text-lg font-medium shadow flex items-center justify-center gap-2 transition
                             ${isOutOfStock || isSecurePath
@@ -715,7 +715,7 @@ export default function ProductDetails() {
                 </div >
 
 
-                <div className="px-40 py-12">
+                <div className="px-20 py-12">
                     <div className="flex justify-between items-center mb-8">
                         <div>
                             <h2 className="text-3xl font-bold text-gray-900">Sản phẩm tương tự</h2>
@@ -774,7 +774,7 @@ export default function ProductDetails() {
                 </div>
 
                 <div className="bg-gray-100 py-10">
-                    <div className="px-40">
+                    <div className="px-20">
                         <div className="bg-white rounded-lg shadow-lg p-6">
                             <h2 className="text-3xl font-bold text-gray-900 leading-tight mb-4">
                                 Thông tin chi tiết
@@ -800,14 +800,14 @@ export default function ProductDetails() {
                     </div>
                 </div>
 
-                <div className="px-40 pt-10">
+                <div className="px-20 pt-10">
                     <h2 className="text-3xl font-bold text-gray-900 mb-6">
                         Đánh giá & Bình luận
                     </h2>
                     <div className="flex justify-between gap-10 pb-10">
                         {/* Average Rating */}
                         <div className="w-45 h-45 bg-gray-50 flex flex-col justify-center text-center rounded-2xl">
-                            <span className="text-4xl font-bold -mt-2">{averageRating}</span>
+                            <span className="text-3xl font-bold -mt-2">{averageRating}</span>
                             <span className="text-base text-gray-500 font-medium mt-3">
                                 {totalReviews} lượt đánh giá
                             </span>
