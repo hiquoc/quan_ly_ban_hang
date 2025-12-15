@@ -86,7 +86,7 @@ export default function HomePage() {
 
   const handleLoadHomeProducts = async () => {
     setIsLoadingProducts(true);
-    const res = await getHomeProducts(12, 12);
+    const res = await getHomeProducts(10, 10);
     if (res.error) {
       console.error(res.error);
       setPopup({ message: res.error })
@@ -116,7 +116,7 @@ export default function HomePage() {
     if (hotProducts.length > 0)
       return;
     setIsLoadingProducts(true);
-    const res = await getActiveProducts(0, 12, null, null, null, null, true, "sold", null, null, null, null);
+    const res = await getActiveProducts(0, 10, null, null, null, null, true, "sold", null, null, null, null);
     if (res.error) {
       console.error(res.error);
       setPopup({ message: res.error })
@@ -131,7 +131,7 @@ export default function HomePage() {
     if (featuredProducts.length > 0)
       return;
     setIsLoadingProducts(true);
-    const res = await getActiveProducts(0, 12, null, null, null, true, true, null, null, null, null, null);
+    const res = await getActiveProducts(0, 10, null, null, null, true, true, null, null, null, null, null);
     if (res.error) {
       console.error(res.error);
       setPopup({ message: res.error })
