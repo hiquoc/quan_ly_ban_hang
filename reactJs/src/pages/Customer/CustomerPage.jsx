@@ -535,7 +535,7 @@ export default function CustomerPage() {
                       <div>
                         {(order.statusName === "PENDING" || order.statusName === "CONFIRMED") && (
                           <button
-                            onClick={() => setShowChangeAddressPanel({ visible: true, orderId: order.id,oldName:order.shippingName,oldPhone,shippingPhone,
+                            onClick={() => setShowChangeAddressPanel({ visible: true, orderId: order.id,oldName:order.shippingName,oldPhone:shippingPhone,
                                oldAddress: order.shippingAddress, newAddressId: null })}
                             className="flex gap-2 items-center px-6 py-3 border border-black rounded hover:bg-gray-100 font-medium"
                           >
