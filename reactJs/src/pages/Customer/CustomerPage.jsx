@@ -62,7 +62,7 @@ export default function CustomerPage() {
   const [showVerifyPanel, setShowVerifyPanel] = useState(false)
   const [reviewingProduct, setReviewingProduct] = useState({ variantName: "", variantId: null, orerId: null })
   const [reviewList, setReviewList] = useState([])
-  const [showChangeAddressPanel, setShowChangeAddressPanel] = useState({ visible: false, orderId: null, oldAddress: "", newAddressId: null });
+  const [showChangeAddressPanel, setShowChangeAddressPanel] = useState({ visible: false, orderId: null,oldName:"",oldPhone:"", oldAddress: "", newAddressId: null });
 
   useEffect(() => {
     loadCustomer();
@@ -239,7 +239,7 @@ export default function CustomerPage() {
       setIsProcessing(true);
       const address = customer.addresses.find(addr => addr.id === addressId);
       const addressString = `${address.street}, ${address.ward}, ${address.district}, ${address.city}`;
-      const res = await changeAddressForOrder(orderId,address.name,address.phone, addressString);
+      const res = await changeAddressForOrder(orderId, address.name, address.phone, addressString);
       if (res.error) {
         showPopup(res.error);
       } else {
@@ -535,7 +535,8 @@ export default function CustomerPage() {
                       <div>
                         {(order.statusName === "PENDING" || order.statusName === "CONFIRMED") && (
                           <button
-                            onClick={() => setShowChangeAddressPanel({ visible: true, orderId: order.id, oldAddress: order.shippingAddress, newAddressId: null })}
+                            onClick={() => setShowChangeAddressPanel({ visible: true, orderId: order.id,oldName:order.shippingName,oldPhone,shippingPhone,
+                               oldAddress: order.shippingAddress, newAddressId: null })}
                             className="flex gap-2 items-center px-6 py-3 border border-black rounded hover:bg-gray-100 font-medium"
                           >
                             <FiMapPin /> Cập nhật địa chỉ
@@ -924,14 +925,39 @@ export default function CustomerPage() {
 
               {/* Show current address */}
               <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-semibold text-blue-900 mb-2">Địa chỉ giao hàng hiện tại:</p>
-                <div className="flex items-center gap-2">
-                  <FiMapPin className="text-blue-600 flex-shrink-0" />
-                  <p className="text-gray-700">{showChangeAddressPanel.oldAddress}</p>
+                <p className="text-sm font-semibold text-blue-900 mb-3">
+                  Địa chỉ giao hàng hiện tại:
+                </p>
+
+                <div className="flex items-start gap-3">
+                  <div className="ml-2 space-y-2 flex-1">
+                    <div className="flex gap-3 items-center">
+                      <FiUser className="text-xl text-blue-600 flex-shrink-0" />
+                      <p className="text-lg font-semibold text-black">
+                        {showChangeAddressPanel.oldName}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-center">
+                      <FiMapPin className="text-xl text-blue-600 flex-shrink-0" />
+                      <p className="text-gray-700">
+                        {showChangeAddressPanel.oldAddress}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-center">
+                      <FiPhone className="text-xl text-blue-600 flex-shrink-0" />
+                      <p className="text-gray-700">
+                        {showChangeAddressPanel.oldPhone}
+                      </p>
+                    </div>
+
+                  </div>
                 </div>
               </div>
 
-              <p className="text-sm font-medium text-gray-600 mb-3">Chọn địa chỉ mới:</p>
+
+              <p className="text-sm font-medium text-gray-600 mb-1">Chọn địa chỉ mới:</p>
 
               <div className="space-y-3 mb-6 overflow-y-auto p-3 flex-1">
                 {customer?.addresses?.length ? (
@@ -985,7 +1011,7 @@ export default function CustomerPage() {
 
               <div className="flex gap-3 pt-4 border-t border-gray-400 bg-white sticky bottom-0">
                 <button
-                  onClick={() => setShowChangeAddressPanel({ visible: false, orderId: null, oldAddress: "", newAddressId: null })}
+                  onClick={() => setShowChangeAddressPanel({ visible: false, orderId: null,oldName:"",oldPhone:"", oldAddress: "", newAddressId: null })}
                   className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer font-medium"
                 >
                   Hủy
@@ -994,7 +1020,7 @@ export default function CustomerPage() {
                   onClick={() => {
                     if (showChangeAddressPanel.newAddressId) {
                       handleChangeAddressForOrder(showChangeAddressPanel.orderId, showChangeAddressPanel.newAddressId);
-                      setShowChangeAddressPanel({ visible: false, orderId: null, oldAddress: "", newAddressId: null });
+                      setShowChangeAddressPanel({ visible: false, orderId: null,oldName:"",oldPhone:"", oldAddress: "", newAddressId: null });
                     }
                   }}
                   disabled={!showChangeAddressPanel.newAddressId}
