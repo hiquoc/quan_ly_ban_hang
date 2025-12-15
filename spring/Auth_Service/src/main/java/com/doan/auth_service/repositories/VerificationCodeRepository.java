@@ -14,4 +14,6 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
     int countByEmailAndExpiryTimeAfter(String email, LocalDateTime now);
 
     boolean existsByEmailAndIsVerified(String email, boolean b);
+
+    List<VerificationCode> findTop100ByExpiryTimeBefore(LocalDateTime now);
 }

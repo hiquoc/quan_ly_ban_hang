@@ -165,7 +165,7 @@ export default function CustomerPage() {
     if (!street?.trim()) return showPopup("Vui lòng nhập số nhà / tên đường");
     if (!ward?.trim()) return showPopup("Vui lòng nhập phường / xã");
     if (!district?.trim()) return showPopup("Vui lòng nhập quận / huyện");
-    if (!city?.trim()) return showPopup("Vui lòng nhập tỉnh / thành phố");
+    if (!city?.trim()) return showPopup("Vui lòng nhập thành phố / tỉnh");
     try {
       setIsProcessing(true);
       if (id) {
@@ -733,7 +733,7 @@ export default function CustomerPage() {
                 : <p className="text-gray-500 italic">Chưa có địa chỉ nào</p>}
 
 
-              {showAddressForm && (
+              {/* {showAddressForm && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
                   <div className="bg-white rounded-xl shadow-lg p-6 w-[500px]">
                     <h3 className="font-bold text-black text-xl mb-4">
@@ -800,7 +800,7 @@ export default function CustomerPage() {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         </div>
@@ -1063,13 +1063,15 @@ const AddressForm = ({ editAddressForm, setEditAddressForm, onSave, onClose }) =
     </div>
 
     <div className="flex flex-col gap-1">
-      <label htmlFor="city" className="text-gray-700 font-medium">Thành phố/ Tỉnh</label>
+      <label htmlFor="city" className="text-gray-700 font-medium">Thành phố/ Tỉnh
+      </label>
       <select
         id="city"
-        value={editAddressForm.city}
+        value={editAddressForm.city || ""}
         onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
         className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
       >
+        <option value="">Chọn thành phố/tỉnh</option>
         <option value="Thành phố Hồ Chí Minh">Thành phố Hồ Chí Minh</option>
       </select>
     </div>

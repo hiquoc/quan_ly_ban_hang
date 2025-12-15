@@ -19,6 +19,15 @@ spring:
           print:
             banner: false
     show-sql: true
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 0
+      idle-timeout: 120000
+      max-lifetime: 600000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+      pool-name: AuthHikariPool
+
 
 server:
   port: 8080

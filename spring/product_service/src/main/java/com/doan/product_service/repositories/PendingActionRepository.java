@@ -14,4 +14,6 @@ public interface PendingActionRepository extends JpaRepository<PendingAction,Lon
     List<PendingAction> findByTimestampBefore(Instant timestamp);
 
     Optional<PendingAction> findByImageUrl(String imageUrl);
+
+    List<PendingAction> findTop50ByTimestampBeforeOrderByTimestampAsc(Instant cutoff);
 }

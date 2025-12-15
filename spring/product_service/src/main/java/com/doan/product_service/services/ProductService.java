@@ -415,6 +415,7 @@ public class ProductService {
             value = "recommendedProducts",
             key = "(#customerId == null) ? 'DEFAULT' : #customerId"
     )
+    @Transactional(readOnly = true)
     public Map<String, List<ProductResponse>> getRecommendations(Long customerId) {
         RecResponse response = recServiceClient.getRecommendations(customerId, 12);
         if (response == null)
