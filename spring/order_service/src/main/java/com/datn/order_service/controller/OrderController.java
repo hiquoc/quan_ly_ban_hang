@@ -342,12 +342,12 @@ public class OrderController {
         return ResponseEntity.ok(new ApiResponse<>("Hủy đơn hàng thành công!", true, response));
     }
 
-    @PatchMapping("/{orderId}/address")
+    @PostMapping("/{orderId}/address")
     public ResponseEntity<ApiResponse<OrderResponse>> updateOrderAddress(
             @PathVariable Long orderId,
             @RequestHeader("X-Owner-Id") Long customerId,
-            @RequestBody String address) {
-        OrderResponse response = orderService.updateOrderAddress(orderId,customerId, address);
+            @Valid @RequestBody UpdateOrderAddressRequest request) {
+        OrderResponse response = orderService.updateOrderAddress(orderId,customerId, request);
         return ResponseEntity.ok(new ApiResponse<>("Cập nhật địa chỉ giao hàng thành công!", true, response));
     }
 

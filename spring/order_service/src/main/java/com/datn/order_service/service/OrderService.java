@@ -878,7 +878,7 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse updateOrderAddress(Long orderId, Long customerId, String address) {
+    public OrderResponse updateOrderAddress(Long orderId, Long customerId, UpdateOrderAddressRequest request) {
         Order order=orderRepository.findById(orderId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật địa chỉ giao hàng đơn hàng này!"));
         if(!Objects.equals(order.getCustomerId(), customerId)){
@@ -887,7 +887,9 @@ public class OrderService {
         String status=order.getStatus().getName();
         if(!Objects.equals(status, "PENDING") && !Objects.equals(status, "CONFIRMED"))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Không thể cập nhật địa chỉ giao hàng bước này!");
-        order.setShippingAddress(address);
+        order.setShippingAddress(request.getAddress());
+        order.setShippingName(request.getName());
+        order.setShippingPhone(request.getPhone());
 
         if (cacheManager != null) {
             Cache cache = cacheManager.getCache("customerOrders");

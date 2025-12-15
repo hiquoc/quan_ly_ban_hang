@@ -239,7 +239,7 @@ export default function CustomerPage() {
       setIsProcessing(true);
       const address = customer.addresses.find(addr => addr.id === addressId);
       const addressString = `${address.street}, ${address.ward}, ${address.district}, ${address.city}`;
-      const res = await changeAddressForOrder(orderId, addressString);
+      const res = await changeAddressForOrder(orderId,address.name,address.phone, addressString);
       if (res.error) {
         showPopup(res.error);
       } else {
@@ -933,7 +933,7 @@ export default function CustomerPage() {
 
               <p className="text-sm font-medium text-gray-600 mb-3">Chọn địa chỉ mới:</p>
 
-              <div className="space-y-3 mb-6 overflow-y-auto pr-1 flex-1">
+              <div className="space-y-3 mb-6 overflow-y-auto p-3 flex-1">
                 {customer?.addresses?.length ? (
                   customer.addresses
                     .slice()
@@ -983,7 +983,7 @@ export default function CustomerPage() {
                 )}
               </div>
 
-              <div className="flex gap-3 pt-4 border-t bg-white sticky bottom-0">
+              <div className="flex gap-3 pt-4 border-t border-gray-400 bg-white sticky bottom-0">
                 <button
                   onClick={() => setShowChangeAddressPanel({ visible: false, orderId: null, oldAddress: "", newAddressId: null })}
                   className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer font-medium"
