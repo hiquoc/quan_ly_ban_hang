@@ -564,6 +564,8 @@ export default function CheckoutPage() {
                     <div className="py-15 px-20 border border-gray-200 rounded-lg shadow space-y-6">
                         <h2 className="text-3xl font-bold mb-6">Thông tin giao hàng</h2>
                         {customer?.addresses?.length ? customer.addresses
+                            .slice()
+                            .sort((a, b) => Number(b.isMain) - Number(a.isMain))
                             .map(addr => (
                                 <div key={addr.id} className={`bg-gray-50 rounded-lg py-4 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:shadow-md transition-shadow ${selectedAddressId === addr.id ? "ring-2 ring-black" : ""}`}>
                                     <div className="flex items-start sm:items-center gap-3 w-full sm:w-auto">
@@ -708,7 +710,7 @@ export default function CheckoutPage() {
                                                 onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
                                                 className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
                                             >
-                                                <option value="">Chọn thành phố/tỉnh</option>
+                                                <option value="">Chọn thành phố/ tỉnh</option>
                                                 <option value="Thành phố Hồ Chí Minh">Thành phố Hồ Chí Minh</option>
                                             </select>
                                         </div>
