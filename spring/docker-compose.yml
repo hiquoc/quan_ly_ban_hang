@@ -53,10 +53,10 @@ services:
   # ==================== AUTH ====================
 
   auth-service:
-    build:
-      context: ./auth_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-auth-service:v3
+#    build:
+#      context: ./auth_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-auth-service:v3
     container_name: auth-service
     ports:
       - "${AUTH_SERVICE_PORT}:8080"
@@ -69,10 +69,10 @@ services:
   # ==================== STAFF ====================
 
   staff-service:
-    build:
-      context: ./staff_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-staff-service:v1
+#    build:
+#      context: ./staff_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-staff-service:v1
     container_name: staff-service
     ports:
       - "${STAFF_SERVICE_PORT}:8080"
@@ -86,10 +86,10 @@ services:
   # ==================== CUSTOMER ====================
 
   customer-service:
-    build:
-      context: ./customer_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-customer-service:v1
+#    build:
+#      context: ./customer_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-customer-service:v1
     container_name: customer-service
     ports:
       - "${CUSTOMER_SERVICE_PORT}:8080"
@@ -102,10 +102,10 @@ services:
   # ==================== PRODUCT ====================
 
   product-service:
-    build:
-      context: ./product_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-product-service:v2
+#    build:
+#      context: ./product_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-product-service:v2
     container_name: product-service
     ports:
       - "${PRODUCT_SERVICE_PORT}:8080"
@@ -121,10 +121,10 @@ services:
   #  # ==================== INVENTORY ====================
 
   inventory-service:
-    build:
-      context: ./inventory_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-inventory-service:v1
+#    build:
+#      context: ./inventory_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-inventory-service:v1
     container_name: inventory-service
     ports:
       - "${INVENTORY_SERVICE_PORT}:8080"
@@ -137,10 +137,10 @@ services:
   #  # ==================== CART ====================
 
   cart-service:
-    build:
-      context: ./cart_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-cart-service:v1
+#    build:
+#      context: ./cart_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-cart-service:v1
     container_name: cart-service
     ports:
       - "${CART_SERVICE_PORT}:8080"
@@ -155,10 +155,10 @@ services:
 
   #  # ==================== ORDER ====================
   order-service:
-    build:
-      context: ./order_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-order-service:v2
+#    build:
+#      context: ./order_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-order-service:v3
     container_name: order-service
     ports:
       - "${ORDER_SERVICE_PORT}:8080"
@@ -174,10 +174,10 @@ services:
   #  # ==================== PROMOTION ====================
 
   promotion-service:
-    build:
-      context: ./promotion_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-promotion-service:v2
+#    build:
+#      context: ./promotion_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-promotion-service:v2
     container_name: promotion-service
     ports:
       - "${PROMOTION_SERVICE_PORT}:8080"
@@ -213,10 +213,10 @@ services:
     restart: unless-stopped
 
   delivery-service:
-    build:
-      context: ./delivery_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-delivery-service:v1
+#    build:
+#      context: ./delivery_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-delivery-service:v1
     container_name: delivery-service
     ports:
       - "${DELIVERY_SERVICE_PORT}:8080"

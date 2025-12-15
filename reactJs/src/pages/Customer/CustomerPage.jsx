@@ -17,7 +17,7 @@ import {
 } from "../../apis/customerApi";
 import ConfirmPanel from "../../components/ConfirmPanel";
 import { changePassword } from "../../apis/authApi";
-import { cancelOrder, getCustomerOrders, getCustomerOrderStats, rePayPayment } from "../../apis/orderApi";
+import { cancelOrder, changeAddressForOrder, getCustomerOrders, getCustomerOrderStats, rePayPayment } from "../../apis/orderApi";
 import { CartContext } from "../../contexts/CartContext";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { FaBoxArchive, FaCircleXmark, FaMoneyBillTransfer, FaX } from "react-icons/fa6";
@@ -62,6 +62,7 @@ export default function CustomerPage() {
   const [showVerifyPanel, setShowVerifyPanel] = useState(false)
   const [reviewingProduct, setReviewingProduct] = useState({ variantName: "", variantId: null, orerId: null })
   const [reviewList, setReviewList] = useState([])
+  const [showChangeAddressPanel, setShowChangeAddressPanel] = useState({ visible: false, orderId: null, oldAddress: "", newAddressId: null });
 
   useEffect(() => {
     loadCustomer();
@@ -89,7 +90,7 @@ export default function CustomerPage() {
       setOrders(res.data.content);
       setTotalPage(res.data.totalPages)
       setPage(page)
-      console.log(res.data.content)
+      // console.log(res.data.content)
       if (res.data.content.some(order => order.statusName === "DELIVERED"))
         loadCustomerReviews()
     } finally {
@@ -227,10 +228,29 @@ export default function CustomerPage() {
     if (res.error) {
       showPopup(res.error);
     } else {
-      showPopup("Hủy đơn hàng thành công");
+      showPopup("Hủy đơn hàng thành công!");
       loadOrders();
     }
   };
+
+  const handleChangeAddressForOrder = async (orderId, addressId) => {
+    if (isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const address = customer.addresses.find(addr => addr.id === addressId);
+      const addressString = `${address.street}, ${address.ward}, ${address.district}, ${address.city}`;
+      const res = await changeAddressForOrder(orderId, addressString);
+      if (res.error) {
+        showPopup(res.error);
+      } else {
+        showPopup("Cập nhật địa chỉ thành công!");
+        setOrders(prev => prev.map(order => order.id === orderId ? { ...order, shippingAddress: addressString } : order));
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
   const getPaymentButton = (order) => {
     let bgColor, label, onClick;
 
@@ -285,35 +305,38 @@ export default function CustomerPage() {
         <div className="flex gap-10">
           {/* Left Panel: Addresses */}
           <div className="flex-4 ">
-            <h2 className="text-xl font-bold mb-2">Lịch sử đơn hàng</h2>
-            {/* Tabs */}
-            <div className="flex justify-between bg-white rounded-lg shadow gap-2 px-6 pb-2 pt-4 mb-4">
-              {[
-                { key: "ALL", label: "Tất cả", color: "gray-900", icon: null },
-                { key: "PENDING", label: "Chờ xác nhận", color: "yellow-500" },
-                { key: "CONFIRMED", label: "Đã xác nhận", color: "blue-500" },
-                { key: "PROCESSING", label: "Đang chuẩn bị", color: "orange-500" },
-                { key: "SHIPPED", label: "Đang giao", color: "purple-500" },
-                { key: "DELIVERED", label: "Đã giao", color: "green-500" },
-                { key: "CANCELLED", label: "Đã hủy", color: "red-500" },
-                // { key: "RETURNED", label: "Trả lại", color: "gray-500" },
-              ].map(tab => {
-                const isActive = sortStatus === tab.key || (tab.key === "ALL" && !sortStatus);
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setSortStatus(tab.key === "ALL" ? null : tab.key)}
-                    className={`flex items-center gap-2 font-semibold transition-all pb-2 border-b-2
+            <div className="bg-white rounded-lg shadow px-6 pb-2 pt-4 mb-4">
+              <h2 className="text-xl font-bold mb-2">Lịch sử đơn hàng</h2>
+              {/* Tabs */}
+              <div className="flex justify-between gap-2 ">
+                {[
+                  { key: "ALL", label: "Tất cả", color: "gray-900", icon: null },
+                  { key: "PENDING", label: "Chờ xác nhận", color: "yellow-500" },
+                  { key: "CONFIRMED", label: "Đã xác nhận", color: "blue-500" },
+                  { key: "PROCESSING", label: "Đang xử lý", color: "orange-500" },
+                  { key: "SHIPPED", label: "Đang giao", color: "purple-500" },
+                  { key: "DELIVERED", label: "Đã giao", color: "green-500" },
+                  { key: "CANCELLED", label: "Đã hủy", color: "red-500" },
+                  // { key: "RETURNED", label: "Trả lại", color: "gray-500" },
+                ].map(tab => {
+                  const isActive = sortStatus === tab.key || (tab.key === "ALL" && !sortStatus);
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setSortStatus(tab.key === "ALL" ? null : tab.key)}
+                      className={`flex items-center gap-2 font-semibold transition-all pb-2 border-b-2
           ${isActive
-                        ? `text-${tab.color} border-${tab.color}`
-                        : "text-gray-700 border-transparent hover:text-black"
-                      }`}
-                  >
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+                          ? `text-${tab.color} border-${tab.color}`
+                          : "text-gray-700 border-transparent hover:text-black"
+                        }`}
+                    >
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
 
             <div className="flex flex-col gap-6">
               {isLoading ? (
@@ -383,8 +406,8 @@ export default function CustomerPage() {
                               {order.notes && (
                                 <div className="relative group items-center">
                                   <FaQuestionCircle className="text-red-500 text-lg font-bold cursor-help mb-0.5" />
-                                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs bg-black text-white text-sm rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-pre-wrap pointer-events-none">
-                                    {order.notes}
+                                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs bg-black text-white text-sm rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-pre-wrap pointer-events-none">
+                                    {order.notes.replace(/\s*-\s*Kho:.*$/, "")}
                                   </div>
                                 </div>
                               )}
@@ -508,26 +531,36 @@ export default function CustomerPage() {
 
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 justify-end mr-3">
-                      {order.statusName === "PENDING" && (
-                        <>
-                          {getPaymentButton(order)}
+                    <div className="flex items-center justify-between w-full">
+                      <div>
+                        {(order.statusName === "PENDING" || order.statusName === "CONFIRMED") && (
                           <button
-                            onClick={() =>
-                              setConfirmPanel({
-                                visible: true,
-                                message: "Bạn có chắc chắn muốn hủy đơn hàng này?",
-                                onConfirm: () => handleCancelOrder(order.id)
-                              })
-                            }
-                            className="flex gap-2 items-center px-6 py-3 bg-rose-600 text-white rounded hover:bg-rose-700 hover:cursor-pointer font-medium"
+                            onClick={() => setShowChangeAddressPanel({ visible: true, orderId: order.id, oldAddress: order.shippingAddress, newAddressId: null })}
+                            className="flex gap-2 items-center px-6 py-3 border border-black rounded hover:bg-gray-100 font-medium"
                           >
-                            <FaCircleXmark /> Hủy đơn
+                            <FiMapPin /> Cập nhật địa chỉ
                           </button>
-                        </>
-                      )}
-                      {/* {order.statusName === "DELIVERED" &&
+                        )}
+                      </div>
+                      <div className="flex gap-2 mr-3">
+                        {order.statusName === "PENDING" && (
+                          <>
+                            {getPaymentButton(order)}
+                            <button
+                              onClick={() =>
+                                setConfirmPanel({
+                                  visible: true,
+                                  message: "Bạn có chắc chắn muốn hủy đơn hàng này?",
+                                  onConfirm: () => handleCancelOrder(order.id)
+                                })
+                              }
+                              className="flex gap-2 items-center px-6 py-3 bg-rose-600 text-white rounded hover:bg-rose-700 hover:cursor-pointer font-medium"
+                            >
+                              <FaCircleXmark /> Hủy đơn
+                            </button>
+                          </>
+                        )}
+                        {/* {order.statusName === "DELIVERED" &&
                         new Date() - new Date(order.deliveredDate) <= 7 * 24 * 60 * 60 * 1000
                         && !order.items.every(item => item.returnRequested)
                         ? <button className="px-3 py-2 rounded border border cursor-pointer hover:bg-gray-100"
@@ -536,6 +569,7 @@ export default function CustomerPage() {
                         : ""
                       } */}
 
+                      </div>
                     </div>
                   </div>
                 ))))}
@@ -882,6 +916,96 @@ export default function CustomerPage() {
             </div>
           </div>
         )}
+        {showChangeAddressPanel.visible && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-[700px] max-h-[80vh] overflow-y-auto">
+              <h3 className="font-bold text-black text-xl mb-4">Chọn địa chỉ giao hàng</h3>
+
+              {/* Show current address */}
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-semibold text-blue-900 mb-2">Địa chỉ hiện tại:</p>
+                <div className="flex items-center gap-2">
+                  <FiMapPin className="text-blue-600 flex-shrink-0" />
+                  <p className="text-gray-700">{showChangeAddressPanel.oldAddress}</p>
+                </div>
+              </div>
+
+              <p className="text-sm font-medium text-gray-600 mb-3">Chọn địa chỉ mới:</p>
+
+              <div className="space-y-3 mb-6">
+                {customer?.addresses?.length ? (
+                  customer.addresses
+                    .slice()
+                    .sort((a, b) => Number(b.isMain) - Number(a.isMain))
+                    .map(addr => (
+                      <div
+                        key={addr.id}
+                        onClick={() => setShowChangeAddressPanel({ ...showChangeAddressPanel, newAddressId: addr.id })}
+                        className={`bg-gray-100 rounded-lg py-4 px-6 flex justify-between items-center hover:shadow-md transition-all cursor-pointer ${showChangeAddressPanel.newAddressId === addr.id ? 'ring-2 ring-black' : ''
+                          }`}
+                      >
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="ml-2 space-y-2 flex-1">
+                            <div className="flex gap-3 items-center">
+                              <FiUser className="text-xl flex-shrink-0" />
+                              <p className="text-lg font-semibold text-black">{addr.name}</p>
+                              {addr.isMain && (
+                                <span className="px-2 py-0.5 bg-black text-white text-xs rounded">
+                                  Mặc định
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-3 items-center">
+                              <FiMapPin className="text-xl flex-shrink-0" />
+                              <p className="text-gray-700 line-clamp-1" title={`${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`}>
+                                {addr.street}, {addr.ward}, {addr.district}, {addr.city}
+                              </p>
+                            </div>
+                            <div className="flex gap-3 items-center">
+                              <FiPhone className="text-xl flex-shrink-0" />
+                              <p className="text-gray-700">{addr.phone}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <input
+                            type="radio"
+                            checked={showChangeAddressPanel.newAddressId === addr.id}
+                            onChange={() => setShowChangeAddressPanel({ ...showChangeAddressPanel, newAddressId: addr.id })}
+                            className="w-5 h-5 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <p className="text-gray-500 italic text-center py-8">Chưa có địa chỉ nào</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setShowChangeAddressPanel({ visible: false, orderId: null, oldAddress: "", newAddressId: null })}
+                  className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer font-medium"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => {
+                    if (showChangeAddressPanel.newAddressId) {
+                      handleChangeAddressForOrder(showChangeAddressPanel.orderId, showChangeAddressPanel.newAddressId);
+                      setShowChangeAddressPanel({ visible: false, orderId: null, oldAddress: "", newAddressId: null });
+                    }
+                  }}
+                  disabled={!showChangeAddressPanel.newAddressId}
+                  className={`px-4 py-3 bg-black text-white rounded hover:bg-gray-900 flex-1 hover:cursor-pointer font-medium ${!showChangeAddressPanel.newAddressId ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* <ReturnOrderModal
           order={returnOrderForm.order}
           show={returnOrderForm.visible}
@@ -999,7 +1123,6 @@ const CustomerEditForm = ({ editForm, setEditForm, onSave, onClose }) => (
 
 const AddressForm = ({ editAddressForm, setEditAddressForm, onSave, onClose }) => (
   <div className="grid grid-cols-1 gap-3">
-
     <div className="flex gap-3">
       <div className="w-7/12  flex flex-col gap-1">
         <label htmlFor="name" className="text-gray-700 font-medium">Tên người nhận</label>
@@ -1012,7 +1135,6 @@ const AddressForm = ({ editAddressForm, setEditAddressForm, onSave, onClose }) =
           className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
         />
       </div>
-
       <div className="w-5/12  flex flex-col gap-1">
         <label htmlFor="phone" className="text-gray-700 font-medium">Số điện thoại</label>
         <input
@@ -1025,7 +1147,6 @@ const AddressForm = ({ editAddressForm, setEditAddressForm, onSave, onClose }) =
         />
       </div>
     </div>
-
     <div className="flex flex-col gap-1">
       <label htmlFor="street" className="text-gray-700 font-medium">Số nhà & đường</label>
       <input
@@ -1037,7 +1158,6 @@ const AddressForm = ({ editAddressForm, setEditAddressForm, onSave, onClose }) =
         className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
       />
     </div>
-
     <div className="flex flex-col gap-1">
       <label htmlFor="ward" className="text-gray-700 font-medium">Phường</label>
       <input
@@ -1049,33 +1169,53 @@ const AddressForm = ({ editAddressForm, setEditAddressForm, onSave, onClose }) =
         className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
       />
     </div>
-
     <div className="flex flex-col gap-1">
       <label htmlFor="district" className="text-gray-700 font-medium">Quận/ Huyện</label>
-      <input
+      <select
         id="district"
-        type="text"
-        placeholder="Nhập quận/ huyện"
-        value={editAddressForm.district}
+        value={editAddressForm.district || ""}
         onChange={e => setEditAddressForm(prev => ({ ...prev, district: e.target.value }))}
-        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-      />
+        className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
+      >
+        <option value="">Chọn quận/ huyện</option>
+        <option value="Quận 1">Quận 1</option>
+        <option value="Quận 2">Quận 2</option>
+        <option value="Quận 3">Quận 3</option>
+        <option value="Quận 4">Quận 4</option>
+        <option value="Quận 5">Quận 5</option>
+        <option value="Quận 6">Quận 6</option>
+        <option value="Quận 7">Quận 7</option>
+        <option value="Quận 8">Quận 8</option>
+        <option value="Quận 9">Quận 9</option>
+        <option value="Quận 10">Quận 10</option>
+        <option value="Quận 11">Quận 11</option>
+        <option value="Quận 12">Quận 12</option>
+        <option value="Quận Bình Tân">Quận Bình Tân</option>
+        <option value="Quận Bình Thạnh">Quận Bình Thạnh</option>
+        <option value="Quận Gò Vấp">Quận Gò Vấp</option>
+        <option value="Quận Phú Nhuận">Quận Phú Nhuận</option>
+        <option value="Quận Tân Bình">Quận Tân Bình</option>
+        <option value="Quận Tân Phú">Quận Tân Phú</option>
+        <option value="Quận Thủ Đức">Quận Thủ Đức</option>
+        <option value="Huyện Bình Chánh">Huyện Bình Chánh</option>
+        <option value="Huyện Cần Giờ">Huyện Cần Giờ</option>
+        <option value="Huyện Củ Chi">Huyện Củ Chi</option>
+        <option value="Huyện Hóc Môn">Huyện Hóc Môn</option>
+        <option value="Huyện Nhà Bè">Huyện Nhà Bè</option>
+      </select>
     </div>
-
     <div className="flex flex-col gap-1">
       <label htmlFor="city" className="text-gray-700 font-medium">Thành phố/ Tỉnh
       </label>
       <select
         id="city"
-        value={editAddressForm.city || ""}
+        value={editAddressForm.city || "Thành phố Hồ Chí Minh"}
         onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
         className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
       >
-        <option value="">Chọn thành phố/ tỉnh</option>
         <option value="Thành phố Hồ Chí Minh">Thành phố Hồ Chí Minh</option>
       </select>
     </div>
-
     <div className="flex gap-3 mt-2">
       <button onClick={onClose} className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer">Hủy</button>
       <button onClick={onSave} className="px-4 py-3 bg-black text-white rounded hover:bg-gray-900 flex-1 hover:cursor-pointer">

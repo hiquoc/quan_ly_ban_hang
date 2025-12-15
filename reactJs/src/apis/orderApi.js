@@ -93,3 +93,9 @@ export const createReturnOrder = async (orderId, reason, items, images) => {
         })
     );
 }
+
+export const changeAddressForOrder = async (orderId, address) => {
+    return safeApiCall(() =>
+        api.post(`/orders/${orderId}/address`, { address })
+    );
+}

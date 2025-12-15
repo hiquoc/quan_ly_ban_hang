@@ -877,6 +877,27 @@ public class OrderService {
         return mapToResponse(order);
     }
 
+    @Transactional
+    public OrderResponse updateOrderAddress(Long orderId, Long customerId, String address) {
+        Order order=orderRepository.findById(orderId)
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật địa chỉ giao hàng đơn hàng này!"));
+        if(!Objects.equals(order.getCustomerId(), customerId)){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền cập nhật địa chỉ giao hàng đơn hàng này!");
+        }
+        String status=order.getStatus().getName();
+        if(!Objects.equals(status, "PENDING") && !Objects.equals(status, "CONFIRMED"))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Không thể cập nhật địa chỉ giao hàng bước này!");
+        order.setShippingAddress(address);
+
+        if (cacheManager != null) {
+            Cache cache = cacheManager.getCache("customerOrders");
+            if (cache != null) {
+                String key = order.getCustomerId() + ":ALL:";
+                cache.evict(key);
+            }
+        }
+        return mapToResponse(order);
+    }
 
     public Map<String, Object> getCustomerOrderStats(Long customerId) {
         log.info("Getting order statistics for customer: {}", customerId);
@@ -1332,6 +1353,7 @@ public class OrderService {
     public OrderRecommendResponse getOrderRecommendationData() {
         return null;
     }
+
 
 //    @Transactional
 //    public ReturnOrderResponse createReturnOrder(ReturnOrderRequest request, List<MultipartFile> images) {

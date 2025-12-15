@@ -692,25 +692,48 @@ export default function CheckoutPage() {
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <label htmlFor="district" className="text-gray-700 font-medium">Quận/ Huyện</label>
-                                            <input
+                                            <select
                                                 id="district"
-                                                type="text"
-                                                placeholder="Nhập quận/ huyện"
-                                                value={editAddressForm.district}
+                                                value={editAddressForm.district || ""}
                                                 onChange={e => setEditAddressForm(prev => ({ ...prev, district: e.target.value }))}
-                                                className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
-                                            />
+                                                className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
+                                            >
+                                                <option value="">Chọn quận/ huyện</option>
+                                                <option value="Quận 1">Quận 1</option>
+                                                <option value="Quận 2">Quận 2</option>
+                                                <option value="Quận 3">Quận 3</option>
+                                                <option value="Quận 4">Quận 4</option>
+                                                <option value="Quận 5">Quận 5</option>
+                                                <option value="Quận 6">Quận 6</option>
+                                                <option value="Quận 7">Quận 7</option>
+                                                <option value="Quận 8">Quận 8</option>
+                                                <option value="Quận 9">Quận 9</option>
+                                                <option value="Quận 10">Quận 10</option>
+                                                <option value="Quận 11">Quận 11</option>
+                                                <option value="Quận 12">Quận 12</option>
+                                                <option value="Quận Bình Tân">Quận Bình Tân</option>
+                                                <option value="Quận Bình Thạnh">Quận Bình Thạnh</option>
+                                                <option value="Quận Gò Vấp">Quận Gò Vấp</option>
+                                                <option value="Quận Phú Nhuận">Quận Phú Nhuận</option>
+                                                <option value="Quận Tân Bình">Quận Tân Bình</option>
+                                                <option value="Quận Tân Phú">Quận Tân Phú</option>
+                                                <option value="Quận Thủ Đức">Quận Thủ Đức</option>
+                                                <option value="Huyện Bình Chánh">Huyện Bình Chánh</option>
+                                                <option value="Huyện Cần Giờ">Huyện Cần Giờ</option>
+                                                <option value="Huyện Củ Chi">Huyện Củ Chi</option>
+                                                <option value="Huyện Hóc Môn">Huyện Hóc Môn</option>
+                                                <option value="Huyện Nhà Bè">Huyện Nhà Bè</option>
+                                            </select>
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <label htmlFor="city" className="text-gray-700 font-medium">Thành phố/ Tỉnh
                                             </label>
                                             <select
                                                 id="city"
-                                                value={editAddressForm.city || ""}
+                                                value={editAddressForm.city || "Thành phố Hồ Chí Minh"}
                                                 onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
                                                 className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
                                             >
-                                                <option value="">Chọn thành phố/ tỉnh</option>
                                                 <option value="Thành phố Hồ Chí Minh">Thành phố Hồ Chí Minh</option>
                                             </select>
                                         </div>
