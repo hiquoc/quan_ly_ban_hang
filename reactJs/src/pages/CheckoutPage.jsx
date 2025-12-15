@@ -642,15 +642,77 @@ export default function CheckoutPage() {
                                 <div className="bg-white rounded-xl shadow-lg p-6 w-[500px]">
                                     <h3 className="font-bold text-black text-xl mb-4">{editAddressForm.id ? "Sửa địa chỉ" : "Thêm địa chỉ"}</h3>
                                     <div className="grid grid-cols-1 gap-3">
-                                        <input type="text" placeholder="Tên người nhận" value={editAddressForm.name} onChange={e => setEditAddressForm(prev => ({ ...prev, name: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
-                                        <input type="text" placeholder="SĐT" value={editAddressForm.phone} onChange={e => setEditAddressForm(prev => ({ ...prev, phone: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
-                                        <input type="text" placeholder="Số nhà & đường" value={editAddressForm.street} onChange={e => setEditAddressForm(prev => ({ ...prev, street: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
-                                        <input type="text" placeholder="Phường" value={editAddressForm.ward} onChange={e => setEditAddressForm(prev => ({ ...prev, ward: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
-                                        <input type="text" placeholder="Quận/Huyện" value={editAddressForm.district} onChange={e => setEditAddressForm(prev => ({ ...prev, district: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
-                                        <input type="text" placeholder="Thành phố/Tỉnh" value={editAddressForm.city} onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))} className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black" />
+                                        <div className="flex gap-3">
+                                            <div className="w-7/12 flex flex-col gap-1">
+                                                <label htmlFor="name" className="text-gray-700 font-medium">Tên người nhận</label>
+                                                <input
+                                                    id="name"
+                                                    type="text"
+                                                    placeholder="Nhập tên người nhận"
+                                                    value={editAddressForm.name}
+                                                    onChange={e => setEditAddressForm(prev => ({ ...prev, name: e.target.value }))}
+                                                    className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                                                />
+                                            </div>
+                                            <div className="w-5/12 flex flex-col gap-1">
+                                                <label htmlFor="phone" className="text-gray-700 font-medium">Số điện thoại</label>
+                                                <input
+                                                    id="phone"
+                                                    type="text"
+                                                    placeholder="Nhập số điện thoại"
+                                                    value={editAddressForm.phone}
+                                                    onChange={e => setEditAddressForm(prev => ({ ...prev, phone: e.target.value }))}
+                                                    className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <label htmlFor="street" className="text-gray-700 font-medium">Số nhà & đường</label>
+                                            <input
+                                                id="street"
+                                                type="text"
+                                                placeholder="Nhập số nhà & đường"
+                                                value={editAddressForm.street}
+                                                onChange={e => setEditAddressForm(prev => ({ ...prev, street: e.target.value }))}
+                                                className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <label htmlFor="ward" className="text-gray-700 font-medium">Phường</label>
+                                            <input
+                                                id="ward"
+                                                type="text"
+                                                placeholder="Nhập phường"
+                                                value={editAddressForm.ward}
+                                                onChange={e => setEditAddressForm(prev => ({ ...prev, ward: e.target.value }))}
+                                                className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <label htmlFor="district" className="text-gray-700 font-medium">Quận/ Huyện</label>
+                                            <input
+                                                id="district"
+                                                type="text"
+                                                placeholder="Nhập quận/ huyện"
+                                                value={editAddressForm.district}
+                                                onChange={e => setEditAddressForm(prev => ({ ...prev, district: e.target.value }))}
+                                                className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <label htmlFor="city" className="text-gray-700 font-medium">Thành phố/ Tỉnh</label>
+                                            <select
+                                                id="city"
+                                                value={editAddressForm.city}
+                                                onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
+                                                className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
+                                            >
+                                                <option value="Thành phố Hồ Chí Minh">Thành phố Hồ Chí Minh</option>
+                                            </select>
+                                        </div>
                                         <div className="flex gap-3 mt-2">
                                             <button onClick={() => setShowAddressForm(false)}
-                                                className={`"px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                className={`px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
                                                 disabled={isProcessing}>Hủy</button>
                                             <button onClick={handleSaveAddress} className={`flex gap-1 justify-center items-center px-4 py-3 bg-black text-white rounded hover:bg-gray-900 flex-1 hover:cursor-pointer ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
                                                 disabled={isProcessing}>
