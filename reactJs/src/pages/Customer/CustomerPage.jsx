@@ -306,7 +306,7 @@ export default function CustomerPage() {
           {/* Left Panel: Addresses */}
           <div className="flex-4 ">
             <div className="bg-white rounded-lg shadow px-6 pb-2 pt-4 mb-4">
-              <h2 className="text-xl font-bold mb-2">Lịch sử đơn hàng</h2>
+              <h2 className="text-xl font-bold mb-4">Lịch sử đơn hàng</h2>
               {/* Tabs */}
               <div className="flex justify-between gap-2 ">
                 {[
@@ -890,7 +890,7 @@ export default function CustomerPage() {
           showPopup={showPopup}
         />
         {isProcessing && (
-          <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50 rounded pointer-events-auto">
+          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[9999] pointer-events-auto">
             <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
               <svg
                 className="animate-spin h-5 w-5 text-gray-700"
@@ -905,25 +905,26 @@ export default function CustomerPage() {
                   r="10"
                   stroke="currentColor"
                   strokeWidth="4"
-                ></circle>
+                />
                 <path
                   className="opacity-75"
                   fill="currentColor"
                   d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                ></path>
+                />
               </svg>
               <span className="text-gray-700 font-medium">Đang xử lý...</span>
             </div>
           </div>
         )}
+
         {showChangeAddressPanel.visible && (
           <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-[700px] max-h-[80vh] overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-lg w-[700px] max-h-[80vh] flex flex-col p-6">
               <h3 className="font-bold text-black text-xl mb-4">Chọn địa chỉ giao hàng</h3>
 
               {/* Show current address */}
               <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-semibold text-blue-900 mb-2">Địa chỉ hiện tại:</p>
+                <p className="text-sm font-semibold text-blue-900 mb-2">Địa chỉ giao hàng hiện tại:</p>
                 <div className="flex items-center gap-2">
                   <FiMapPin className="text-blue-600 flex-shrink-0" />
                   <p className="text-gray-700">{showChangeAddressPanel.oldAddress}</p>
@@ -932,7 +933,7 @@ export default function CustomerPage() {
 
               <p className="text-sm font-medium text-gray-600 mb-3">Chọn địa chỉ mới:</p>
 
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-6 overflow-y-auto pr-1 flex-1">
                 {customer?.addresses?.length ? (
                   customer.addresses
                     .slice()
@@ -982,7 +983,7 @@ export default function CustomerPage() {
                 )}
               </div>
 
-              <div className="flex gap-3 mt-4">
+              <div className="flex gap-3 pt-4 border-t bg-white sticky bottom-0">
                 <button
                   onClick={() => setShowChangeAddressPanel({ visible: false, orderId: null, oldAddress: "", newAddressId: null })}
                   className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer font-medium"
