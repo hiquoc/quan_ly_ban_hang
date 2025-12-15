@@ -244,7 +244,7 @@ export default function CustomerPage() {
         showPopup(res.error);
       } else {
         showPopup("Cập nhật địa chỉ thành công!");
-        setOrders(prev => prev.map(order => order.id === orderId ? { ...order, shippingAddress: addressString } : order));
+        setOrders(prev => prev.map(order => order.id === orderId ? { ...order,shippingName:address.name,shippingPhone:address.phone, shippingAddress: addressString } : order));
       }
     } finally {
       setIsProcessing(false);
