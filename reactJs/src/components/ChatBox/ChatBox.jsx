@@ -34,7 +34,7 @@ const ChatBox = () => {
 
     try {
       const response = await axios.post(
-        "http://3.27.223.232/webhook/1872c391-bd77-40f8-a01f-98b803f6993a/chat",
+        "https://chat.elecstoredoantotnghiep.id.vn/webhook/1872c391-bd77-40f8-a01f-98b803f6993a/chat",
         {
           sessionId: `session_${ownerId || "guest"}`,
           action: "sendMessage",
