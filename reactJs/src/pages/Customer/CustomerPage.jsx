@@ -62,7 +62,7 @@ export default function CustomerPage() {
   const [showVerifyPanel, setShowVerifyPanel] = useState(false)
   const [reviewingProduct, setReviewingProduct] = useState({ variantName: "", variantId: null, orerId: null })
   const [reviewList, setReviewList] = useState([])
-  const [showChangeAddressPanel, setShowChangeAddressPanel] = useState({ visible: false, orderId: null,oldName:"",oldPhone:"", oldAddress: "", newAddressId: null });
+  const [showChangeAddressPanel, setShowChangeAddressPanel] = useState({ visible: false, orderId: null, oldName: "", oldPhone: "", oldAddress: "", newAddressId: null });
 
   useEffect(() => {
     loadCustomer();
@@ -244,7 +244,7 @@ export default function CustomerPage() {
         showPopup(res.error);
       } else {
         showPopup("Cập nhật địa chỉ thành công!");
-        setOrders(prev => prev.map(order => order.id === orderId ? { ...order,shippingName:address.name,shippingPhone:address.phone, shippingAddress: addressString } : order));
+        setOrders(prev => prev.map(order => order.id === orderId ? { ...order, shippingName: address.name, shippingPhone: address.phone, shippingAddress: addressString } : order));
       }
     } finally {
       setIsProcessing(false);
@@ -535,8 +535,10 @@ export default function CustomerPage() {
                       <div>
                         {(order.statusName === "PENDING" || order.statusName === "CONFIRMED") && (
                           <button
-                            onClick={() => setShowChangeAddressPanel({ visible: true, orderId: order.id,oldName:order.shippingName,oldPhone:order.shippingPhone,
-                               oldAddress: order.shippingAddress, newAddressId: null })}
+                            onClick={() => setShowChangeAddressPanel({
+                              visible: true, orderId: order.id, oldName: order.shippingName, oldPhone: order.shippingPhone,
+                              oldAddress: order.shippingAddress, newAddressId: null
+                            })}
                             className="flex gap-2 items-center px-6 py-3 border border-black rounded hover:bg-gray-100 font-medium"
                           >
                             <FiMapPin /> Cập nhật địa chỉ
@@ -1011,7 +1013,7 @@ export default function CustomerPage() {
 
               <div className="flex gap-3 pt-4 border-t border-gray-400 bg-white sticky bottom-0">
                 <button
-                  onClick={() => setShowChangeAddressPanel({ visible: false, orderId: null,oldName:"",oldPhone:"", oldAddress: "", newAddressId: null })}
+                  onClick={() => setShowChangeAddressPanel({ visible: false, orderId: null, oldName: "", oldPhone: "", oldAddress: "", newAddressId: null })}
                   className="px-4 py-3 border border-black text-black rounded hover:bg-gray-100 flex-1 hover:cursor-pointer font-medium"
                 >
                   Hủy
@@ -1020,7 +1022,7 @@ export default function CustomerPage() {
                   onClick={() => {
                     if (showChangeAddressPanel.newAddressId) {
                       handleChangeAddressForOrder(showChangeAddressPanel.orderId, showChangeAddressPanel.newAddressId);
-                      setShowChangeAddressPanel({ visible: false, orderId: null,oldName:"",oldPhone:"", oldAddress: "", newAddressId: null });
+                      setShowChangeAddressPanel({ visible: false, orderId: null, oldName: "", oldPhone: "", oldAddress: "", newAddressId: null });
                     }
                   }}
                   disabled={!showChangeAddressPanel.newAddressId}
@@ -1232,14 +1234,16 @@ const AddressForm = ({ editAddressForm, setEditAddressForm, onSave, onClose }) =
       </select>
     </div>
     <div className="flex flex-col gap-1">
-      <label htmlFor="city" className="text-gray-700 font-medium">Thành phố/ Tỉnh
+      <label htmlFor="city" className="text-gray-700 font-medium">
+        Thành phố/ Tỉnh
       </label>
       <select
         id="city"
-        value={editAddressForm.city || "Thành phố Hồ Chí Minh"}
+        value={editAddressForm.city || ""}
         onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
         className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
       >
+        <option value="">Chọn thành phố/ tỉnh</option>
         <option value="Thành phố Hồ Chí Minh">Thành phố Hồ Chí Minh</option>
       </select>
     </div>

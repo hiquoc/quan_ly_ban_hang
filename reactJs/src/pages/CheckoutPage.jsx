@@ -726,14 +726,16 @@ export default function CheckoutPage() {
                                             </select>
                                         </div>
                                         <div className="flex flex-col gap-1">
-                                            <label htmlFor="city" className="text-gray-700 font-medium">Thành phố/ Tỉnh
+                                            <label htmlFor="city" className="text-gray-700 font-medium">
+                                                Thành phố/ Tỉnh
                                             </label>
                                             <select
                                                 id="city"
-                                                value={editAddressForm.city || "Thành phố Hồ Chí Minh"}
+                                                value={editAddressForm.city || ""}
                                                 onChange={e => setEditAddressForm(prev => ({ ...prev, city: e.target.value }))}
                                                 className="border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-black bg-white"
                                             >
+                                                <option value="">Chọn thành phố/ tỉnh</option>
                                                 <option value="Thành phố Hồ Chí Minh">Thành phố Hồ Chí Minh</option>
                                             </select>
                                         </div>

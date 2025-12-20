@@ -16,18 +16,18 @@ public class WebhookUtils {
 
     @Async
     public void postToWebhook(Long orderId, String action) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        String body = "{\"order_id\":" + orderId + ", \"action\":\"" + action + "\"}";
-
-        HttpEntity<String> entity = new HttpEntity<>(body, headers);
-
-        try {
-            Thread.sleep(2000);
-            restTemplate.postForObject(WEBHOOK_URL, entity, String.class);
-        } catch (Exception e) {
-            System.err.println("Failed to send webhook: " + e.getMessage());
-        }
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//
+//        String body = "{\"order_id\":" + orderId + ", \"action\":\"" + action + "\"}";
+//
+//        HttpEntity<String> entity = new HttpEntity<>(body, headers);
+//
+//        try {
+//            Thread.sleep(2000);
+//            restTemplate.postForObject(WEBHOOK_URL, entity, String.class);
+//        } catch (Exception e) {
+//            System.err.println("Failed to send webhook: " + e.getMessage());
+//        }
     }
 }
