@@ -9,9 +9,9 @@ import { getActiveProducts } from "../../apis/productApi";
 export default function Layout({ children }) {
   const { username, role } = useContext(AuthContext);
   const { cart, updateCart, removeFromCart } = useContext(CartContext);
-  // console.log(cart)
   const [cartOpen, setCartOpen] = useState(false);
   const cartRef = useRef(null);
+  const searchRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const isCheckoutPage = location.pathname === "/checkout";
@@ -37,7 +37,6 @@ export default function Layout({ children }) {
     localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
   }, [selectedItems]);
 
-
   const toggleSelect = (variantId) => {
     setSelectedItems(prev =>
       prev.includes(variantId)
@@ -46,50 +45,56 @@ export default function Layout({ children }) {
     );
   };
 
-
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (cartRef.current && !cartRef.current.contains(event.target)) {
         setCartOpen(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setProducts(null);
+      }
     };
-    if (cartOpen) {
+    if (cartOpen || products) {
       document.addEventListener("mousedown", handleClickOutside);
     } else {
       document.removeEventListener("mousedown", handleClickOutside);
     }
 
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [cartOpen]);
+  }, [cartOpen, products]);
 
   const handleSearch = () => {
     if (keyword.trim()) {
       navigate(`/search?keyword=${encodeURIComponent(keyword.trim())}`);
+      setProducts(null);
+      setKeyword("");
     }
   };
 
   const handleLoadingProducts = async (text) => {
     setLoading(true);
     try {
-      const response = await getActiveProducts(0, 4, text)
+      const response = await getActiveProducts(0, 4, text);
       if (response.error) return;
       setProducts(response.data.content);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       handleSearch();
     }
   };
+
   return (
-    <div className=" bg-white">
+    <div className="bg-white">
       <nav className="sticky top-0 z-40 bg-white border-b border-gray-300">
         <div className="max-w-8xl mx-auto px-40 py-3 flex items-center justify-between">
           <Link to="/" className="text-3xl font-bold text-black">Elec</Link>
-          <div className="flex-1 max-w-80 mx-4 relative">
+          
+          <div className="flex-1 max-w-80 mx-4 relative" ref={searchRef}>
             <input
               type="text"
               value={keyword}
@@ -108,19 +113,18 @@ export default function Layout({ children }) {
 
             {/* Search Results Dropdown */}
             {keyword.trim() && products && products.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-[32rem] overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
                 <div className="p-2">
                   <p className="text-xs text-gray-500 px-2 py-1 mb-1">
                     {products.length} kết quả
                   </p>
                   {products.map((product) => {
-                    // Get main variant or first available variant
-                    const mainVariant = product.variants?.find(v => v.id === product.mainVariantId)
+                    const mainVariant = product.variants?.find(v => v.id === product.mainVariantId) 
                       || product.variants?.find(v => v.status !== "OUT_OF_STOCK")
                       || product.variants?.[0];
-
+                    
                     const isOutOfStock = mainVariant?.status === "OUT_OF_STOCK";
-
+                    
                     return (
                       <div
                         key={product.id}
@@ -236,7 +240,8 @@ export default function Layout({ children }) {
                   <button
                     disabled={isCheckoutPage}
                     onClick={toggleCart}
-                    className={`bg-gray-100 relative p-2 rounded-full hover:bg-gray-200 transition ${isCheckoutPage ? "opacity-50 cursor-not-allowed" : "hover:cursor-pointer"}`}                  >
+                    className={`bg-gray-100 relative p-2 rounded-full hover:bg-gray-200 transition ${isCheckoutPage ? "opacity-50 cursor-not-allowed" : "hover:cursor-pointer"}`}
+                  >
                     <FaShoppingCart className="text-gray-700 text-lg" />
                     {cart?.totalItems > 0 && (
                       <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white rounded-full px-1">
@@ -255,17 +260,14 @@ export default function Layout({ children }) {
                           <p className="text-gray-500 text-sm p-4">Giỏ hàng trống</p>
                         ) : (
                           cart.items.map((item) => (
-                            <div
-                              key={item.id}
-                              className="px-3 relative"
-                            >
-                              <div className={`flex py-3 border-b border-gray-300 px-2 relative ${(item.status !== "OUT_OF_STOCK" ? "" : "bg-gray-100")}`}>
+                            <div key={item.id} className="px-3 relative">
+                              <div className={`flex py-3 border-b border-gray-300 px-2 relative ${item.status !== "OUT_OF_STOCK" ? "" : "bg-gray-100"}`}>
                                 <input
                                   type="checkbox"
                                   checked={item.status === "OUT_OF_STOCK" ? false : selectedItems.includes(item.variantId)}
                                   onChange={() => toggleSelect(item.variantId)}
                                   disabled={item.status === "OUT_OF_STOCK"}
-                                  className={`w-4 h-4 mr-3 mt-7 accent-black ${(item.status !== "OUT_OF_STOCK" ? "hover:cursor-pointer" : "cursor-not-allowed")} `}
+                                  className={`w-4 h-4 mr-3 mt-7 accent-black ${item.status !== "OUT_OF_STOCK" ? "hover:cursor-pointer" : "cursor-not-allowed"}`}
                                 />
                                 <div className="relative w-20 h-20 mr-4">
                                   <img
@@ -295,7 +297,7 @@ export default function Layout({ children }) {
                                       <button
                                         onClick={() => updateCart(item.id, item.quantity - 1)}
                                         disabled={item.status === "OUT_OF_STOCK"}
-                                        className={`p-1 hover:cursor-pointer" ${(item.status !== "OUT_OF_STOCK" ? "hover:cursor-pointer" : "cursor-not-allowed")}`}
+                                        className={`p-1 ${item.status !== "OUT_OF_STOCK" ? "hover:cursor-pointer" : "cursor-not-allowed"}`}
                                       >
                                         -
                                       </button>
@@ -305,7 +307,7 @@ export default function Layout({ children }) {
                                       <button
                                         onClick={() => updateCart(item.id, item.quantity + 1)}
                                         disabled={item.status === "OUT_OF_STOCK"}
-                                        className={`p-1 hover:cursor-pointer" ${(item.status !== "OUT_OF_STOCK" ? "hover:cursor-pointer" : "cursor-not-allowed")}`}
+                                        className={`p-1 ${item.status !== "OUT_OF_STOCK" ? "hover:cursor-pointer" : "cursor-not-allowed"}`}
                                       >
                                         +
                                       </button>
@@ -319,9 +321,7 @@ export default function Layout({ children }) {
 
                                 <button
                                   onClick={() => removeFromCart(item.variantId)}
-                                  className={`absolute top-2 right-2 hover:cursor-pointer text-gray-500 hover:text-gray-700" 
-                                    }`}
-
+                                  className="absolute top-2 right-2 hover:cursor-pointer text-gray-500 hover:text-gray-700"
                                 >
                                   <FaTimes />
                                 </button>
@@ -355,39 +355,33 @@ export default function Layout({ children }) {
                             <FiCreditCard className="text-xl" />
                             Thanh toán
                           </Link>
-
                         </div>
                       )}
                     </div>
                   )}
-
                 </div>
 
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => {
                       if (role !== "CUSTOMER")
-                        navigate(`/admin/orders`)
+                        navigate(`/admin/orders`);
                       else
-                        navigate(`/customer`)
+                        navigate(`/customer`);
                     }}
-                    className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 "
+                    className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200"
                   >
-
                     <span className="text-gray-800 max-w-[120px] truncate">{username}</span>
-
                     <FaUserCircle className="text-gray-700 text-2xl" />
 
                     {username?.length > 12 && (
                       <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 whitespace-nowrap 
                       bg-black text-white text-sm px-2 py-1 rounded shadow-lg opacity-0 
-                      group-hover:opacity-100 transition-opacity z-50 pointer-events-none"
-                      >
+                      group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
                         {username}
                       </div>
                     )}
                   </button>
-
 
                   <button
                     onClick={handleLogout}
