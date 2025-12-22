@@ -714,21 +714,14 @@ export default function ProductDetails() {
                     </div>
                 </div >
 
-                <div className="px-20 py-12">
-                    <div className="flex justify-between items-center mb-8">
-                        <div>
-                            <h2 className="text-3xl font-bold text-gray-900">Sản phẩm tương tự</h2>
-                            {/* <p className="text-gray-600 mt-2">Săn sale ngay kẻo lỡ</p> */}
-                        </div>
-                    </div>
-                    {isLoadingRelativeProducts ? (
-                        <div className="col-span-full flex justify-center items-center py-12">
-                            <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                {/* <p className="text-gray-600">Đang tải...</p> */}
+                {!isLoadingRelativeProducts && (
+                    <div className="px-20 py-12">
+                        <div className="flex justify-between items-center mb-8">
+                            <div>
+                                <h2 className="text-3xl font-bold text-gray-900">Sản phẩm tương tự</h2>
+                                {/* <p className="text-gray-600 mt-2">Săn sale ngay kẻo lỡ</p> */}
                             </div>
                         </div>
-                    ) : (
                         <div className="relative">
                             {canScrollRelativeLeft && (
                                 <button
@@ -769,8 +762,8 @@ export default function ProductDetails() {
                                 ))}
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 <div className="bg-gray-100 py-10">
                     <div className="px-20">
