@@ -18,6 +18,7 @@ export default function Layout({ children }) {
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState(null);
+  const debounceTimeoutRef = useRef(null);
 
   const toggleCart = () => !isCheckoutPage && setCartOpen(!cartOpen);
   const handleLogout = () => navigate("/logout", { replace: true });
@@ -59,7 +60,6 @@ export default function Layout({ children }) {
     } else {
       document.removeEventListener("mousedown", handleClickOutside);
     }
-
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [cartOpen, products]);
 
@@ -88,20 +88,41 @@ export default function Layout({ children }) {
     }
   };
 
+  const handleKeywordChange = (value) => {
+    setKeyword(value);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    if (value.trim()) {
+      debounceTimeoutRef.current = setTimeout(() => {
+        handleLoadingProducts(value.trim());
+      }, 500);
+    } else {
+      setProducts(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="bg-white">
       <nav className="sticky top-0 z-40 bg-white border-b border-gray-300">
         <div className="max-w-8xl mx-auto px-40 py-3 flex items-center justify-between">
           <Link to="/" className="text-3xl font-bold text-black">Elec</Link>
-          
+         
           <div className="flex-1 max-w-80 mx-4 relative" ref={searchRef}>
             <input
               type="text"
               value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                handleLoadingProducts(e.target.value);
-              }}
+              onChange={(e) => handleKeywordChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Tìm sản phẩm..."
               className="w-full pl-10 pr-3 py-2 rounded-full border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-700 transition"
@@ -110,7 +131,6 @@ export default function Layout({ children }) {
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-black hover:cursor-pointer"
               onClick={handleSearch}
             />
-
             {/* Search Results Dropdown */}
             {keyword.trim() && products && products.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
@@ -119,12 +139,12 @@ export default function Layout({ children }) {
                     {products.length} kết quả
                   </p>
                   {products.map((product) => {
-                    const mainVariant = product.variants?.find(v => v.id === product.mainVariantId) 
+                    const mainVariant = product.variants?.find(v => v.id === product.mainVariantId)
                       || product.variants?.find(v => v.status !== "OUT_OF_STOCK")
                       || product.variants?.[0];
-                    
+                   
                     const isOutOfStock = mainVariant?.status === "OUT_OF_STOCK";
-                    
+                   
                     return (
                       <div
                         key={product.id}
@@ -193,7 +213,6 @@ export default function Layout({ children }) {
                 )}
               </div>
             )}
-
             {/* Loading State */}
             {keyword.trim() && loading && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 p-4">
@@ -203,7 +222,6 @@ export default function Layout({ children }) {
                 </div>
               </div>
             )}
-
             {/* No Results State */}
             {keyword.trim() && !loading && products && products.length === 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 p-4">
@@ -211,13 +229,11 @@ export default function Layout({ children }) {
               </div>
             )}
           </div>
-
           <nav className="hidden md:flex space-x-10">
             {navItems.map((item) => {
               const matchPath = location.pathname === item.pathname;
               const matchSearch = location.search === item.search;
               const isActive = matchPath && matchSearch;
-
               return (
                 <NavLink
                   key={item.name}
@@ -232,7 +248,6 @@ export default function Layout({ children }) {
               );
             })}
           </nav>
-
           <div className="flex items-center space-x-4">
             {!!username ? (
               <>
@@ -249,7 +264,6 @@ export default function Layout({ children }) {
                       </span>
                     )}
                   </button>
-
                   {cartOpen && (
                     <div className="absolute right-0 mt-2 w-[28rem] bg-white border border-gray-300 rounded-lg shadow-lg z-50 flex flex-col max-h-[80vh]">
                       <div className="flex justify-between items-center p-4 border-b border-gray-200 shrink-0">
@@ -282,7 +296,6 @@ export default function Layout({ children }) {
                                     </span>
                                   )}
                                 </div>
-
                                 <div className="flex-1 flex flex-col relative">
                                   <div className="min-h-[2.5rem] flex items-center pr-5">
                                     <p
@@ -312,13 +325,11 @@ export default function Layout({ children }) {
                                         +
                                       </button>
                                     </div>
-
                                     <p className="font-medium text-gray-700">
                                       {item.totalPrice.toLocaleString("vi-VN")}₫
                                     </p>
                                   </div>
                                 </div>
-
                                 <button
                                   onClick={() => removeFromCart(item.variantId)}
                                   className="absolute top-2 right-2 hover:cursor-pointer text-gray-500 hover:text-gray-700"
@@ -330,7 +341,6 @@ export default function Layout({ children }) {
                           ))
                         )}
                       </div>
-
                       {cart.items.length > 0 && (
                         <div className="p-4">
                           <div className="flex justify-between mb-2">
@@ -360,7 +370,6 @@ export default function Layout({ children }) {
                     </div>
                   )}
                 </div>
-
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => {
@@ -373,16 +382,14 @@ export default function Layout({ children }) {
                   >
                     <span className="text-gray-800 max-w-[120px] truncate">{username}</span>
                     <FaUserCircle className="text-gray-700 text-2xl" />
-
                     {username?.length > 12 && (
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 whitespace-nowrap 
-                      bg-black text-white text-sm px-2 py-1 rounded shadow-lg opacity-0 
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 whitespace-nowrap
+                      bg-black text-white text-sm px-2 py-1 rounded shadow-lg opacity-0
                       group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
                         {username}
                       </div>
                     )}
                   </button>
-
                   <button
                     onClick={handleLogout}
                     className="p-2 rounded-full bg-gray-100 hover:bg-red-200 hover:cursor-pointer transition text-red-500"
@@ -403,7 +410,6 @@ export default function Layout({ children }) {
           </div>
         </div>
       </nav>
-
       <main>{children}</main>
     </div>
   );
