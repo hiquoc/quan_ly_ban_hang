@@ -134,7 +134,7 @@ export default function Layout({ children }) {
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-base font-semibold text-gray-900">
-                            {product.minPrice.toLocaleString("vi-VN")}₫
+                            {product.sellingPrice.toLocaleString("vi-VN")}₫
                           </span>
                           {product.discountPercent > 0 && (
                             <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
