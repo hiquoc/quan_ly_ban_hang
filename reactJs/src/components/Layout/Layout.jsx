@@ -4,9 +4,10 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { CartContext } from "../../contexts/CartContext";
 import { FaSearch, FaShoppingCart, FaUserCircle, FaSignOutAlt, FaTimes } from "react-icons/fa";
 import { FiCreditCard } from "react-icons/fi";
+import { getActiveProducts } from "../../apis/productApi";
 
 export default function Layout({ children }) {
-  const { username,role } = useContext(AuthContext);
+  const { username, role } = useContext(AuthContext);
   const { cart, updateCart, removeFromCart } = useContext(CartContext);
   // console.log(cart)
   const [cartOpen, setCartOpen] = useState(false);
@@ -15,6 +16,8 @@ export default function Layout({ children }) {
   const location = useLocation();
   const isCheckoutPage = location.pathname === "/checkout";
   const [keyword, setKeyword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState(null);
 
   const toggleCart = () => !isCheckoutPage && setCartOpen(!cartOpen);
   const handleLogout = () => navigate("/logout", { replace: true });
@@ -30,10 +33,10 @@ export default function Layout({ children }) {
     { name: "Mua nhiều", pathname: "/search", search: "?sort=sold" },
   ];
 
-
   useEffect(() => {
     localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
   }, [selectedItems]);
+
 
   const toggleSelect = (variantId) => {
     setSelectedItems(prev =>
@@ -42,6 +45,7 @@ export default function Layout({ children }) {
         : [...prev, variantId]
     );
   };
+
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -64,6 +68,17 @@ export default function Layout({ children }) {
     }
   };
 
+  const handleLoadingProducts = async (text) => {
+    setLoading(true);
+    try {
+      const response = await getActiveProducts(0, 5, text)
+      if (response.error) return;
+      setProducts(response.data.content);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       handleSearch();
@@ -78,7 +93,10 @@ export default function Layout({ children }) {
             <input
               type="text"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                handleLoadingProducts(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Tìm sản phẩm..."
               className="w-full pl-10 pr-3 py-2 rounded-full border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-700 transition"
@@ -87,6 +105,75 @@ export default function Layout({ children }) {
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-black hover:cursor-pointer"
               onClick={handleSearch}
             />
+
+            {/* Search Results Dropdown */}
+            {keyword.trim() && products && products.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-[32rem] overflow-y-auto">
+                <div className="p-2">
+                  <p className="text-xs text-gray-500 px-2 py-1">
+                    {products.length} kết quả
+                  </p>
+                  {products.map((product) => (
+                    <div
+                      key={product.id}
+                      onClick={() => {
+                        navigate(`/product/${product.slug}`);
+                        setKeyword("");
+                        setProducts(null);
+                      }}
+                      className="flex items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition"
+                    >
+                      <img
+                        src={product.imageUrls?.main}
+                        alt={product.name}
+                        className="w-16 h-16 object-cover rounded mr-3"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm line-clamp-2 leading-tight text-gray-900">
+                          {product.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-base font-semibold text-gray-900">
+                            {product.minPrice.toLocaleString("vi-VN")}₫
+                          </span>
+                          {product.discountPercent > 0 && (
+                            <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                              -{product.discountPercent}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {products.length >= 5 && (
+                  <div className="border-t border-gray-200 p-2">
+                    <button
+                      onClick={handleSearch}
+                      className="w-full py-2 text-sm text-gray-700 hover:text-black font-medium hover:bg-gray-50 rounded transition"
+                    >
+                      Xem tất cả kết quả
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {keyword.trim() && loading && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 p-4">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin"></div>
+                  <p className="text-sm text-gray-500">Đang tìm kiếm...</p>
+                </div>
+              </div>
+            )}
+
+            {/* No Results State */}
+            {keyword.trim() && !loading && products && products.length === 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 p-4">
+                <p className="text-sm text-gray-500 text-center">Không tìm thấy sản phẩm</p>
+              </div>
+            )}
           </div>
 
           <nav className="hidden md:flex space-x-10">
@@ -247,7 +334,7 @@ export default function Layout({ children }) {
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => {
-                      if(role!=="CUSTOMER")
+                      if (role !== "CUSTOMER")
                         navigate(`/admin/orders`)
                       else
                         navigate(`/customer`)
