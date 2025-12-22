@@ -219,21 +219,45 @@ export default function DeliveryManager() {
             )}
 
             <div className="mt-8 bg-white rounded-xl shadow overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
+                <table className="min-w-full table-fixed border-separate border-spacing-0 rounded-lg overflow-hidden text-base">
                     <thead className="bg-gray-200 text-gray-700">
                         <tr>
-                            {/* <th className="p-3 border-b border-gray-200 text-center"><input type="checkbox" checked={orders && selectedOrders.length === orders.length} onChange={toggleSelectAll} className="w-4 h-4 cursor-pointer" /></th> */}
+                            {/* <th className="p-3 border-b border-gray-200 text-center">
+                    <input type="checkbox" checked={orders && selectedOrders.length === orders.length} onChange={toggleSelectAll} className="w-4 h-4 cursor-pointer" />
+                </th> */}
                             <th></th>
-                            {["Mã giao hàng", "Mã đơn hàng", "Địa chỉ", "Tiền phải thu", "Trạng thái", "Phân công", "Chi tiết"].map(head => <th key={head} className="p-3 border-b border-gray-200 text-center">{head}</th>)}
+                            {["Mã giao hàng", "Mã đơn hàng", "Địa chỉ", "Tiền phải thu", "Trạng thái", "Phân công", "Chi tiết"].map(head => (
+                                <th
+                                    key={head}
+                                    className={`p-3 border-b border-gray-200 text-center ${head === "Địa chỉ" ? "w-64" : ""}`}
+                                >
+                                    {head}
+                                </th>
+                            ))}
                         </tr>
                     </thead>
                     <tbody className="bg-white">
                         {isLoading ? (
-                            <tr><td colSpan={8} className="p-4 text-gray-500 text-center align-middle"><div className="inline-flex gap-2 items-center justify-center"><svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>Đang tải dữ liệu...</div></td></tr>
+                            <tr>
+                                <td colSpan={8} className="p-4 text-gray-500 text-center align-middle">
+                                    <div className="inline-flex gap-2 items-center justify-center">
+                                        <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                        </svg>
+                                        Đang tải dữ liệu...
+                                    </div>
+                                </td>
+                            </tr>
                         ) : orders?.length === 0 ? (
-                            <tr><td colSpan={8} className="text-center p-3">Không có kết quả</td></tr>
+                            <tr>
+                                <td colSpan={8} className="text-center p-3">Không có kết quả</td>
+                            </tr>
                         ) : orders?.map(order => (
-                            <tr key={order.id} className={`hover:bg-gray-50 transition ${selectedOrders.includes(order.id) ? 'bg-blue-50' : ''}`}>
+                            <tr
+                                key={order.id}
+                                className={`hover:bg-gray-50 transition ${selectedOrders.includes(order.id) ? 'bg-blue-50' : ''}`}
+                            >
                                 <td className="p-3 border-b border-gray-200 text-center">
                                     <input
                                         type="checkbox"
@@ -245,16 +269,45 @@ export default function DeliveryManager() {
                                 </td>
                                 <td className="p-3 border-b border-gray-200 text-center">{order.deliveryNumber}</td>
                                 <td className="p-3 border-b border-gray-200 text-center">{order.orderNumber}</td>
-                                <td className="p-3 border-b border-gray-200 text-center">{order.shippingAddress}</td>
-                                <td className="p-3 border-b border-gray-200 text-center">{Number(order.codAmount).toLocaleString("vi-VN", { style: "currency", currency: "VND" })}</td>
-                                <td className="p-3 border-b border-gray-200 text-center"><span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusBgColor(order.status)}`}>{statusLabel(order.status)}</span></td>
-                                <td className="p-3 border-b border-gray-200 text-center"><span className={`px-3 py-1 rounded-full text-sm font-semibold ${order.assignedShipperId ? "bg-blue-100 text-blue-800" : "bg-yellow-200 text-yellow-800"}`}>{order.assignedShipperId ? `SP${order.assignedShipperId}` : "Chưa phân công"}</span></td>
-                                <td className="p-3 border-b border-gray-200 text-center"><button className="p-2 text-blue-600 hover:bg-blue-100 rounded transition" onClick={() => {  setDeliveryDetails(order); setIsDetailOpen(true) }}><FiEye /></button></td>
+                                <td
+                                    className="p-3 border-b border-gray-200 text-center max-w-[256px] truncate"
+                                    title={order.shippingAddress}
+                                >
+                                    {order.shippingAddress}
+                                </td>
+                                <td className="p-3 border-b border-gray-200 text-center">
+                                    {Number(order.codAmount).toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
+                                </td>
+                                <td className="p-3 border-b border-gray-200 text-center">
+                                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusBgColor(order.status)}`}>
+                                        {statusLabel(order.status)}
+                                    </span>
+                                </td>
+                                <td className="p-3 border-b border-gray-200 text-center">
+                                    <span
+                                        className={`px-3 py-1 rounded-full text-sm font-semibold ${order.assignedShipperId ? "bg-blue-100 text-blue-800" : "bg-yellow-200 text-yellow-800"
+                                            }`}
+                                    >
+                                        {order.assignedShipperId ? `SP${order.assignedShipperId}` : "Chưa phân công"}
+                                    </span>
+                                </td>
+                                <td className="p-3 border-b border-gray-200 text-center">
+                                    <button
+                                        className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
+                                        onClick={() => {
+                                            setDeliveryDetails(order);
+                                            setIsDetailOpen(true);
+                                        }}
+                                    >
+                                        <FiEye />
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
             {totalPages > 0 && (
                 <div className="flex justify-center items-center gap-3 mt-10 pb-5">
                     <button

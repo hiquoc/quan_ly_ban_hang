@@ -630,7 +630,7 @@ export default function AdminPromotion() {
                                                 onChange={(e) => setPromotionForm({ ...promotionForm, description: e.target.value })}
                                                 disabled={isReadOnly}
                                                 className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                                                rows={2}
+                                                rows={3}
                                             />
                                         </div>
                                     </div>
