@@ -71,7 +71,7 @@ export default function Layout({ children }) {
   const handleLoadingProducts = async (text) => {
     setLoading(true);
     try {
-      const response = await getActiveProducts(0, 5, text)
+      const response = await getActiveProducts(0, 4, text)
       if (response.error) return;
       setProducts(response.data.content);
     } finally {
@@ -105,22 +105,22 @@ export default function Layout({ children }) {
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-black hover:cursor-pointer"
               onClick={handleSearch}
             />
-            
+
             {/* Search Results Dropdown */}
             {keyword.trim() && products && products.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-[32rem] overflow-y-auto">
                 <div className="p-2">
-                  <p className="text-xs text-gray-500 px-2 py-1">
+                  <p className="text-xs text-gray-500 px-2 py-1 mb-1">
                     {products.length} kết quả
                   </p>
                   {products.map((product) => {
                     // Get main variant or first available variant
-                    const mainVariant = product.variants?.find(v => v.id === product.mainVariantId) 
+                    const mainVariant = product.variants?.find(v => v.id === product.mainVariantId)
                       || product.variants?.find(v => v.status !== "OUT_OF_STOCK")
                       || product.variants?.[0];
-                    
+
                     const isOutOfStock = mainVariant?.status === "OUT_OF_STOCK";
-                    
+
                     return (
                       <div
                         key={product.id}
@@ -133,39 +133,41 @@ export default function Layout({ children }) {
                           setKeyword("");
                           setProducts(null);
                         }}
-                        className={`flex items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition ${isOutOfStock ? 'opacity-75' : ''}`}
+                        className={`flex items-center p-3 mb-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md ${isOutOfStock ? 'opacity-75' : ''}`}
                       >
-                        <div className="relative w-16 h-16 mr-3">
+                        <div className="relative w-20 h-20 mr-3 flex-shrink-0">
+                          {mainVariant.discountPercent > 0 && (
+                            <div className="absolute top-0 left-0 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-md z-10">
+                              -{mainVariant.discountPercent}%
+                            </div>
+                          )}
                           <img
                             src={mainVariant?.imageUrls?.main || product.imageUrl}
                             alt={product.name}
-                            className="w-16 h-16 object-cover rounded"
+                            className="w-20 h-20 object-cover rounded-lg border border-gray-200"
                           />
                           {isOutOfStock && (
-                            <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-[10px] font-bold rounded">
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-[11px] font-bold rounded-lg">
                               Hết hàng
                             </span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm line-clamp-2 leading-tight text-gray-900">
+                          <p className="font-semibold text-sm line-clamp-2 leading-tight text-gray-900 mb-1.5">
                             {product.name}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2">
                             {mainVariant.discountPercent > 0 ? (
                               <>
                                 <span className="text-xs text-gray-400 line-through">
                                   {mainVariant.basePrice.toLocaleString("vi-VN")}₫
                                 </span>
-                                <span className="text-base font-semibold text-red-600">
+                                <span className="text-base font-bold text-red-600">
                                   {mainVariant.sellingPrice.toLocaleString("vi-VN")}₫
-                                </span>
-                                <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                                  -{mainVariant.discountPercent}%
                                 </span>
                               </>
                             ) : (
-                              <span className="text-base font-semibold text-gray-900">
+                              <span className="text-base font-bold text-gray-900">
                                 {mainVariant.sellingPrice.toLocaleString("vi-VN")}₫
                               </span>
                             )}
@@ -175,7 +177,7 @@ export default function Layout({ children }) {
                     );
                   })}
                 </div>
-                {products.length >= 5 && (
+                {products.length >= 4 && (
                   <div className="border-t border-gray-200 p-2">
                     <button
                       onClick={handleSearch}
@@ -187,7 +189,7 @@ export default function Layout({ children }) {
                 )}
               </div>
             )}
-            
+
             {/* Loading State */}
             {keyword.trim() && loading && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 p-4">
@@ -197,7 +199,7 @@ export default function Layout({ children }) {
                 </div>
               </div>
             )}
-            
+
             {/* No Results State */}
             {keyword.trim() && !loading && products && products.length === 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 p-4">
