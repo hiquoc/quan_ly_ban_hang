@@ -714,7 +714,7 @@ export default function ProductDetails() {
                     </div>
                 </div >
 
-                {relativeProducts!=null && (
+                {relativeProducts!=null && relativeProducts.length > 0 && (
                     <div className="px-20 py-12">
                         <div className="flex justify-between items-center mb-8">
                             <div>
