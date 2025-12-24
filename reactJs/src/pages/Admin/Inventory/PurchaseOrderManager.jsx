@@ -49,7 +49,7 @@ export default function PurchaseOrderManager() {
 
     const loadOrders = async (currentPage = page, pageSize = size, orderStatus = status, start = startDate, end = endDate) => {
         setIsLoading(true);
-        const ordersRes = await getAllPurchaseOrders(currentPage, pageSize, orderStatus || null, searchText,sortWarehouseId, start || null, end || null)
+        const ordersRes = await getAllPurchaseOrders(currentPage, pageSize, orderStatus || null, searchText, sortWarehouseId, start || null, end || null)
         if (ordersRes.error) {
             setPopup({ message: "Không thể tải danh sách đơn nhập!" });
             setIsLoading(false);
@@ -721,11 +721,19 @@ export default function PurchaseOrderManager() {
                                         <>
                                             <button
                                                 onClick={() => handleChangeStatusInForm("COMPLETED")}
-                                                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-400"
                                                 disabled={role !== "MANAGER" && role !== "ADMIN"}
+                                                className="
+                                                    px-4 py-2 rounded text-white
+                                                    bg-green-500 hover:bg-green-400
+                                                    disabled:bg-gray-300
+                                                    disabled:text-gray-500
+                                                    disabled:cursor-not-allowed
+                                                    disabled:hover:bg-gray-300
+                                                "
                                             >
                                                 Hoàn tất
                                             </button>
+
                                             <button
                                                 onClick={() => handleChangeStatusInForm("CANCELLED")}
                                                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-400"
@@ -776,34 +784,37 @@ export default function PurchaseOrderManager() {
 
                     </div>
                 </div>
-            )}
-            {isLoadingDetails && (
-                <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[9999] rounded-none pointer-events-auto">
-                    <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
-                        <svg
-                            className="animate-spin h-5 w-5 text-gray-700"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                        >
-                            <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                            ></circle>
-                            <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                            ></path>
-                        </svg>
-                        <span className="text-gray-700 font-medium">Đang tải...</span>
+            )
+            }
+            {
+                isLoadingDetails && (
+                    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[9999] rounded-none pointer-events-auto">
+                        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center gap-2 shadow-lg border border-gray-200">
+                            <svg
+                                className="animate-spin h-5 w-5 text-gray-700"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                ></circle>
+                                <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                ></path>
+                            </svg>
+                            <span className="text-gray-700 font-medium">Đang tải...</span>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <Popup message={popup.message} type={popup.type} onClose={() => setPopup({ message: "", type: "" })} duration={3000} />
             <ConfirmPanel
@@ -817,6 +828,6 @@ export default function PurchaseOrderManager() {
                 }}
                 onCancel={closeConfirmPanel}
             />
-        </div>
+        </div >
     );
 }

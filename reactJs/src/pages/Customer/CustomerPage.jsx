@@ -64,6 +64,7 @@ export default function CustomerPage() {
   const [reviewList, setReviewList] = useState([])
   const [showChangeAddressPanel, setShowChangeAddressPanel] = useState({ visible: false, orderId: null, oldName: "", oldPhone: "", oldAddress: "", newAddressId: null });
   const [showDeliveryImages, setShowDeliveryImages] = useState(null);
+  const [showImageModal, setShowImageModal] = useState({ visible: false, imageUrl: null })
   const [showCustomerService, setShowCustomerService] = useState(false);
 
   useEffect(() => {
@@ -1092,16 +1093,52 @@ export default function CustomerPage() {
                 ×
               </button>
 
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-items-center">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">Hình ảnh giao hàng</h2>
+              <div
+                className={`grid gap-4 justify-items-center ${showDeliveryImages.urls.length === 1
+                  ? 'grid-cols-1'
+                  : showDeliveryImages.urls.length === 2
+                    ? 'grid-cols-1 sm:grid-cols-2'
+                    : showDeliveryImages.urls.length === 3
+                      ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
+                      : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                  }`}
+              >
                 {showDeliveryImages.urls.map((url, index) => (
                   <img
                     key={index}
                     src={url}
                     alt={`Hình ảnh ${index + 1}`}
-                    className="max-h-[70vh] w-auto object-contain rounded-lg shadow-md"
+                    className="max-h-[70vh] w-auto object-contain rounded-lg shadow-md cursor-pointer hover:opacity-90 transition"
+                    onClick={() => setShowImageModal({ visible: true, imageUrl: url })}
                   />
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+        {showImageModal.visible && showImageModal.imageUrl && (
+          <div
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]"
+            onClick={() => setShowImageModal({ visible: false, imageUrl: null })}
+          >
+            <button
+              onClick={() => setShowImageModal({ visible: false, imageUrl: null })}
+              className="p-2 hover:bg-white/20 text-white rounded-full transition absolute top-4 right-4"
+            >
+              <FiX className="w-6 h-6" />
+            </button>
+
+            {/* Modal Content */}
+            <div
+              className="rounded-lg shadow-xl max-w-[90%] max-h-[90%] overflow-hidden relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={showImageModal.imageUrl}
+                alt="Hình ảnh"
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
             </div>
           </div>
         )}
@@ -1143,7 +1180,7 @@ export default function CustomerPage() {
 
                 <button
                   onClick={() => setShowCustomerService(false)}
-                  className="w-full py-3 bg-black rounded hover:bg-gray-800 font-medium"
+                  className="w-full py-3 bg-black text-white rounded hover:bg-gray-800 font-medium"
                 >
                   Đóng
                 </button>

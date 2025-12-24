@@ -1019,7 +1019,7 @@ public class OrderService {
                 if (currentWarehouseId != null && currentWarehouseId == -1L) {
                     processedWarehouses = new ArrayList<>(warehouses);
 
-                    note = note.split("(?i)kho:")[0].trim();
+                    note = note.replaceAll("(?i)\\s*-?\\s*kho:.*$", "").trim();
                     note = (note + " - Kho: " +
                             processedWarehouses.stream().map(String::valueOf).collect(Collectors.joining(",")))
                             .trim();
@@ -1035,7 +1035,7 @@ public class OrderService {
                     if (!processedWarehouses.contains(currentWarehouseId)) {
                         processedWarehouses.add(currentWarehouseId);
 
-                        note = note.split("(?i)kho:")[0].trim();
+                        note = note.replaceAll("(?i)\\s*-?\\s*kho:.*$", "").trim();
                         note = (note + " - Kho: " +
                                 processedWarehouses.stream()
                                         .map(String::valueOf)
