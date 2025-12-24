@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext } from "react";
 import {
   FiEdit, FiPlus, FiTrash2, FiMapPin, FiPhone, FiStar,
-  FiUser, FiPenTool, FiShoppingCart, FiDollarSign, FiTrendingUp
+  FiUser, FiPenTool, FiShoppingCart, FiDollarSign, FiTrendingUp,
+  FiX
 } from "react-icons/fi";
 import { FaBoxOpen, FaImage, FaPhoneAlt, FaPlusCircle, FaQuestionCircle, FaStar } from "react-icons/fa";
 import { FaClock, FaCheckCircle, FaSpinner, FaTruck, FaCheck, FaTimes, FaUndo } from 'react-icons/fa';

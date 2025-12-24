@@ -6,7 +6,7 @@ import ConfirmPanel from "../../../components/ConfirmPanel";
 import { getAllOrders, getDeliveredImageUrls, getOrderDetails, updateOrderStatus } from "../../../apis/orderApi"; // adjust import path
 import { FaQuestionCircle, FaChevronLeft, FaChevronRight, FaImage } from "react-icons/fa";
 import { PopupContext } from "../../../contexts/PopupContext";
-import { FiEye, FiMapPin, FiPhone, FiRefreshCcw, FiUser } from "react-icons/fi";
+import { FiEye, FiMapPin, FiPhone, FiRefreshCcw, FiUser, FiX } from "react-icons/fi";
 import { createPortal } from "react-dom";
 import { Helmet } from "react-helmet-async";
 import { getAllWarehouses } from "../../../apis/inventoryApi";
