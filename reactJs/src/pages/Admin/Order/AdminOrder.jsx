@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { AuthContext } from "../../../contexts/AuthContext";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
-import { getAllOrders, getOrderDetails, updateOrderStatus } from "../../../apis/orderApi"; // adjust import path
+import { getAllOrders, getDeliveredImageUrls, getOrderDetails, updateOrderStatus } from "../../../apis/orderApi"; // adjust import path
 import { FaQuestionCircle, FaChevronLeft, FaChevronRight, FaImage } from "react-icons/fa";
 import { PopupContext } from "../../../contexts/PopupContext";
 import { FiEye, FiMapPin, FiPhone, FiRefreshCcw, FiUser } from "react-icons/fi";
@@ -215,7 +215,7 @@ function AdminOrder() {
                             placeholder="Từ khóa..."
                             value={keyword}
                             onChange={e => setKeyword(e.target.value)}
-                            className="p-2 flex-1 border border-gray-700 rounded focus:outline-none focus:ring-1 focus:ring-gray-700"
+                            className="w-64 p-2 flex-1 border border-gray-700 rounded focus:outline-none focus:ring-1 focus:ring-gray-700"
                         />
                         <button
                             onClick={() => getData(currentPage)}
@@ -511,8 +511,8 @@ function AdminOrder() {
                                     {orderDetails.createdAt && <p>Ngày tạo: {new Date(orderDetails.createdAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.updatedAt && <p>Ngày cập nhật: {new Date(orderDetails.updatedAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.cancelledDate && <p>Ngày hủy: {new Date(orderDetails.cancelledDate).toLocaleString("vi-VN")}</p>}
-                                    {orderDetails.confirmedBy && <p>NV xác nhận: {orderDetails.confirmedBy}</p>}
-                                    {orderDetails.updatedBy && <p>NV cập nhật: {orderDetails.updatedBy}</p>}
+                                    {orderDetails.confirmedBy && <p>Nhân viên xác nhận: NV{orderDetails.confirmedBy}</p>}
+                                    {orderDetails.updatedBy && <p>Nhân viên cập nhật: NV{orderDetails.updatedBy}</p>}
                                 </div>
                             </div>
 
@@ -599,9 +599,9 @@ function AdminOrder() {
 
                             {/* Notes and images*/}
                             {(orderDetails.notes || orderDetails.statusName === "DELIVERED") && (
-                                <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                                <div className="mt-4 p-3 bg-gray-100 rounded-lg flex justify-between">
                                     {orderDetails.notes && (
-                                        <div className="text-gray-700 whitespace-pre-wrap">
+                                        <div className="flex-5 text-gray-700 whitespace-pre-wrap pr-5">
                                             <span className="font-semibold">Ghi chú:</span>
                                             <p>{orderDetails.notes}</p>
                                         </div>
@@ -791,7 +791,7 @@ function AdminOrder() {
                 )}
 
                 {showDeliveryImages && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
                             <button
                                 onClick={() => setShowDeliveryImages(null)}
@@ -799,14 +799,14 @@ function AdminOrder() {
                             >
                                 ×
                             </button>
-                            <h2 className="text-2xl font-semibold mb-6">Hình ảnh giao hàng</h2>
-                            <div className={`grid gap-4 ${showDeliveryImages.urls.length === 1 ? 'grid-cols-1 place-items-center' : 'grid-cols-2 md:grid-cols-3'}`}>
+
+                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-items-center">
                                 {showDeliveryImages.urls.map((url, index) => (
                                     <img
                                         key={index}
                                         src={url}
                                         alt={`Hình ảnh ${index + 1}`}
-                                        className={`w-full rounded-lg shadow-md ${showDeliveryImages.urls.length === 1 ? 'max-w-2xl' : 'h-64 object-cover'}`}
+                                        className="max-h-[70vh] w-auto object-contain rounded-lg shadow-md"
                                     />
                                 ))}
                             </div>

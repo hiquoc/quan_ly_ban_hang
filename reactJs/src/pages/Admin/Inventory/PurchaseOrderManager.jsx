@@ -722,6 +722,7 @@ export default function PurchaseOrderManager() {
                                             <button
                                                 onClick={() => handleChangeStatusInForm("COMPLETED")}
                                                 className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-400"
+                                                disabled={role !== "MANAGER" && role !== "ADMIN"}
                                             >
                                                 Hoàn tất
                                             </button>

@@ -428,7 +428,7 @@ export default function CustomerPage() {
                       {/* Order Time */}
                       <div className="flex flex-col gap-2">
                         <p className="text-gray-600 text-sm font-medium">
-                          Mã đơn: {order.orderNumber}
+                          {order.orderNumber}
                         </p>
                         <p className="text-gray-600 text-sm font-medium">
                           {order.deliveredDate
@@ -1083,7 +1083,7 @@ export default function CustomerPage() {
           </div>
         )}
         {showDeliveryImages && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
               <button
                 onClick={() => setShowDeliveryImages(null)}
@@ -1091,14 +1091,14 @@ export default function CustomerPage() {
               >
                 ×
               </button>
-              <h2 className="text-2xl font-semibold mb-6">Hình ảnh giao hàng</h2>
-              <div className={`grid gap-4 ${showDeliveryImages.urls.length === 1 ? 'grid-cols-1 place-items-center' : 'grid-cols-2 md:grid-cols-3'}`}>
+
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-items-center">
                 {showDeliveryImages.urls.map((url, index) => (
                   <img
                     key={index}
                     src={url}
                     alt={`Hình ảnh ${index + 1}`}
-                    className={`w-full rounded-lg shadow-md ${showDeliveryImages.urls.length === 1 ? 'max-w-2xl' : 'h-64 object-cover'}`}
+                    className="max-h-[70vh] w-auto object-contain rounded-lg shadow-md"
                   />
                 ))}
               </div>
@@ -1106,7 +1106,7 @@ export default function CustomerPage() {
           </div>
         )}
         {showCustomerService && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
               <button
                 onClick={() => setShowCustomerService(false)}
@@ -1114,7 +1114,7 @@ export default function CustomerPage() {
               >
                 ×
               </button>
-              <h2 className="text-2xl font-semibold mb-4 text-red-600">Chưa nhận được hàng?</h2>
+              <h2 className="text-2xl font-semibold mb-4">Chưa nhận được hàng?</h2>
 
               <div className="space-y-4">
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
@@ -1143,7 +1143,7 @@ export default function CustomerPage() {
 
                 <button
                   onClick={() => setShowCustomerService(false)}
-                  className="w-full py-3 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium"
+                  className="w-full py-3 bg-black rounded hover:bg-gray-800 font-medium"
                 >
                   Đóng
                 </button>

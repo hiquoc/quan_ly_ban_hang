@@ -103,6 +103,8 @@ public class PurchaseOrderController {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái không được để trống");
             }
             String trimmedStatus = request.getStatus().replace("\"", "").trim();
+            if(Objects.equals(role, "STAFF") && trimmedStatus.equals("COMPLETED"))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền xác nhận đơn hàng!");
             PurchaseOrderResponse response = purchaseOrderService.updatePurchaseOrderStatus(id, trimmedStatus, staffId,role,staffWarehouseId);
             return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái đơn hàng thành công!", true, response));
         } catch (ResponseStatusException ex) {
