@@ -542,17 +542,41 @@ export default function CustomerPage() {
                       <div>
                         {(order.statusName === "PENDING" || order.statusName === "CONFIRMED") && (
                           <button
-                            onClick={() => setShowChangeAddressPanel({
-                              visible: true, orderId: order.id, oldName: order.shippingName, oldPhone: order.shippingPhone,
-                              oldAddress: order.shippingAddress, newAddressId: null
-                            })}
+                            onClick={() =>
+                              setShowChangeAddressPanel({
+                                visible: true,
+                                orderId: order.id,
+                                oldName: order.shippingName,
+                                oldPhone: order.shippingPhone,
+                                oldAddress: order.shippingAddress,
+                                newAddressId: null
+                              })
+                            }
                             className="flex gap-2 items-center px-6 py-3 border border-black rounded hover:bg-gray-100 font-medium"
                           >
                             <FiMapPin /> Cập nhật địa chỉ
                           </button>
                         )}
+
+                        {order.statusName === "DELIVERED" && (
+                          <button
+                            onClick={async () => {
+                              const res = await getDeliveredImageUrls(order.id);
+                              if (res.error) {
+                                showPopup(res.error);
+                                return;
+                              }
+                              setShowDeliveryImages({ orderId: order.id, urls: res.data });
+                            }}
+                            className="flex gap-2 items-center px-6 py-3 border rounded hover:bg-gray-200 font-medium"
+                          >
+                            <FaImage /> Hình ảnh giao hàng
+                          </button>
+                        )}
                       </div>
-                      <div className="flex gap-2 mr-3">
+
+                      {/* RIGHT SIDE */}
+                      <div className="flex gap-2">
                         {order.statusName === "PENDING" && (
                           <>
                             {getPaymentButton(order)}
@@ -564,32 +588,15 @@ export default function CustomerPage() {
                                   onConfirm: () => handleCancelOrder(order.id)
                                 })
                               }
-                              className="flex gap-2 items-center px-6 py-3 bg-rose-600 text-white rounded hover:bg-rose-700 hover:cursor-pointer font-medium"
+                              className="flex gap-2 items-center px-6 py-3 bg-rose-600 text-white rounded hover:bg-rose-700 font-medium"
                             >
                               <FaCircleXmark /> Hủy đơn
                             </button>
                           </>
                         )}
-                      </div>
-                      <div>
-                        {order.statusName === "DELIVERED" && (
-                          <button onClick={async () => {
-                            const res = await getDeliveredImageUrls(order.id);
-                            if (res.error) {
-                              showPopup(res.error);
-                              return;
-                            }
-                            const imageUrls = res.data;
-                            setShowDeliveryImages({ orderId: order.id, urls: imageUrls });
-                          }} className="flex gap-2 items-center px-6 py-3 border rounded hover:bg-gray-200 hover:cursor-pointer font-medium"
-                          >
-                            <FaImage /> Hình ảnh giao hàng
-                          </button>
-                        )}
-                      </div>
-                      <div>
-                        {order.statusName === "DELIVERED" && order.userConfirmedAt != null && (
-                          <div className="flex gap-2 mr-3">
+
+                        {order.statusName === "DELIVERED" && order.userConfirmedAt == null && (
+                          <>
                             <button
                               onClick={() =>
                                 setConfirmPanel({
@@ -598,19 +605,21 @@ export default function CustomerPage() {
                                   onConfirm: () => confirmDeliveredOrder(order.id)
                                 })
                               }
-                              className="flex gap-2 items-center px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 hover:cursor-pointer font-medium"
+                              className="flex gap-2 items-center px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium"
                             >
                               <FaBoxOpen /> Đã nhận được hàng
                             </button>
+
                             <button
                               onClick={() => setShowCustomerService(true)}
-                              className="flex gap-2 items-center px-6 py-3 border border-red-500 text-red-500 rounded hover:bg-red-50 hover:cursor-pointer font-medium"
+                              className="flex gap-2 items-center px-6 py-3 border border-red-500 text-red-500 rounded hover:bg-red-50 font-medium"
                             >
                               <FaPhoneAlt /> Chưa nhận được hàng
                             </button>
-                          </div>
+                          </>
                         )}
                       </div>
+
                     </div>
                   </div>
                 ))))}

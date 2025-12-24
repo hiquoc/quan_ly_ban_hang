@@ -1,6 +1,7 @@
 package com.datn.order_service.dto.response;
 
 import com.datn.order_service.enums.PaymentStatus;
+import jakarta.persistence.Column;
 import lombok.*;
 
 import java.io.Serializable;
@@ -43,4 +44,8 @@ public class OrderDetailResponse implements Serializable {
     private OffsetDateTime shippedDate;
     private OffsetDateTime deliveredDate;
     private String notes;
+
+    private Long confirmedBy;
+    private Long updatedBy;
+    private OffsetDateTime userConfirmedAt;
 }

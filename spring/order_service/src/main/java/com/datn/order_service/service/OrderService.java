@@ -1258,6 +1258,10 @@ public class OrderService {
         response.setOrderDate(order.getOrderDate());
         response.setCreatedAt(order.getCreatedAt());
         response.setUpdatedAt(order.getUpdatedAt());
+        response.setConfirmedBy(order.getConfirmedBy());
+        response.setUpdatedBy(order.getUpdatedBy());
+        response.setUserConfirmedAt(order.getUserConfirmedAt());
+
         return response;
     }
 

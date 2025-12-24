@@ -352,8 +352,9 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}/images")
-    public ResponseEntity<ApiResponse<List<String>>> getDeliveredImageUrls(@PathVariable Long id){
-        return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu thành công!",true,orderService.getDeliveredImageUrls(id)));
+    public ResponseEntity<ApiResponse<List<String>>> getDeliveredImageUrls(
+            @PathVariable Long orderId){
+        return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu thành công!",true,orderService.getDeliveredImageUrls(orderId)));
     }
 
     @PostMapping("/{orderId}/confirm")

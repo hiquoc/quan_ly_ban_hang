@@ -297,7 +297,7 @@ function AdminOrder() {
                         <tbody className="bg-white">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="p-4 text-gray-500 text-center align-middle">
+                                    <td colSpan={8} className="p-4 text-gray-500 text-center align-middle">
                                         <div className="inline-flex gap-2 items-center justify-center">
                                             <svg
                                                 className="animate-spin h-5 w-5 text-black"
@@ -325,7 +325,7 @@ function AdminOrder() {
                                 </tr>
                             ) : (orders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-3 text-center text-gray-500">
+                                    <td colSpan={8} className="p-3 text-center text-gray-500">
                                         Không tìm thấy đơn hàng
                                     </td>
                                 </tr>
@@ -598,28 +598,35 @@ function AdminOrder() {
                             </div>
 
                             {/* Notes and images*/}
-                            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-                                {orderDetails.notes && (
-                                    <div className="text-gray-700 whitespace-pre-wrap">
-                                        <span className="font-semibold">Ghi chú:</span>
-                                        <p>{orderDetails.notes}</p>
-                                    </div>
-                                )}
-                                {orderDetails.statusName === "DELIVERED" && (
-                                    <button onClick={async () => {
-                                        const res = await getDeliveredImageUrls(orderDetails.id);
-                                        if (res.error) {
-                                            showPopup(res.error);
-                                            return;
-                                        }
-                                        const imageUrls = res.data;
-                                        setShowDeliveryImages({ orderId: orderDetails.id, urls: imageUrls });
-                                    }} className="flex gap-2 items-center px-6 py-3 border rounded hover:bg-gray-200 hover:cursor-pointer font-medium"
-                                    >
-                                        <FaImage /> Hình ảnh giao hàng
-                                    </button>
-                                )}
-                            </div>
+                            {(orderDetails.notes || orderDetails.statusName === "DELIVERED") && (
+                                <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                                    {orderDetails.notes && (
+                                        <div className="text-gray-700 whitespace-pre-wrap">
+                                            <span className="font-semibold">Ghi chú:</span>
+                                            <p>{orderDetails.notes}</p>
+                                        </div>
+                                    )}
+
+                                    {orderDetails.statusName === "DELIVERED" && (
+                                        <button
+                                            onClick={async () => {
+                                                const res = await getDeliveredImageUrls(orderDetails.id);
+                                                if (res.error) {
+                                                    showPopup(res.error);
+                                                    return;
+                                                }
+                                                setShowDeliveryImages({
+                                                    orderId: orderDetails.id,
+                                                    urls: res.data
+                                                });
+                                            }}
+                                            className="flex gap-2 items-center px-6 py-3 border rounded hover:bg-gray-200 font-medium"
+                                        >
+                                            <FaImage /> Hình ảnh giao hàng
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                         </div>
                     </div>
