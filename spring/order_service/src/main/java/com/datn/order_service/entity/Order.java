@@ -102,4 +102,13 @@ public class Order {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    @Column(name = "confirmed_by")
+    private Long confirmedBy;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
+
+    @Column(name="user_confirmed_at")
+    private OffsetDateTime userConfirmedAt;
 }

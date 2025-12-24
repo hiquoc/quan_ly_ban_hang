@@ -723,20 +723,20 @@ public class OrderService {
 
         order.setStatus(newStatus);
         handleStatusChange(order, staffId, oldStatus, newStatus,currentWarehouseId);
-        if (notes != null && !notes.isBlank()) {
-            if (staffId == 2L) { // CONFIRMED
-                String existingNotes = Optional.ofNullable(order.getNotes()).orElse("");
-                String khoPart = "";
-                int idx = existingNotes.toLowerCase().lastIndexOf("kho:");
-                if (idx != -1) {
-                    khoPart = existingNotes.substring(idx).trim();
-                }
-                order.setNotes(notes.trim() + (khoPart.isEmpty() ? "" : " - " + khoPart));
-            } else {
-                order.setNotes(notes);
-            }
-        }
-
+        order.setUpdatedBy(staffId);
+//        if (notes != null && !notes.isBlank()) {
+//            if (staffId == 2L) { // CONFIRMED
+//                String existingNotes = Optional.ofNullable(order.getNotes()).orElse("");
+//                String khoPart = "";
+//                int idx = existingNotes.toLowerCase().lastIndexOf("kho:");
+//                if (idx != -1) {
+//                    khoPart = existingNotes.substring(idx).trim();
+//                }
+//                order.setNotes(notes.trim() + (khoPart.isEmpty() ? "" : " - " + khoPart));
+//            } else {
+//                order.setNotes(notes);
+//            }
+//        }
 
         if ("DELIVERED".equals(newStatusName)) {
             List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
@@ -989,6 +989,7 @@ public class OrderService {
 
         switch (newStatusName) {
             case "CONFIRMED":
+                order.setConfirmedBy(staffId);
                 log.info("Order confirmed - OrderId: {}", order.getId());
                 break;
 
@@ -1352,9 +1353,31 @@ public class OrderService {
                 .build();
     }
 
-    public OrderRecommendResponse getOrderRecommendationData() {
-        return null;
+
+    public List<String> getDeliveredImageUrls(Long id) {
+        return deliveryServiceClient.getDeliveredImageUrls(id);
     }
+
+    public OrderResponse confirmOrder(Long orderId, Long customerId, String role) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with id: " + orderId));
+        if(!Objects.equals(order.getCustomerId(), customerId) || !role.equals("CUSTOMER"))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền xác nhận đơn hàng nay!");
+        order.setUserConfirmedAt(OffsetDateTime.now());
+        orderRepository.save(order);
+        return mapToResponse(order);
+    }
+
+    public void autoConfirmOrders() {
+        OffsetDateTime cutoff = OffsetDateTime.now().minusDays(7);
+        List<Order> orders = orderRepository.findByUserConfirmedAtIsNullAndDeliveredDateBefore(cutoff);
+
+        orders.forEach(order -> {
+            order.setUserConfirmedAt(OffsetDateTime.now());
+        });
+        orderRepository.saveAll(orders);
+    }
+
 
 
 //    @Transactional

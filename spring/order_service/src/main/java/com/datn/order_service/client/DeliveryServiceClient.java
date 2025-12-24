@@ -4,10 +4,9 @@ import com.datn.order_service.dto.request.CancelDeliveryOrderRequest;
 import com.datn.order_service.dto.request.DeliveryOrderRequest;
 import jakarta.validation.Valid;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @FeignClient(name = "delivery-service")
 public interface DeliveryServiceClient {
@@ -19,4 +18,7 @@ public interface DeliveryServiceClient {
 
     @PostMapping("/internal/deliveries/cancel")
     void cancelDeliveryOrderStatus(@RequestBody @Valid CancelDeliveryOrderRequest request);
+
+    @GetMapping("/internal/order/{id}")
+    List<String> getDeliveredImageUrls(@PathVariable Long id);
 }

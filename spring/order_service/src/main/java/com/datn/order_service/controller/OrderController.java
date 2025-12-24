@@ -351,6 +351,20 @@ public class OrderController {
         return ResponseEntity.ok(new ApiResponse<>("Cập nhật địa chỉ giao hàng thành công!", true, response));
     }
 
+    @GetMapping("/{orderId}/images")
+    public ResponseEntity<ApiResponse<List<String>>> getDeliveredImageUrls(@PathVariable Long id){
+        return ResponseEntity.ok(new ApiResponse<>("Lấy dữ liệu thành công!",true,orderService.getDeliveredImageUrls(id)));
+    }
+
+    @PostMapping("/{orderId}/confirm")
+    public ResponseEntity<ApiResponse<OrderResponse>> confirmOrder(
+            @PathVariable Long orderId,
+            @RequestHeader("X-Owner-Id") Long customerId,
+            @RequestHeader("X-User-Role") String role) {
+        OrderResponse response = orderService.confirmOrder(orderId,customerId,role);
+        return ResponseEntity.ok(new ApiResponse<>("Xác nhận đơn hàng thành công!", true, response));
+    }
+
     @GetMapping("/customer/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCustomerOrderStats(
             @RequestHeader("X-Owner-Id") Long customerId) {

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -71,4 +72,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Object[]> getDailyStats(@Param("from") OffsetDateTime from,
                                  @Param("to") OffsetDateTime to,
                                  @Param("statusId") Long statusId);
+
+    List<Order> findByUserConfirmedAtIsNullAndDeliveredDateBefore(OffsetDateTime cutoff);
 }

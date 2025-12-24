@@ -3,7 +3,7 @@ import {
   FiEdit, FiPlus, FiTrash2, FiMapPin, FiPhone, FiStar,
   FiUser, FiPenTool, FiShoppingCart, FiDollarSign, FiTrendingUp
 } from "react-icons/fi";
-import { FaBoxOpen, FaPlusCircle, FaQuestionCircle, FaStar } from "react-icons/fa";
+import { FaBoxOpen, FaImage, FaPhoneAlt, FaPlusCircle, FaQuestionCircle, FaStar } from "react-icons/fa";
 import { FaClock, FaCheckCircle, FaSpinner, FaTruck, FaCheck, FaTimes, FaUndo } from 'react-icons/fa';
 import { AuthContext } from "../../contexts/AuthContext";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -17,7 +17,7 @@ import {
 } from "../../apis/customerApi";
 import ConfirmPanel from "../../components/ConfirmPanel";
 import { changePassword } from "../../apis/authApi";
-import { cancelOrder, changeAddressForOrder, getCustomerOrders, getCustomerOrderStats, rePayPayment } from "../../apis/orderApi";
+import { cancelOrder, changeAddressForOrder, confirmDeliveredOrder, getCustomerOrders, getCustomerOrderStats, getDeliveredImageUrls, rePayPayment } from "../../apis/orderApi";
 import { CartContext } from "../../contexts/CartContext";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { FaBoxArchive, FaCircleXmark, FaMoneyBillTransfer, FaX } from "react-icons/fa6";
@@ -63,6 +63,8 @@ export default function CustomerPage() {
   const [reviewingProduct, setReviewingProduct] = useState({ variantName: "", variantId: null, orerId: null })
   const [reviewList, setReviewList] = useState([])
   const [showChangeAddressPanel, setShowChangeAddressPanel] = useState({ visible: false, orderId: null, oldName: "", oldPhone: "", oldAddress: "", newAddressId: null });
+  const [showDeliveryImages, setShowDeliveryImages] = useState(null);
+  const [showCustomerService, setShowCustomerService] = useState(false);
 
   useEffect(() => {
     loadCustomer();
@@ -424,14 +426,19 @@ export default function CustomerPage() {
                       </div>
 
                       {/* Order Time */}
-                      <p className="text-gray-600 text-sm font-medium">
-                        {order.deliveredDate
-                          ? `${new Date(order.deliveredDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.deliveredDate).toLocaleDateString("vi-VN")}`
-                          : order.cancelledDate
-                            ? `${new Date(order.cancelledDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.cancelledDate).toLocaleDateString("vi-VN")}`
-                            : `${new Date(order.orderDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.orderDate).toLocaleDateString("vi-VN")}`
-                        }
-                      </p>
+                      <div className="flex flex-col gap-2">
+                        <p className="text-gray-600 text-sm font-medium">
+                          Mã đơn: {order.orderNumber}
+                        </p>
+                        <p className="text-gray-600 text-sm font-medium">
+                          {order.deliveredDate
+                            ? `${new Date(order.deliveredDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.deliveredDate).toLocaleDateString("vi-VN")}`
+                            : order.cancelledDate
+                              ? `${new Date(order.cancelledDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.cancelledDate).toLocaleDateString("vi-VN")}`
+                              : `${new Date(order.orderDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(order.orderDate).toLocaleDateString("vi-VN")}`
+                          }
+                        </p>
+                      </div>
                     </div>
 
                     {/* Items list */}
@@ -563,15 +570,46 @@ export default function CustomerPage() {
                             </button>
                           </>
                         )}
-                        {/* {order.statusName === "DELIVERED" &&
-                        new Date() - new Date(order.deliveredDate) <= 7 * 24 * 60 * 60 * 1000
-                        && !order.items.every(item => item.returnRequested)
-                        ? <button className="px-3 py-2 rounded border border cursor-pointer hover:bg-gray-100"
-                          onClick={() => setReturnOrderForm({ visible: true, order: order })}>
-                          Trả hàng/ hoàn tiền</button>
-                        : ""
-                      } */}
-
+                      </div>
+                      <div>
+                        {order.statusName === "DELIVERED" && (
+                          <button onClick={async () => {
+                            const res = await getDeliveredImageUrls(order.id);
+                            if (res.error) {
+                              showPopup(res.error);
+                              return;
+                            }
+                            const imageUrls = res.data;
+                            setShowDeliveryImages({ orderId: order.id, urls: imageUrls });
+                          }} className="flex gap-2 items-center px-6 py-3 border rounded hover:bg-gray-200 hover:cursor-pointer font-medium"
+                          >
+                            <FaImage /> Hình ảnh giao hàng
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        {order.statusName === "DELIVERED" && order.userConfirmedAt != null && (
+                          <div className="flex gap-2 mr-3">
+                            <button
+                              onClick={() =>
+                                setConfirmPanel({
+                                  visible: true,
+                                  message: "Xác nhận đã nhận hàng?",
+                                  onConfirm: () => confirmDeliveredOrder(order.id)
+                                })
+                              }
+                              className="flex gap-2 items-center px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 hover:cursor-pointer font-medium"
+                            >
+                              <FaBoxOpen /> Đã nhận được hàng
+                            </button>
+                            <button
+                              onClick={() => setShowCustomerService(true)}
+                              className="flex gap-2 items-center px-6 py-3 border border-red-500 text-red-500 rounded hover:bg-red-50 hover:cursor-pointer font-medium"
+                            >
+                              <FaPhoneAlt /> Chưa nhận được hàng
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1030,6 +1068,75 @@ export default function CustomerPage() {
                     }`}
                 >
                   Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showDeliveryImages && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+              <button
+                onClick={() => setShowDeliveryImages(null)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+              <h2 className="text-2xl font-semibold mb-6">Hình ảnh giao hàng</h2>
+              <div className={`grid gap-4 ${showDeliveryImages.urls.length === 1 ? 'grid-cols-1 place-items-center' : 'grid-cols-2 md:grid-cols-3'}`}>
+                {showDeliveryImages.urls.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Hình ảnh ${index + 1}`}
+                    className={`w-full rounded-lg shadow-md ${showDeliveryImages.urls.length === 1 ? 'max-w-2xl' : 'h-64 object-cover'}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {showCustomerService && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+              <button
+                onClick={() => setShowCustomerService(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+              <h2 className="text-2xl font-semibold mb-4 text-red-600">Chưa nhận được hàng?</h2>
+
+              <div className="space-y-4">
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
+                  <p className="font-semibold text-blue-900 mb-2">Dịch vụ chăm sóc khách hàng</p>
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <FaPhoneAlt className="text-sm" />
+                    <a href="tel:0123456789" className="text-lg font-bold hover:underline">0123 456 789</a>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                  <p className="font-semibold text-yellow-900 mb-2">⚠️ Trước khi liên hệ, vui lòng:</p>
+                  <ul className="list-disc list-inside space-y-1 text-yellow-800 text-sm">
+                    <li>Kiểm tra lại <span className="font-semibold">hình ảnh giao hàng</span></li>
+                    <li>Xác nhận địa chỉ giao hàng với người nhận</li>
+                    <li>Kiểm tra với các thành viên gia đình/người nhận hộ</li>
+                  </ul>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded">
+                  <p className="text-sm text-gray-700">
+                    Nếu sau khi kiểm tra vẫn chưa nhận được hàng, vui lòng liên hệ số hotline bên trên.
+                    Chúng tôi sẽ hỗ trợ bạn trong thời gian sớm nhất.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowCustomerService(false)}
+                  className="w-full py-3 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium"
+                >
+                  Đóng
                 </button>
               </div>
             </div>

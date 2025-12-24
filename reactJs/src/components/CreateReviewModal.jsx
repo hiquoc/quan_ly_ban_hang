@@ -177,7 +177,7 @@ export default function CreateReviewModal({ isOpen, onClose, onSuccess, showPopu
                     >
                         <img
                             src={showImageModal.imageUrl}
-                            alt="Chứng nhận giao hàng"
+                            alt="Ảnh đánh giá"
                             className="max-w-full max-h-full object-contain rounded-lg"
                         />
                     </div>

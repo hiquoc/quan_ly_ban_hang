@@ -902,11 +902,13 @@ const AdminDashboard = () => {
                 </div>
 
 
-                <div className="text-gray-600 text-sm pt-2 ">
+                <div className="text-gray-600 text-sm">
                   <p className="font-bold">Mã khách hàng: KH{orderDetails.customerId}</p>
                   {orderDetails.createdAt && <p>Ngày tạo: {new Date(orderDetails.createdAt).toLocaleString("vi-VN")}</p>}
                   {orderDetails.updatedAt && <p>Ngày cập nhật: {new Date(orderDetails.updatedAt).toLocaleString("vi-VN")}</p>}
                   {orderDetails.cancelledDate && <p>Ngày hủy: {new Date(orderDetails.cancelledDate).toLocaleString("vi-VN")}</p>}
+                  {orderDetails.confirmedBy && <p>NV xác nhận: {orderDetails.confirmedBy}</p>}
+                  {orderDetails.updatedBy && <p>NV cập nhật: {orderDetails.updatedBy}</p>}
                 </div>
               </div>
 

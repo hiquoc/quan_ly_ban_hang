@@ -18,4 +18,6 @@ public interface PromotionUsageRepository extends JpaRepository<PromotionUsage, 
     Integer countByPromotionIdAndCustomerId(Long promotionId, Long customerId);
 
     boolean existsByPromotionIdAndOrderId(Long promotionId, Long orderId);
+
+    boolean existsByPromotionId(Long id);
 }

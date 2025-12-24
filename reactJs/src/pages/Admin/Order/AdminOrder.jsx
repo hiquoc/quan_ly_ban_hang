@@ -4,7 +4,7 @@ import { AuthContext } from "../../../contexts/AuthContext";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import { getAllOrders, getOrderDetails, updateOrderStatus } from "../../../apis/orderApi"; // adjust import path
-import { FaQuestionCircle, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaQuestionCircle, FaChevronLeft, FaChevronRight, FaImage } from "react-icons/fa";
 import { PopupContext } from "../../../contexts/PopupContext";
 import { FiEye, FiMapPin, FiPhone, FiRefreshCcw, FiUser } from "react-icons/fi";
 import { createPortal } from "react-dom";
@@ -46,6 +46,7 @@ function AdminOrder() {
 
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
     const [warehouseMap, setWarehouseMap] = useState(null)
+    const [showDeliveryImages, setShowDeliveryImages] = useState(null);
 
     useEffect(() => { handlLoadWarehouses() }, [])
 
@@ -505,11 +506,13 @@ function AdminOrder() {
                                 </div>
 
 
-                                <div className="text-gray-600 text-sm pt-2 ">
+                                <div className="text-gray-600 text-sm ">
                                     <p className="font-bold">Mã khách hàng: KH{orderDetails.customerId}</p>
                                     {orderDetails.createdAt && <p>Ngày tạo: {new Date(orderDetails.createdAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.updatedAt && <p>Ngày cập nhật: {new Date(orderDetails.updatedAt).toLocaleString("vi-VN")}</p>}
                                     {orderDetails.cancelledDate && <p>Ngày hủy: {new Date(orderDetails.cancelledDate).toLocaleString("vi-VN")}</p>}
+                                    {orderDetails.confirmedBy && <p>NV xác nhận: {orderDetails.confirmedBy}</p>}
+                                    {orderDetails.updatedBy && <p>NV cập nhật: {orderDetails.updatedBy}</p>}
                                 </div>
                             </div>
 
@@ -594,13 +597,30 @@ function AdminOrder() {
                                 </div>
                             </div>
 
-                            {/* Notes */}
-                            {orderDetails.notes && (
-                                <div className="mt-4 p-3 bg-gray-100 rounded-lg text-gray-700 whitespace-pre-wrap">
-                                    <span className="font-semibold">Ghi chú:</span>
-                                    <p>{orderDetails.notes}</p>
-                                </div>
-                            )}
+                            {/* Notes and images*/}
+                            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                                {orderDetails.notes && (
+                                    <div className="text-gray-700 whitespace-pre-wrap">
+                                        <span className="font-semibold">Ghi chú:</span>
+                                        <p>{orderDetails.notes}</p>
+                                    </div>
+                                )}
+                                {orderDetails.statusName === "DELIVERED" && (
+                                    <button onClick={async () => {
+                                        const res = await getDeliveredImageUrls(orderDetails.id);
+                                        if (res.error) {
+                                            showPopup(res.error);
+                                            return;
+                                        }
+                                        const imageUrls = res.data;
+                                        setShowDeliveryImages({ orderId: orderDetails.id, urls: imageUrls });
+                                    }} className="flex gap-2 items-center px-6 py-3 border rounded hover:bg-gray-200 hover:cursor-pointer font-medium"
+                                    >
+                                        <FaImage /> Hình ảnh giao hàng
+                                    </button>
+                                )}
+                            </div>
+
                         </div>
                     </div>
                 )}
@@ -763,7 +783,29 @@ function AdminOrder() {
                     </div>
                 )}
 
-
+                {showDeliveryImages && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+                            <button
+                                onClick={() => setShowDeliveryImages(null)}
+                                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                            >
+                                ×
+                            </button>
+                            <h2 className="text-2xl font-semibold mb-6">Hình ảnh giao hàng</h2>
+                            <div className={`grid gap-4 ${showDeliveryImages.urls.length === 1 ? 'grid-cols-1 place-items-center' : 'grid-cols-2 md:grid-cols-3'}`}>
+                                {showDeliveryImages.urls.map((url, index) => (
+                                    <img
+                                        key={index}
+                                        src={url}
+                                        alt={`Hình ảnh ${index + 1}`}
+                                        className={`w-full rounded-lg shadow-md ${showDeliveryImages.urls.length === 1 ? 'max-w-2xl' : 'h-64 object-cover'}`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <Popup message={popup.message} type={popup.type} onClose={() => setPopup({ message: "", type: "error" })} duration={3000} />
             </div></>
     );

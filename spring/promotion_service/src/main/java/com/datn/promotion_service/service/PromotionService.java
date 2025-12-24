@@ -209,6 +209,10 @@ public class PromotionService {
             throw new PromotionNotFoundException("Không tìm thấy khuyến mãi với ID: " + id);
         }
 
+        if(!promotionUsageRepository.existsByPromotionId(id)){
+            throw new PromotionNotFoundException("Không thể xóa mã khuyến mãi này!");
+        }
+
         promotionRepository.deleteById(id);
        webhookUtils.postToWebhook(id, "delete");
         log.info("Khuyến mãi xóa thành công: {}", id);

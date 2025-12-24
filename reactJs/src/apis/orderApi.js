@@ -99,3 +99,15 @@ export const changeAddressForOrder = async (orderId,name,phone, address) => {
         api.post(`/orders/${orderId}/address`, { name,phone,address })
     );
 }
+
+export const getDeliveredImageUrls = async (orderId) => {
+    return safeApiCall(() =>
+        api.get(`/orders/${orderId}/images`)
+    );
+}
+
+export const confirmDeliveredOrder = async (orderId) => {
+    return safeApiCall(() =>
+        api.post(`/orders/${orderId}/confirm`)
+    );
+}

@@ -59,5 +59,9 @@ public class DeliveryOrderController {
         deliveryOrderService.deleteDeliveryOrder(id);
     }
 
+    @GetMapping("/internal/order/{id}")
+    public List<String> getDeliveredImageUrls(@PathVariable Long id){
+        return deliveryOrderService.getDeliveredImageUrls(id);
+    }
 
 }

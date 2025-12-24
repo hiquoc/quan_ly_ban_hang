@@ -417,4 +417,12 @@ public class DeliveryOrderService {
         order.setStatus(DeliveryStatus.PENDING);
         order.setAssignedAt(null);
     }
+
+    public List<String> getDeliveredImageUrls(Long orderId) {
+        return deliveryOrderRepository.findByOrderId(orderId).stream()
+                .filter(o -> o.getStatus() == DeliveryStatus.DELIVERED)
+                .map(DeliveryOrder::getDeliveredImageUrl)
+                .filter(Objects::nonNull)
+                .toList();
+    }
 }
