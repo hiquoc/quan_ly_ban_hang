@@ -7,8 +7,8 @@ import com.doan.auth_service.dtos.Login.LoginRequest;
 import com.doan.auth_service.dtos.Login.LoginResponse;
 import com.doan.auth_service.dtos.Login.RegisterRequest;
 import com.doan.auth_service.models.Account;
-import com.doan.auth_service.repositories.PendingActionRepository;
 import com.doan.auth_service.repositories.DeliveryRepository;
+import com.doan.auth_service.repositories.PendingActionRepository;
 import com.doan.auth_service.repositories.VerificationCodeRepository;
 import com.doan.auth_service.services.AccountService;
 import com.doan.auth_service.services.CustomerServiceClient;
@@ -84,7 +84,7 @@ public class AuthController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/register")
     public ResponseEntity<Map<String, Object>> staffRegister(@Valid @RequestBody RegisterRequest registerRequest) {
-        try{
+        try {
             accountService.createStaff(registerRequest);
 
             Map<String, Object> responseBody = new HashMap<>();
@@ -134,21 +134,25 @@ public class AuthController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/accounts/active/{id}")
-    public ApiResponse<Void> changeAccountActive(
+    public ResponseEntity<?> changeAccountActive(
             @PathVariable Long id,
             @RequestHeader("X-Account-Id") Long tokenAccountId,
             @RequestHeader("X-User-Role") String tokenRole) {
-        if (id.equals(tokenAccountId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi trạng thái của chính mình!");
-        }
-        if (Objects.equals(tokenRole, "MANAGER")) {
-            Account account = accountService.getAccountById(id);
-            if (Objects.equals(account.getRole().getName(), "ADMIN")) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền khóa tài khoản này!");
+        try {
+            if (id.equals(tokenAccountId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể thay đổi trạng thái của chính mình!");
             }
+            if (Objects.equals(tokenRole, "MANAGER")) {
+                Account account = accountService.getAccountById(id);
+                if (Objects.equals(account.getRole().getName(), "ADMIN")) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền khóa tài khoản này!");
+                }
+            }
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
         }
         accountService.changeAccountActive(id);
-        return new ApiResponse<>("Cập nhật trạng thái thành công!", true, null);
+        return ResponseEntity.ok(new ApiResponse<>("Cập nhật trạng thái thành công!", true, null));
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
@@ -158,14 +162,17 @@ public class AuthController {
             @RequestHeader("X-Account-Id") Long tokenAccountId,
             @RequestHeader("X-User-Role") String tokenRole) {
 
-        if (id.equals(tokenAccountId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể xóa tài khoản của chính mình!");
-        }
+        try {
+            if (id.equals(tokenAccountId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không thể xóa tài khoản của chính mình!");
+            }
+            Account account = accountService.getAccountById(id);
 
-        Account account = accountService.getAccountById(id);
-
-        if ("MANAGER".equals(tokenRole) && "ADMIN".equals(account.getRole().getName())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xóa tài khoản này!");
+            if ("MANAGER".equals(tokenRole) && "ADMIN".equals(account.getRole().getName())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xóa tài khoản này!");
+            }
+        } catch (ResponseStatusException ex) {
+            return errorResponse(ex);
         }
 
         try {
@@ -183,8 +190,9 @@ public class AuthController {
     public void changeStaffRole(@PathVariable Long staffId, @PathVariable Long roleId) {
         accountService.changeStaffRole(staffId, roleId);
     }
+
     @GetMapping("/internal/staffs")
-    public Map<Long,String> getStaffsRole(@RequestParam List<Long> staffIds){
+    public Map<Long, String> getStaffsRole(@RequestParam List<Long> staffIds) {
         return accountService.getStaffsRole(staffIds);
     }
 
@@ -197,10 +205,11 @@ public class AuthController {
                     .body(Map.of("message", "Kiểm tra thất bại: " + e.getMessage(), "success", false));
         }
     }
+
     @PostMapping("/internal/accounts/{ownerId}/{roleId}/active")
-    public ResponseEntity<?> changeAccountActive(@PathVariable Long ownerId,@PathVariable Long roleId) {
+    public ResponseEntity<?> changeAccountActive(@PathVariable Long ownerId, @PathVariable Long roleId) {
         try {
-            accountService.changeAccountActiveByOwnerIdAndRole(ownerId,roleId);
+            accountService.changeAccountActiveByOwnerIdAndRole(ownerId, roleId);
             return ResponseEntity.ok(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

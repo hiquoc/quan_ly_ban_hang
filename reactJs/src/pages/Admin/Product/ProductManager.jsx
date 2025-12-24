@@ -491,7 +491,9 @@ export default function ProductManager() {
           </button>
           <button
             onClick={() => handleAddProduct()}
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+            className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition
+               ${role !== "ADMIN" && role !== "MANAGER" ? "opacity-50 cursor-not-allowed" : ""}`}
+            disabled={role !== "ADMIN" && role !== "MANAGER"}
           >
             Thêm sản phẩm
           </button>

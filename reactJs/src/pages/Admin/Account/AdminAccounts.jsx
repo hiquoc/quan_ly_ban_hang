@@ -287,7 +287,6 @@ function AdminAccounts() {
                         >
                           <FiEye />
                         </button>
-                        {role !== "MANAGER" && role !== "ADMIN" ? null : (
                         <button
                           className="p-2 text-red-600 hover:bg-red-100 rounded transition"
                           onClick={() => confirmAction(
@@ -297,7 +296,6 @@ function AdminAccounts() {
                         >
                           <FiTrash2 />
                         </button>
-                        )}
                       </div>
                     </td>
                   </tr>
