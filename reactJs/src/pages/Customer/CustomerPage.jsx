@@ -236,6 +236,15 @@ export default function CustomerPage() {
       loadOrders();
     }
   };
+  const handleConfirmDeliveredOrder = async (orderId) => {
+    const res = await confirmDeliveredOrder(orderId);
+    if (res.error) {
+      showPopup(res.error);
+    } else {
+      showPopup("Xác nhận thành công!");
+      loadOrders();
+    }
+  };
 
   const handleChangeAddressForOrder = async (orderId, addressId) => {
     if (isProcessing) return;
@@ -604,7 +613,7 @@ export default function CustomerPage() {
                                 setConfirmPanel({
                                   visible: true,
                                   message: "Xác nhận đã nhận hàng?",
-                                  onConfirm: () => confirmDeliveredOrder(order.id)
+                                  onConfirm: () => handleConfirmDeliveredOrder(order.id)
                                 })
                               }
                               className="flex gap-2 items-center px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium"
@@ -616,7 +625,7 @@ export default function CustomerPage() {
                               onClick={() => setShowCustomerService(true)}
                               className="flex gap-2 items-center px-6 py-3 border border-red-500 text-red-500 rounded hover:bg-red-50 font-medium"
                             >
-                              <FaPhoneAlt /> Chưa nhận được hàng
+                              <FaPhoneAlt /> Chưa nhận được hàng?
                             </button>
                           </>
                         )}
@@ -1159,7 +1168,7 @@ export default function CustomerPage() {
                   <p className="font-semibold text-blue-900 mb-2">Dịch vụ chăm sóc khách hàng</p>
                   <div className="flex items-center gap-2 text-blue-800">
                     <FaPhoneAlt className="text-sm" />
-                    <a href="tel:0123456789" className="text-lg font-bold hover:underline">0123 456 789</a>
+                    <a href="tel:0123456789" className="text-lg font-bold hover:underline">0123456789</a>
                   </div>
                 </div>
 

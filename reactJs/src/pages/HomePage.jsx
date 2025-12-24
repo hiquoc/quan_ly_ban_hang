@@ -727,6 +727,9 @@ export default function HomePage() {
             <p className="text-gray-500 text-xs mt-4">
               © 2025 Elec. Bản quyền thuộc về Elec.
             </p>
+            <p className="text-gray-500 text-xs mt-4">
+              CSKH: 0123456789
+            </p>
           </div>
         </div>
 
