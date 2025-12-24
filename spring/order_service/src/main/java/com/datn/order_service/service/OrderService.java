@@ -1382,6 +1382,9 @@ public class OrderService {
         orderRepository.saveAll(orders);
     }
 
+    public boolean checkPendingOrder(Long id) {
+        return orderRepository.existsByCustomerIdAndStatusNot(id,"DELIVERED");
+    }
 
 
 //    @Transactional

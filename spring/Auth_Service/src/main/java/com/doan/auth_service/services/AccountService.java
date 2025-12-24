@@ -13,6 +13,7 @@ import com.doan.auth_service.models.Account;
 import com.doan.auth_service.models.PendingAction;
 import com.doan.auth_service.models.Role;
 import com.doan.auth_service.repositories.AccountRepository;
+import com.doan.auth_service.repositories.OrderRepository;
 import com.doan.auth_service.repositories.PendingActionRepository;
 import com.doan.auth_service.repositories.VerificationCodeRepository;
 import com.doan.auth_service.utils.JwtUtil;
@@ -40,6 +41,7 @@ public class AccountService {
     private final CustomerServiceClient customerServiceClient;
     private final StaffServiceClient staffServiceClient;
     private final DeliveryServiceClient deliveryServiceClient;
+    private final OrderRepository orderRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
@@ -322,7 +324,6 @@ public class AccountService {
         return new PageImpl<>(accountResponses, pageable, totalElements);
     }
 
-
     public Account updateAccount(Long id, Account accountDetails) {
         return accountRepository.findById(id)
                 .map(account -> {
@@ -365,7 +366,16 @@ public class AccountService {
         accountRepository.save(account);
     }
 
+    @Transactional
     public void deleteAccount(Long id) {
+        Account account=accountRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
+        if(Objects.equals(account.getRole().getName(), "CUSTOMER")){
+            Long customerId=account.getOwnerId();
+            if(orderRepository.checkPendingOrder(customerId))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Tài khoản đang có đơn hàng chưa hoàn tất!");
+        }
         accountRepository.deleteById(id);
     }
 
@@ -373,13 +383,17 @@ public class AccountService {
     public void changeAccountActive(Long id) {
         Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản với id: " + id));
-        account.setIsActive(!account.getIsActive());
         Long roleId = account.getRole().getId();
-        if (roleId == 5L) {
+        if(roleId==4L){
+            if(orderRepository.checkPendingOrder(account.getOwnerId()))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Tài khoản đang có đơn hàng chưa hoàn tất!");
+        }
+        else if (roleId == 5L) {
             deliveryServiceClient.changeShipperActive(account.getOwnerId());
-        } else if (roleId != 4) {
+        }else{
             staffServiceClient.changeStaffActive(account.getOwnerId());
         }
+        account.setIsActive(!account.getIsActive());
     }
 
     @Transactional

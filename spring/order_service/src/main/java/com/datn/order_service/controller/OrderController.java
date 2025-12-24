@@ -403,6 +403,10 @@ public class OrderController {
         OrderDetailResponse response = orderService.getOrder(orderId);
         return ResponseEntity.ok(new ApiResponse<>("Lấy đơn hàng thành công!", true, response));
     }
+    @GetMapping("/internal/customer/{customerId}")
+    public boolean checkPendingOrder(@PathVariable Long customerId){
+        return orderService.checkPendingOrder(customerId);
+    }
 
     @GetMapping("/secure/dashboard")
     public ResponseEntity<OrderDashboardResponse> getDashboard(

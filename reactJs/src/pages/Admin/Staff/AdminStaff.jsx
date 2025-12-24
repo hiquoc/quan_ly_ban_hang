@@ -65,11 +65,11 @@ export default function AdminStaff() {
     function handleOnCloseConfirmPanel() {
         setConfirmPanel({ visible: false, message: '', onConfirm: null })
     }
-    const handleToggleActive = async (id, isActive,currentRole) => {
+    const handleToggleActive = async (id, isActive, currentRole) => {
         console.log(1)
         setConfirmPanel({
             visible: true, message: `${isActive ? "Khóa" : "Mở khóa"} tài khoản của NV${id}?`, onConfirm: async () => {
-                const res = await changeStaffActive(id,currentRole);
+                const res = await changeStaffActive(id, currentRole);
                 if (res.error) return showPopup(res.error);
                 setStaffs(prev => prev.map(s => s.id === id ? { ...s, active: !s.active } : s));
                 handleOnCloseConfirmPanel();
@@ -219,15 +219,17 @@ export default function AdminStaff() {
                             <td className="p-3 border-b border-gray-200 text-center">{staff.email || "-"}</td>
                             <td className="p-3 border-b border-gray-200 text-center">{staff.phone || "-"}</td>
                             <td className="p-3 border-b border-gray-200 text-center">
-                                <select
-                                    className="p-1 border rounded"
-                                    onChange={(e) => handleChangeStaffWarehouse(staff.id, e.target.value)}
-                                    value={staff.warehouseId}>
-                                    {warehouses && warehouses.map(w =>
-                                        <option key={w.id} value={w.id}>{w.code}</option>
-                                    )}
+                                {staff.role === "STAFF" ? (
+                                    <select
+                                        className="p-1 border rounded"
+                                        onChange={(e) => handleChangeStaffWarehouse(staff.id, e.target.value)}
+                                        value={staff.warehouseId}>
+                                        {warehouses && warehouses.map(w =>
+                                            <option key={w.id} value={w.id}>{w.code}</option>
+                                        )}
 
-                                </select>
+                                    </select>
+                                ) : (<span className="text-gray-500">-</span>)}
                             </td>
                             <td className="p-3 border-b border-gray-200 text-center">
                                 {staff.role !== "ADMIN" ? (
@@ -257,7 +259,7 @@ export default function AdminStaff() {
                                         title={staff.active ? "Khóa" : "Mở khóa"}
                                         aria-label={staff.active ? "Khóa" : "Mở khóa"}
                                         onClick={() =>
-                                            handleToggleActive(staff.id, staff.active,staff.role)
+                                            handleToggleActive(staff.id, staff.active, staff.role)
                                         }
                                     >
                                         {!staff.active ? <FiLock /> : <FiUnlock />}

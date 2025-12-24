@@ -93,7 +93,7 @@ function AddStaffForm({ warehouses, onClose, onSuccess, showPopup }) {
                         <FiX size={20} />
                     </button>
                     <h2 className="text-2xl font-bold">Thêm tài khoản mới</h2>
-                    <p className="text-gray-700 text-sm mt-1">Tạo tài khoản nhân viên giao hàng</p>
+                    <p className="text-gray-700 text-sm mt-1">Tạo tài khoản nhân viên</p>
                 </div>
 
                 {/* Form */}

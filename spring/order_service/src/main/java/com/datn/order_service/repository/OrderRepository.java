@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -74,4 +73,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                                  @Param("statusId") Long statusId);
 
     List<Order> findByUserConfirmedAtIsNullAndDeliveredDateBefore(OffsetDateTime cutoff);
+
+    @Query("""
+                SELECT COUNT(o) > 0
+                FROM Order o
+                JOIN o.status s
+                WHERE o.customerId = :customerId
+                  AND s.name <> :statusName
+            """)
+    boolean existsByCustomerIdAndStatusNot(
+            @Param("customerId") Long customerId,
+            @Param("statusName") String statusName
+    );
 }

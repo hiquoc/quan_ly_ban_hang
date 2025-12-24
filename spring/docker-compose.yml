@@ -156,10 +156,10 @@ services:
 
   #  # ==================== ORDER ====================
   order-service:
-    build:
-      context: ./order_service
-      dockerfile: Dockerfile
-#    image: huy404/spring-order-service:v5
+#    build:
+#      context: ./order_service
+#      dockerfile: Dockerfile
+    image: huy404/spring-order-service:v5
     container_name: order-service
     ports:
       - "${ORDER_SERVICE_PORT}:8080"
