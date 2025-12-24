@@ -66,7 +66,6 @@ export default function AdminStaff() {
         setConfirmPanel({ visible: false, message: '', onConfirm: null })
     }
     const handleToggleActive = async (id, isActive, currentRole) => {
-        console.log(1)
         setConfirmPanel({
             visible: true, message: `${isActive ? "Khóa" : "Mở khóa"} tài khoản của NV${id}?`, onConfirm: async () => {
                 const res = await changeStaffActive(id, currentRole);
@@ -78,7 +77,7 @@ export default function AdminStaff() {
     };
 
     const handleRoleChange = async (staffId, newRole) => {
-        const roleMap = { MANAGER: 2, STAFF: 3 };
+        const roleMap = { MANAGER: 2, STAFF: 3, SUPPORT: 6 };
         const result = await changeStaffRole(staffId, roleMap[newRole]);
         if (result?.error) return showPopup(result.error);
         // showPopup("Thay đổi quyền thành công!", "success");
@@ -245,6 +244,7 @@ export default function AdminStaff() {
                                         className="border rounded px-2 py-1"
                                     >
                                         <option value="STAFF">STAFF</option>
+                                        <option value="SUPPORT">SUPPORT</option>
                                         <option value="MANAGER">MANAGER</option>
                                     </select>
                                 ) : staff.role}

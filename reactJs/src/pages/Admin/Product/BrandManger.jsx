@@ -4,7 +4,9 @@ import ConfirmPanel from "../../../components/ConfirmPanel";
 import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye, FiTrash2 } from "react-icons/fi";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { PopupContext } from "../../../contexts/PopupContext"
+import { AuthContext } from "../../../contexts/AuthContext";
 export default function BrandManager() {
+    const { role } = useContext(AuthContext);
     const { showPopup } = useContext(PopupContext)
     const [brands, setBrands] = useState([]);
     const [status, setStatus] = useState(null);
@@ -55,7 +57,7 @@ export default function BrandManager() {
             setIsProcessing(true)
             const response = await createBrand(form.name, form.slug, form.description, imageFile || undefined);
             if (response?.error) {
-                showPopup(response.error);
+                showPopup("Không thể tạo thương hiệu\n" + response.error);
                 return;
             }
             showPopup(response.message || "Tạo thương hiệu thành công!", "success");
@@ -73,7 +75,7 @@ export default function BrandManager() {
             setIsProcessing(true)
             const response = await updateBrand(editingBrandId, form.name, form.slug, form.description, imageFile || undefined);
             if (response?.error) {
-                showPopup(response.error);
+                showPopup("Không thể cập nhật thương hiệu\n" + response.error);
                 return;
             }
             showPopup(response.message || "Cập nhật thương hiệu thành công!", "success");
@@ -89,7 +91,7 @@ export default function BrandManager() {
     const handleChangeBrandActive = async (id) => {
         const response = await changeBrandActive(id);
         if (response?.error) {
-            showPopup(response.error);
+            showPopup("Không thể cập nhật trạng thái thương hiệu\n" + response.error);
             return;
         }
         showPopup(response.message || "Cập nhật trạng thái thành công!", "success");
@@ -98,7 +100,7 @@ export default function BrandManager() {
     const handleChangeBrandFeatured = async (id) => {
         const response = await changeBrandFeatured(id);
         if (response?.error) {
-            showPopup(response.error);
+            showPopup("Không thể cập nhật nổi bật thương hiệu\n" + response.error);
             return;
         }
         showPopup(response.message || "Cập nhật nổi bật thành công!", "success");
@@ -107,7 +109,7 @@ export default function BrandManager() {
     const handleDeleteBrand = async (id) => {
         const response = await deleteBrand(id);
         if (response?.error) {
-            showPopup(response.error);
+            showPopup("Không thể xóa thương hiệu\n" + response.error);
             return;
         }
         showPopup(response.message || "Xóa thương hiệu thành công!", "success");
@@ -202,7 +204,9 @@ export default function BrandManager() {
                     <button onClick={() => handleLoadBrands(0)} className="flex items-center px-4 py-2 border  text-gray-800 rounded hover:bg-gray-300 transition">
                         <FiRefreshCw className="h-5 w-5 mr-2" /> Làm mới
                     </button>
-                    <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition">
+                    <button onClick={() => setShowForm(true)} className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition
+                         ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={role !== "ADMIN" && role !== "MANAGER"}>
                         Thêm thương hiệu
                     </button>
                 </div>
@@ -299,7 +303,11 @@ export default function BrandManager() {
                                         className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
                                             ${b.isActive ? "bg-green-500 text-white hover:bg-green-400"
                                                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                            }`} onClick={() => toggleBrandActive(b.id, b.isActive, b.name)}
+                                            }
+                                            ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}
+                                            `}
+                                        onClick={() => toggleBrandActive(b.id, b.isActive, b.name)}
+                                        disabled={role !== "ADMIN" && role !== "MANAGER"}
                                     >
                                         {b.isActive ? "Hoạt động" : "Đã khóa"}
                                     </button>
@@ -310,7 +318,10 @@ export default function BrandManager() {
                                         className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
                                             ${b.isFeatured ? "bg-green-500 text-white hover:bg-green-400"
                                                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                            }`} onClick={() => toggleBrandFeatured(b.id, b.isFeatured, b.name)}
+                                            }
+                                             ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                                        onClick={() => toggleBrandFeatured(b.id, b.isFeatured, b.name)}
+                                        disabled={role !== "ADMIN" && role !== "MANAGER"}
                                     >
                                         {b.isFeatured ? "Nổi bật" : "Không"}
                                     </button>
@@ -324,8 +335,10 @@ export default function BrandManager() {
                                             <FiEye></FiEye>
                                         </button>
                                         <button
-                                            className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                                            className={`p-2 text-red-600 hover:bg-red-100 rounded transition
+                                                 ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
                                             onClick={() => toggleBrandDelete(b.id, b.name)}
+                                            disabled={role !== "ADMIN" && role !== "MANAGER"}
                                         >
                                             <FiTrash2></FiTrash2>
                                         </button>
@@ -475,7 +488,9 @@ export default function BrandManager() {
                             </button>
                             <button
                                 onClick={editingBrandId ? handleUpdateBrand : handleCreateBrand}
-                                className="px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold"
+                                className={`px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold 
+                                    ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                                disabled={role !== "ADMIN" && role !== "MANAGER"}
                             >
                                 {editingBrandId ? "Cập nhật" : "Thêm"}
                             </button>

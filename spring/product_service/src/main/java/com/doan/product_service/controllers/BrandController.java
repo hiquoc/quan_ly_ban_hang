@@ -61,7 +61,7 @@ public class BrandController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/brands")
     public ResponseEntity<?> createBrand(@RequestPart("brand") @Valid BrandRequest brandRequest,
                                          @RequestPart(value = "image", required = false) MultipartFile image){
@@ -72,7 +72,7 @@ public class BrandController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PutMapping("/secure/brands/{id}")
     public ResponseEntity<?> updateBrand(@PathVariable Long id, @RequestPart("brand") @Valid BrandRequest brandRequest,
                                          @RequestPart(value = "image", required = false) MultipartFile image){
@@ -83,7 +83,7 @@ public class BrandController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/brands/active/{id}")
     public ResponseEntity<?> changeBrandActive(@PathVariable Long id){
         try {
@@ -93,7 +93,7 @@ public class BrandController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/brands/featured/{id}")
     public ResponseEntity<?> changeBrandFeatured(@PathVariable Long id){
         try {
@@ -103,7 +103,7 @@ public class BrandController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @DeleteMapping("/secure/brands/{id}")
     public ResponseEntity<?> deleteBrand(@PathVariable Long id){
         try {

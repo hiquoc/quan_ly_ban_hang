@@ -772,7 +772,7 @@ function AdminOrder() {
                                                 default: statusId = 1;
                                             }
                                             const res = await updateOrderStatus(orderId, statusId, confirmNotes);
-                                            if (res.error) return showPopup(res.error);
+                                            if (res.error) return showPopup("Không thể cập nhật trạng thái đơn hàng\n" + res.error);
 
                                             showPopup("Cập nhật trạng thái thành công!");
                                             setConfirmNotes("");

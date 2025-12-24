@@ -55,7 +55,7 @@ public class CategoryController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/categories")
     public ResponseEntity<?> createCategory(@RequestPart("category") @Valid CategoryRequest categoryRequest,
                                             @RequestPart(value = "image", required = false) MultipartFile image){
@@ -65,7 +65,7 @@ public class CategoryController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PutMapping("/secure/categories/{id}")
     public ResponseEntity<?> updateCategory(@PathVariable Long id, @RequestPart("category") @Valid CategoryRequest categoryRequest,
                                             @RequestPart(value = "image", required = false) MultipartFile image){
@@ -75,7 +75,7 @@ public class CategoryController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/categories/active/{id}")
     public ResponseEntity<?> changeCategoryActive(@PathVariable Long id){
         try {
@@ -85,7 +85,7 @@ public class CategoryController {
             return errorResponse(ex);
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @DeleteMapping("/secure/categories/{id}")
     public ResponseEntity<?> deleteCategory(@PathVariable Long id){
         try {

@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { getAllWarehouses, createWarehouse, updateWarehouse, deleteWarehouse } from "../../../apis/inventoryApi";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import { FiEye, FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function WarehouseManager() {
+  const {role}=useContext(AuthContext)
   const [warehouses, setWarehouses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", code: "", address: "", description: "" });
@@ -130,7 +132,9 @@ export default function WarehouseManager() {
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+            className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition
+               ${role !== "ADMIN" && role !== "MANAGER" ? "opacity-50 cursor-not-allowed" : ""}`}
+            disabled={role !== "ADMIN" && role !== "MANAGER"}
           >
             Thêm kho
           </button>
@@ -225,8 +229,10 @@ export default function WarehouseManager() {
                           <FiEye></FiEye>
                         </button>
                         <button
-                          className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                          className={`p-2 text-red-600 hover:bg-red-100 rounded transition
+                             ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
                           onClick={() => toggleWarehouseDelete(w.id, w.name)}
+                          disabled={role !== "ADMIN" && role !== "MANAGER"}
                         >
                           <FiTrash2></FiTrash2>
                         </button>
@@ -338,7 +344,9 @@ export default function WarehouseManager() {
               {!readOnly && (
                 <button
                   onClick={editingWarehouseId ? handleUpdateWarehouse : handleCreateWarehouse}
-                  className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+                  className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition
+                     ${role !== "ADMIN" && role !== "MANAGER" ? "opacity-50 cursor-not-allowed" : ""}`}
+                  disabled={role !== "ADMIN" && role !== "MANAGER"}
                 >
                   {editingWarehouseId ? "Cập nhật" : "Thêm"}
                 </button>

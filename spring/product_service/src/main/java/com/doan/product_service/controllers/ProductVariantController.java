@@ -32,7 +32,7 @@ public class ProductVariantController {
     private final BrandService brandService;
     private final CategoryService categoryService;
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/variants")
     public ResponseEntity<?> createProductVariant(@Valid @RequestPart("variant") VariantRequest request,
                                                   @RequestPart(value = "images", required = false) List<MultipartFile> images) {
@@ -86,7 +86,7 @@ public class ProductVariantController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PutMapping("/secure/variants/{id}")
     public ResponseEntity<?> updateVariantInfo(
             @PathVariable Long id,
@@ -103,7 +103,7 @@ public class ProductVariantController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping(value = "/secure/variants/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateVariantImages(
             @PathVariable Long id,
@@ -123,7 +123,7 @@ public class ProductVariantController {
     }
 
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/variants/active/{id}")
     public ResponseEntity<?> changeProductVariantActive(@PathVariable Long id) {
         try {
@@ -135,7 +135,7 @@ public class ProductVariantController {
     }
 
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @DeleteMapping("/secure/variants/{id}")
     public ResponseEntity<?> deleteProductVariant(@PathVariable Long id) {
         try {

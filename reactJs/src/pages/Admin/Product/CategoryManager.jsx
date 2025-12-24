@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { changeCategoryActive, createCategory, getAllCategories, updateCategory, deleteCategory } from "../../../apis/productApi";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiEye, FiTrash2 } from "react-icons/fi";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function CategoryManager() {
+  const {role}=useContext(AuthContext)
   const [categories, setCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -63,7 +65,7 @@ export default function CategoryManager() {
       const response = await createCategory(form.name, form.slug, imageFile || undefined);
 
       if (response?.error) {
-        setPopup({ message: response.error, type: "error" });
+        setPopup({ message:"Không thể tạo danh mục\n"+ response.error, type: "error" });
         return;
       }
 
@@ -84,7 +86,7 @@ export default function CategoryManager() {
       const response = await updateCategory(editingCategoryId, form.name, form.slug, imageFile || undefined);
 
       if (response?.error) {
-        setPopup({ message: response.error, type: "error" });
+        setPopup({ message:"Không thể cập nhật danh mục\n"+ response.error, type: "error" });
         return;
       }
 
@@ -104,7 +106,7 @@ export default function CategoryManager() {
     const response = await changeCategoryActive(id);
 
     if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
+      setPopup({ message:"Không thể cập nhật trạng thái danh mục\n"+ response.error, type: "error" });
       return;
     }
 
@@ -117,7 +119,7 @@ export default function CategoryManager() {
   const handleDeleteCategory = async (id) => {
     const response = await deleteCategory(id);
     if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
+      setPopup({ message:"Không thể xóa danh mục\n"+ response.error, type: "error" });
       return;
     }
     setPopup({ message: response.message || "Xóa danh mục thành công!", type: "success" });
@@ -209,7 +211,9 @@ export default function CategoryManager() {
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+            className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition
+               ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+            disabled={role !== "ADMIN" && role !== "MANAGER"}
           >
             Thêm danh mục
           </button>
@@ -301,7 +305,10 @@ export default function CategoryManager() {
                     className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
                         ${c.isActive ? "bg-green-500 text-white hover:bg-green-400"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`} onClick={() => toggleCategoryActive(c.id, c.isActive, c.name)}
+                      }
+                      ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                       onClick={() => toggleCategoryActive(c.id, c.isActive, c.name)}
+                       disabled={role !== "ADMIN" && role !== "MANAGER"}
                   >
                     {c.isActive ? "Hoạt động" : "Đã khóa"}
                   </button>
@@ -319,8 +326,10 @@ export default function CategoryManager() {
                       <FiEye></FiEye>
                     </button>
                     <button
-                      className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                      className={`p-2 text-red-600 hover:bg-red-100 rounded transition
+                         ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
                       onClick={() => toggleCategoryDelete(c.id, c.name)}
+                      disabled={role !== "ADMIN" && role !== "MANAGER"}
                     >
                       <FiTrash2></FiTrash2>
                     </button>
@@ -462,7 +471,9 @@ export default function CategoryManager() {
               </button>
               <button
                 onClick={editingCategoryId ? handleUpdateCategory : handleCreateCategory}
-                className="px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold"
+                className={`px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold
+                   ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={role !== "ADMIN" && role !== "MANAGER"}
               >
                 {editingCategoryId ? "Cập nhật" : "Thêm"}
               </button>

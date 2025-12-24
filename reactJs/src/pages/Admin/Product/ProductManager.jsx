@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import { FiRefreshCw, FiFilter, FiChevronRight, FiChevronLeft, FiEye, FiTrash2, FiStar } from "react-icons/fi";
@@ -11,8 +11,10 @@ import {
 import { FaChevronLeft, FaChevronRight, FaStar } from "react-icons/fa";
 import { FaX } from "react-icons/fa6";
 import RichTextEditor from "../../../components/RichTextEditor";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function ProductManager() {
+  const { role } = useContext(AuthContext);
   const [products, setProducts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -174,7 +176,7 @@ export default function ProductManager() {
       );
 
       if (response?.error) {
-        setPopup({ message: response.error, type: "error" });
+        setPopup({ message: "Không thể tạo sản phẩm\n" + response.error, type: "error" });
         return;
       }
 
@@ -280,7 +282,7 @@ export default function ProductManager() {
       );
 
       if (response?.error) {
-        setPopup({ message: response.error, type: "error" });
+        setPopup({ message: "Không thể cập nhật sản phẩm\n" + response.error, type: "error" });
         return;
       }
       setPopup({ message: "Cập nhật sản phẩm thành công!", type: "success" });
@@ -304,7 +306,7 @@ export default function ProductManager() {
   const handleChangeProductActive = async (id) => {
     const response = await changeProductActive(id);
     if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
+      setPopup({ message: "Không thể cập nhật trạng thái sản phẩm\n" + response.error, type: "error" });
       return;
     }
     setPopup({ message: "Cập nhật trạng thái thành công!", type: "success" });
@@ -316,7 +318,7 @@ export default function ProductManager() {
   const handleChangeProductFeatured = async (id) => {
     const response = await changeProductFeatured(id);
     if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
+      setPopup({ message: "Không thể cập nhật sản phẩm nổi bật\n" + response.error, type: "error" });
       return;
     }
     setPopup({ message: "Cập nhật sản phẩm nổi bật thành công!", type: "success" });
@@ -328,7 +330,7 @@ export default function ProductManager() {
   const handleDeleteProduct = async (id) => {
     const response = await deleteProduct(id);
     if (response?.error) {
-      setPopup({ message: response.error, type: "error" });
+      setPopup({ message: "Không thể xóa sản phẩm\n" + response.error, type: "error" });
       return;
     }
     setPopup({ message: "Xóa sản phẩm thành công!", type: "success" });
@@ -747,10 +749,11 @@ export default function ProductManager() {
                   <td className="p-3 border-b border-gray-200 text-center">
                     <button
                       className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
-                       ${p.isActive ? "bg-green-500 text-white hover:bg-green-400"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
+                        ${p.isActive ? "bg-green-500 text-white hover:bg-green-400"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"}
+                        ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
                       onClick={() => toggleProductActive(p.id, p.isActive, p.name)}
+                      disabled={role !== "ADMIN" && role !== "MANAGER"}
                     >
                       {p.isActive ? "Hoạt động" : "Đã khóa"}
                     </button>
@@ -760,8 +763,10 @@ export default function ProductManager() {
                       className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
                        ${p.isFeatured ? "bg-green-500 text-white hover:bg-green-400"
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
+                        }
+                        ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
                       onClick={() => toggleProductFeatured(p.id, p.isFeatured, p.name)}
+                      disabled={role !== "ADMIN" && role !== "MANAGER"}
                     >
                       {p.isFeatured ? "Nổi bật" : "Không"}
                     </button>
@@ -776,8 +781,10 @@ export default function ProductManager() {
                         <FiEye></FiEye>
                       </button>
                       <button
-                        className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                        className={`p-2 text-red-600 hover:bg-red-100 rounded transition 
+                        ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
                         onClick={() => toggleProductDelete(p.id, p.name)}
+                        disabled={role !== "ADMIN" && role !== "MANAGER"}
                       >
                         <FiTrash2></FiTrash2>
                       </button>
@@ -1078,9 +1085,10 @@ export default function ProductManager() {
               </button>
               <button
                 onClick={editingProductId ? handleUpdateProduct : handleCreateProduct}
-                className={`flex items-center gap-1 px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibol`}
+                className={`flex items-center gap-1 px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold
+                   ${role !== "ADMIN" && role !== "MANAGER" ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={role !== "ADMIN" && role !== "MANAGER"}
               >
-
                 {editingProductId ? "Cập nhật" : "Thêm"}
               </button>
             </div>

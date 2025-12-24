@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { getAllSuppliers, createSupplier, updateSupplier, deleteSupplier } from "../../../apis/inventoryApi";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import { FiEye, FiRefreshCw, FiTrash2 } from "react-icons/fi";
-
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function SupplierManager() {
+    const {role}=useContext(AuthContext)
     const [suppliers, setSuppliers] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ name: "", code: "", phone: "", email: "", address: "", taxCode: "", description: "" });
@@ -127,7 +128,9 @@ export default function SupplierManager() {
                     </button>
                     <button
                         onClick={() => setShowForm(true)}
-                        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+                        className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition
+                           ${role !== "ADMIN" && role !== "MANAGER" ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={role !== "ADMIN" && role !== "MANAGER"}
                     >
                         Thêm nhà cung cấp
                     </button>
@@ -224,8 +227,10 @@ export default function SupplierManager() {
                                                 <FiEye></FiEye>
                                             </button>
                                             <button
-                                                className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                                                className={`p-2 text-red-600 hover:bg-red-100 rounded transition
+                                                   ${role !== "ADMIN" && role !== "MANAGER" ? "opacity-50 cursor-not-allowed" : ""}`}
                                                 onClick={() => toggleSupplierDelete(s.id, s.name)}
+                                                disabled={role !== "ADMIN" && role !== "MANAGER"}
                                             >
                                                 <FiTrash2></FiTrash2>
                                             </button>
@@ -374,7 +379,9 @@ export default function SupplierManager() {
                             {!readOnly && (
                                 <button
                                     onClick={editingSupplierId ? handleUpdateSupplier : handleCreateSupplier}
-                                    className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500
+                                       ${role !== "ADMIN" && role !== "MANAGER" ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    disabled={role !== "ADMIN" && role !== "MANAGER"}
                                 >
                                     {editingSupplierId ? "Cập nhật" : "Thêm"}
                                 </button>

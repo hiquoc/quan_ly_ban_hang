@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import Popup from "../../../components/Popup";
 import ConfirmPanel from "../../../components/ConfirmPanel";
 import { FiRefreshCw, FiFilter, FiChevronRight, FiChevronLeft, FiEye, FiTrash2 } from "react-icons/fi";
@@ -15,8 +15,10 @@ import SearchableSelect from "../../../components/SearchableSelect";
 import { FaChevronLeft } from "react-icons/fa";
 import { FaChevronRight } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 export default function ProductVariantManager() {
+    const { role } = useContext(AuthContext)
     const navigate = useNavigate();
     const [variants, setVariants] = useState([]);
     const [products, setProducts] = useState([]);
@@ -358,7 +360,9 @@ export default function ProductVariantManager() {
                     <button onClick={() => handleLoadVariants(0)} className="flex items-center px-4 py-2 border rounded hover:bg-gray-200">
                         <FiRefreshCw className="h-5 w-5 mr-2" /> Làm mới
                     </button>
-                    <button onClick={handleAddVariant} className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800">
+                    <button onClick={handleAddVariant} className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800
+                     ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={role !== "ADMIN" && role !== "MANAGER"}>
                         Thêm biến thể
                     </button>
                 </div>
@@ -540,10 +544,12 @@ export default function ProductVariantManager() {
                                         <td className="p-2 border-b border-gray-200 text-center">
                                             <button
                                                 className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer transition
-                                            ${v.active ? "bg-green-500 text-white hover:bg-green-400"
+                                                    ${v.active ? "bg-green-500 text-white hover:bg-green-400"
                                                         : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                                    }`}
+                                                    }
+                                                    ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
                                                 onClick={() => toggleVariantActive(v.id, v.active, v.name)}
+                                                disabled={role !== "ADMIN" && role !== "MANAGER"}
                                             >
                                                 {v.active ? "Hoạt động" : "Đã khóa"}
                                             </button>
@@ -560,7 +566,9 @@ export default function ProductVariantManager() {
                                                 onClick={() => handleEditVariant(v)}>
                                                 <FiEye></FiEye>
                                             </button>
-                                            <button className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                                            <button className={`p-2 text-red-600 hover:bg-red-100 rounded transition
+                                             ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                disabled={role !== "ADMIN" && role !== "MANAGER"}
                                                 onClick={() => handleDeleteVariant(v.id, v.name)}>
                                                 <FiTrash2></FiTrash2></button>
                                         </td>
@@ -898,7 +906,9 @@ export default function ProductVariantManager() {
 
                             <button
                                 onClick={editingVariantId ? handleUpdateVariant : handleCreateVariant}
-                                className={`px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold flex items-center justify-center gap-2 }`}
+                                className={`px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors font-semibold flex items-center justify-center gap-2
+                                     ${(role !== "ADMIN" && role !== "MANAGER") ? "opacity-50 cursor-not-allowed" : ""}`}
+                                disabled={role !== "ADMIN" && role !== "MANAGER"}
                             >
                                 {editingVariantId ? "Cập nhật" : "Thêm"}
                             </button>

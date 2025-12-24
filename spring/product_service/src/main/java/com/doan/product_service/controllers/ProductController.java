@@ -37,7 +37,7 @@ public class ProductController {
     private final ProductDashboardService dashboardService;
     private final CloudinaryService cloudinaryService;
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/products")
     public ResponseEntity<?> createProduct(@RequestPart("product") @Valid ProductRequest productRequest,
                                            @RequestPart(value = "image", required = false) MultipartFile image) {
@@ -74,7 +74,7 @@ public class ProductController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF') or hasRole('SUPPORT')")
     @GetMapping("/secure/products")
     public ResponseEntity<?> getAllProductsIncludingInactive(
             @RequestParam(required = false) Integer page,
@@ -159,7 +159,7 @@ public class ProductController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PutMapping("/secure/products/{id}")
     public ResponseEntity<?> updateProduct(@PathVariable Long id,
                                            @RequestPart("product") @Valid ProductRequest productRequest,
@@ -174,7 +174,7 @@ public class ProductController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/products/active/{id}")
     public ResponseEntity<?> changeProductActive(@PathVariable Long id) {
         try {
@@ -185,7 +185,7 @@ public class ProductController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PatchMapping("/secure/products/featured/{id}")
     public ResponseEntity<?> changeProductFeatured(@PathVariable Long id) {
         try {
@@ -196,7 +196,7 @@ public class ProductController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @DeleteMapping("/secure/products/{id}")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try {
@@ -223,7 +223,7 @@ public class ProductController {
         productService.rebuildAll();
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping("/secure/images")
     public ResponseEntity<?> uploadPendingImage(@RequestPart MultipartFile image, @RequestHeader("X-Owner-Id") Long staffId) {
         try {
