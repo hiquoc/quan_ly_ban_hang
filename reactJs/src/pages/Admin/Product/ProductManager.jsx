@@ -836,7 +836,7 @@ export default function ProductManager() {
       {/* Add/Edit Product Form */}
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
-          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] max-h-[95vh] overflow-y-auto relative">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-[1100px] max-h-[90vh] overflow-y-auto relative">
             <div className="flex justify-between">
               <h3 className="text-3xl font-bold mb-5 text-black">
                 {editingProductId ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm"}

@@ -907,8 +907,8 @@ const AdminDashboard = () => {
                   {orderDetails.createdAt && <p>Ngày tạo: {new Date(orderDetails.createdAt).toLocaleString("vi-VN")}</p>}
                   {orderDetails.updatedAt && <p>Ngày cập nhật: {new Date(orderDetails.updatedAt).toLocaleString("vi-VN")}</p>}
                   {orderDetails.cancelledDate && <p>Ngày hủy: {new Date(orderDetails.cancelledDate).toLocaleString("vi-VN")}</p>}
-                  {orderDetails.confirmedBy && <p>NV xác nhận: {orderDetails.confirmedBy}</p>}
-                  {orderDetails.updatedBy && <p>NV cập nhật: {orderDetails.updatedBy}</p>}
+                  {orderDetails.confirmedBy && <p>NV xác nhận: NV{orderDetails.confirmedBy}</p>}
+                  {orderDetails.updatedBy && <p>NV cập nhật: NV{orderDetails.updatedBy}</p>}
                 </div>
               </div>
 
@@ -922,7 +922,7 @@ const AdminDashboard = () => {
                       alt={item.variantName}
                       className="w-20 h-20 object-cover rounded-md mr-4"
                     />
-                    <div className="flex flex-1 justify-between">
+                    <div className="flex flex-3 justify-between">
                       <div>
                         <p className="font-medium text-gray-800 line-clamp-1">{item.variantName}</p>
                         <p className="text-xs text-gray-500">{item.variantSku}</p>
@@ -938,7 +938,7 @@ const AdminDashboard = () => {
               {/* Main Panel: Address Left, Price Right */}
               <div className="flex flex-col md:flex-row gap-4 mb-4 px-2">
                 {/* Address */}
-                <div className="flex-1 flex flex-col gap-1 text-gray-700">
+                <div className="flex-2 flex flex-col gap-1 text-gray-700">
                   <div className="flex gap-3 items-center">
                     <FiUser className="text-xl flex-shrink-0" />
                     <p className="text-gray-700 font-semibold text-black">{orderDetails.shippingName}</p>

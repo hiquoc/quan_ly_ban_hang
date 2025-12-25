@@ -704,8 +704,6 @@ public class OrderService {
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
-        if (Objects.equals(order.getPaymentStatus().toString(), "PENDING") && !Objects.equals(order.getPaymentMethod(), "COD"))
-            throw new IllegalStateException("Đơn hàng phải được thanh toán trước khi xác nhận!");
 
         OrderStatus newStatus = orderStatusRepository.findById(statusId)
                 .orElseThrow(() -> new RuntimeException("Status not found with ID: " + statusId));
@@ -713,6 +711,12 @@ public class OrderService {
         OrderStatus oldStatus = order.getStatus();
         String oldStatusName = oldStatus.getName();
         String newStatusName = newStatus.getName();
+
+
+        if (!Objects.equals(newStatusName, "CANCELLED") &&
+                Objects.equals(order.getPaymentStatus().toString(), "PENDING") &&
+                !Objects.equals(order.getPaymentMethod(), "COD"))
+            throw new IllegalStateException("Đơn hàng phải được thanh toán trước khi xác nhận!");
 
         List<String> validNext = ALLOWED_TRANSITIONS.getOrDefault(oldStatusName, List.of());
         if (!validNext.contains(newStatusName)) {
@@ -1369,6 +1373,14 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Bạn không có quyền xác nhận đơn hàng nay!");
         order.setUserConfirmedAt(OffsetDateTime.now());
         orderRepository.save(order);
+        if (cacheManager != null) {
+            Cache cache = cacheManager.getCache("customerOrders");
+            if (cache != null) {
+                String key = order.getCustomerId() + ":ALL:";
+                cache.evict(key);
+            }
+        }
+
         return mapToResponse(order);
     }
 

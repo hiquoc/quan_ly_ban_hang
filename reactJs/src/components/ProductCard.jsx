@@ -78,6 +78,19 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
 
   const handleBuyNow = () => buyNow(selectedVariant.id);
 
+  function normalizeColorName(name) {
+    if (!name) return null;
+
+    const lower = name.toLowerCase();
+
+    if (lower.includes("xanh lá")) return "Xanh lá";
+    if (lower.includes("xanh")) return "Xanh";
+
+    return name;
+  }
+
+
+
   return (
     <div className="group relative flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-gray-100 h-[24rem]">
       {product.variants.length > 1 && (
@@ -193,16 +206,14 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
                   return (
                     <button
                       key={value}
-                      className={`transition-all duration-150 ${
-                        isColor
-                          ? `w-8 h-8 rounded-full border-2 ${isSelected ? "border-gray-900 ring-2 ring-gray-300" : "border-gray-300"}`
-                          : `px-3 py-2 rounded-lg border text-xs font-medium ${
-                              isSelected
-                                ? "border-black bg-black text-white"
-                                : "text-gray-700 border-gray-300 hover:bg-gray-100"
-                            }`
-                      }`}
-                      style={isColor ? { backgroundColor: ColorMap[value] || "#ccc" } : {}}
+                      className={`transition-all duration-150 ${isColor
+                        ? `w-8 h-8 rounded-full border-2 ${isSelected ? "border-gray-900 ring-2 ring-gray-300" : "border-gray-300"}`
+                        : `px-3 py-2 rounded-lg border text-xs font-medium ${isSelected
+                          ? "border-black bg-black text-white"
+                          : "text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }`
+                        }`}
+                      style={isColor ? { backgroundColor: ColorMap[normalizeColorName(value)] || "#ccc" } : {}}
                       onClick={() => {
                         const newAttrs = { ...selectedVariant.attributes, [attrName]: value };
                         const matched = product.variants.find((v) =>

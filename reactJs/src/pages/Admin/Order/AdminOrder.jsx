@@ -72,7 +72,7 @@ function AdminOrder() {
         const token = localStorage.getItem("token") || sessionStorage.getItem("token");
         connectWebSocket(token, (event) => {
             console.log("Order event:", event);
-            getData();
+            getData(currentPage);
         });
 
         return () => disconnectWebSocket();
@@ -548,7 +548,7 @@ function AdminOrder() {
                             {/* Main Panel: Address Left, Price Right */}
                             <div className="flex flex-col md:flex-row gap-4 mb-4 px-2">
                                 {/* Address */}
-                                <div className="flex-1 flex flex-col gap-1 text-gray-700">
+                                <div className="flex-3 flex flex-col gap-1 text-gray-700">
                                     <div className="flex gap-3 items-center">
                                         <FiUser className="text-xl flex-shrink-0" />
                                         <p className="text-gray-700 font-semibold text-black">{orderDetails.shippingName}</p>
@@ -568,7 +568,7 @@ function AdminOrder() {
                                 </div>
 
                                 {/* Price Summary */}
-                                <div className="flex-1 flex justify-end">
+                                <div className="flex-2 flex justify-end">
                                     <div className="grid grid-cols-[auto_1fr] gap-x-2 w-55 text-right items-center">
                                         <span className="text-gray-600">Tạm tính:</span>
                                         <span className="text-gray-800 font-semibold">{orderDetails.subtotal.toLocaleString()}₫</span>

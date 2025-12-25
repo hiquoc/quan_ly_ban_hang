@@ -715,7 +715,7 @@ export default function ProductDetails() {
                 </div >
 
                 {relativeProducts!=null && relativeProducts.length > 0 && (
-                    <div className="px-20 py-12">
+                    <div className="px-20 py-12 mt-5">
                         <div className="flex justify-between items-center mb-8">
                             <div>
                                 <h2 className="text-3xl font-bold text-gray-900">Sản phẩm tương tự</h2>

@@ -1,7 +1,6 @@
 export default {
   "Đỏ": "#FF0000",
   "Xanh": "#1e83f7ff",
-  "Xanh Đậm": "#0262cfff",
   "Xanh lá": "#00FF00",
   "Vàng": "#FFFF00",
   "Cam": "#FFA500",
