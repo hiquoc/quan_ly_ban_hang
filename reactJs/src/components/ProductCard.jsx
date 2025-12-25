@@ -81,14 +81,13 @@ const ProductCard = memo(function ProductCard({ product, preferDiscounted = true
   function normalizeColorName(name) {
     if (!name) return null;
 
-    const lower = name.toLowerCase();
+    const lower = name.toLowerCase().trim();
 
     if (lower.includes("xanh lá")) return "Xanh lá";
-    if (lower.includes("xanh")) return "Xanh";
 
-    return name;
+    const firstWord = lower.split(/\s+/)[0];
+    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
   }
-
 
 
   return (
