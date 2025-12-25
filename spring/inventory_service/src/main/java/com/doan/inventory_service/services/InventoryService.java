@@ -412,7 +412,7 @@ public class InventoryService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái giao dịch không hợp lệ!");
         }
         inventoryRepository.save(inventory);
-       webhookUtils.postToWebhook(inventory.getId(), "update");
+        webhookUtils.postToWebhook(inventory.getId(), "update");
 
         transaction.setNote(note);
         transaction.setUpdatedBy(staffId);
@@ -429,7 +429,7 @@ public class InventoryService {
             );
 
             if (orderUpdateRequest.getStatusId() != null) {
-                boolean isCompletedRequest = orderUpdateRequest.getStatusId() == 4L; // COMPLETED
+                boolean isShippingRequest = orderUpdateRequest.getStatusId() == 4L; // shipping
                 List<InventoryTransaction> allReserves =
                         inventoryTransactionRepository.findByReferenceTypeAndReferenceCodeAndTransactionTypeAndStatus(
                                 "ORDER", orderNumber, "RESERVE", "PENDING"
@@ -440,7 +440,7 @@ public class InventoryService {
                                     "ORDER", orderNumber, "EXPORT"
                             );
 
-                    if (isCompletedRequest) {
+                    if (isShippingRequest) {
                         for (InventoryTransaction i : allReserves) {
                             if (Objects.equals(i.getInventory().getId(), transaction.getInventory().getId())) {
                                 i.setStatus("COMPLETED");

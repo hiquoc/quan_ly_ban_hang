@@ -699,7 +699,7 @@ export default function CustomerPage() {
                   </span>
                 </p>
                 <p className="text-gray-700"><strong>SĐT:</strong> {customer?.phone || "-"}</p>
-                <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender === "MALE" ? "Nam" : customer?.gender === "FEMALE" ? "Nữ" : "-"}</p>
+                <p className="text-gray-700"><strong>Giới tính:</strong> {customer?.gender !== null ? customer?.gender :"-"}</p>
                 <p className="text-gray-700"><strong>Ngày sinh:</strong> {customer?.dateOfBirth || "-"}</p>
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => { setEditForm(customer); setShowEditForm(true); }} className="px-5 py-2 bg-black text-white rounded hover:bg-gray-900 flex items-center gap-2 hover:cursor-pointer"><FiEdit /> Chỉnh sửa</button>

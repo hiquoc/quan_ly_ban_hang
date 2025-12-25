@@ -297,7 +297,7 @@ public class DeliveryOrderService {
                 if(currentStatus==DeliveryStatus.SHIPPING ||currentStatus==DeliveryStatus.FAILED)
                     inventoryRepositoryClient.createReturnOrderTransaction(
                         new ReturnedOrderTransactionRequest(order.getOrderNumber(),order.getAssignedShipper().getId(),
-                                DeliveryStatus.CANCELLED.toString(),"Phiếu trả hàng tạo bởi shipper",order.getWarehouseId()));
+                                DeliveryStatus.CANCELLED.toString(),reason==null?"":reason,order.getWarehouseId()));
             }catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                         "Lỗi khi tạo phiếu trả hàng cho shipper! " + e.getMessage(), e);
