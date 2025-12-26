@@ -15,7 +15,7 @@ export default function AdminPromotion() {
     const [currentPage, setCurrentPage] = useState(0);
     const [page, setPage] = useState(0)
     const [totalPages, setTotalPages] = useState(0);
-    const [sortActive, setSortActive] = useState("");
+    const [sortActive, setSortActive] = useState("true");
     const [isLoading, setIsLoading] = useState(false);
 
     const [showModal, setShowModal] = useState(false);
@@ -44,7 +44,7 @@ export default function AdminPromotion() {
 
     useEffect(() => {
         getData(currentPage);
-    }, [currentPage]);
+    }, [currentPage,sortActive]);
 
     const getData = async (currentPage = page) => {
         setIsLoading(true);
